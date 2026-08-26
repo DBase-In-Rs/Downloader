@@ -45,6 +45,9 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
 
+  # Generates launcher icons for Android and Windows from assets/branding.
+  flutter_launcher_icons: ^0.14.4
+
   # The "flutter_lints" package below contains a set of recommended lints to
   # encourage good coding practices. The lint set provided by the package is
   # activated in the `analysis_options.yaml` file located at the root of your
@@ -55,6 +58,16 @@ dev_dependencies:
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
 
+flutter_launcher_icons:
+  android: true
+  image_path: assets/branding/icon_tile.png
+  adaptive_icon_background: "#012051"
+  adaptive_icon_foreground: assets/branding/icon_foreground.png
+  windows:
+    generate: true
+    image_path: assets/branding/icon_tile.png
+    icon_size: 256
+
 # The following section is specific to Flutter packages.
 flutter:
 
@@ -62,6 +75,9 @@ flutter:
   # included with your application, so that you can use the icons in
   # the material Icons class.
   uses-material-design: true
+
+  assets:
+    - assets/branding/logo.png
 
   # To add assets to your application, add an assets section, like this:
   # assets:

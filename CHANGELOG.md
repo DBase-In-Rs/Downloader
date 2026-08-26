@@ -10,6 +10,9 @@ versioning once releases begin.
 
 ### Added
 
+- App branding: new launcher icon on Android (adaptive) and Windows, a dark
+  branded native launch screen, and an in-app splash with the logo and a
+  progress indicator while the yt-dlp engine updates on startup.
 - Open Source Licenses screen in Settings (Flutter license registry).
 - Release compliance audit: recorded dependency versions and licenses,
   update strategy, source availability, and source bundle procedure in

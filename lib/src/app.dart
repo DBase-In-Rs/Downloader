@@ -69,6 +69,7 @@ class DBaseDownloaderHome extends StatefulWidget {
 
 class _DBaseDownloaderHomeState extends State<DBaseDownloaderHome> {
   late final AppController _controller;
+  var _splashDismissed = false;
 
   @override
   void initState() {
@@ -91,6 +92,21 @@ class _DBaseDownloaderHomeState extends State<DBaseDownloaderHome> {
     return AnimatedBuilder(
       animation: _controller,
       builder: (context, _) {
+        // Hold the splash while the startup engine check/download runs; a
+        // later manual check from Settings must not bring the splash back.
+        final engineBusy =
+            _controller.engineUpdateState == EngineUpdateState.idle ||
+            _controller.engineUpdateState == EngineUpdateState.checking;
+        if (!_splashDismissed && !engineBusy) {
+          _splashDismissed = true;
+        }
+        if (!_splashDismissed) {
+          return _SplashScreen(
+            updating:
+                _controller.engineUpdateState == EngineUpdateState.checking,
+          );
+        }
+
         return LayoutBuilder(
           builder: (context, constraints) {
             final wide = constraints.maxWidth >= 900;
@@ -130,6 +146,43 @@ class _DBaseDownloaderHomeState extends State<DBaseDownloaderHome> {
           },
         );
       },
+    );
+  }
+}
+
+class _SplashScreen extends StatelessWidget {
+  const _SplashScreen({required this.updating});
+
+  final bool updating;
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFF012051),
+      body: Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Image.asset('assets/branding/logo.png', width: 160, height: 160),
+            const SizedBox(height: 28),
+            const SizedBox(
+              width: 28,
+              height: 28,
+              child: CircularProgressIndicator(
+                strokeWidth: 3,
+                color: Colors.white70,
+              ),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              updating
+                  ? 'Preparing downloader engine...'
+                  : 'Starting...',
+              style: const TextStyle(color: Colors.white70, fontSize: 14),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
