@@ -12,11 +12,31 @@ class QueuePage extends StatelessWidget {
   Widget build(BuildContext context) {
     final queue = controller.queue;
 
+    final paused = controller.queuePaused;
+
     return PageSurface(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const SectionHeader(title: 'Queue', icon: Icons.downloading),
+          SectionHeader(
+            title: 'Queue',
+            icon: Icons.downloading,
+            trailing: IconButton(
+              tooltip: paused ? 'Resume queue' : 'Pause queue',
+              onPressed: paused
+                  ? controller.resumeQueue
+                  : controller.pauseQueue,
+              icon: Icon(paused ? Icons.play_arrow : Icons.pause),
+            ),
+          ),
+          if (paused) ...[
+            const SizedBox(height: 8),
+            Text(
+              'Queue is paused. The active download finishes, but waiting '
+              'items will not start until you resume.',
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+          ],
           const SizedBox(height: 16),
           Expanded(
             child: queue.isEmpty

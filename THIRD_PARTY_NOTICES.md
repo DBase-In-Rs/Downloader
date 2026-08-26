@@ -26,6 +26,7 @@ GPL-3.0-only.
 | youtubedl-android FFmpeg artifact | Android conversion/remuxing | LGPL or GPL depending on bundled FFmpeg build flags and linked libraries | Android app currently uses `io.github.junkfood02.youtubedl-android:ffmpeg:0.18.1`; document configure flags, source offer, and license before public binary release. |
 | FFmpeg | Desktop conversion/remuxing if bundled separately | LGPL or GPL depending on build flags and linked libraries | Document artifact, configure flags, source offer, and license. |
 | Jackson Databind | Android JSON parsing for youtubedl-android metadata output | Apache-2.0 | Android app directly depends on `com.fasterxml.jackson.core:jackson-databind:2.11.1` because the youtubedl-android object mapper is used from the app module. |
+| shared_preferences | Flutter plugin for local key-value storage used for download queue persistence | BSD-3-Clause | Include in generated Flutter/Dart package notices. |
 | Desktop yt-dlp binary | Windows/macOS extraction backend if bundled | To be verified before bundling | Prefer user-selected binary until release packaging is decided. |
 | Desktop FFmpeg binary | Windows/macOS conversion backend if bundled | To be verified before bundling | Prefer user-selected binary until release packaging is decided. |
 
@@ -61,6 +62,11 @@ packaging is configured in `android/app/build.gradle.kts` through
 from debug-symbol stripping because it is a zip payload named like a shared
 object, not a normal ELF object. The same keep-debug-symbol rule is applied to
 `libffmpeg.zip.so`.
+
+Kotlin incremental compilation is disabled in `android/gradle.properties`
+(`kotlin.incremental=false`) because it fails on Windows when Flutter plugin
+sources in the pub cache and the project build directory are on different
+drive roots.
 
 ## Store And Provider Policy Notes
 

@@ -1,7 +1,7 @@
 # DBase Video & Music Downloader Plan
 
-Status: Android MVP implementation in progress; native metadata/download path
-implemented, device QA pending
+Status: Android MVP implemented and device QA pending; queue states,
+sequential execution, pause/resume, retry, and queue persistence implemented
 
 Canonical app/package id: `rs.in.dbase.downloader`
 
@@ -281,16 +281,32 @@ Goal: support real user workflows beyond one download.
 
 Tasks:
 
-- [ ] Add queue states: pending, running, paused, completed, failed, canceled.
-- [ ] Add sequential execution.
-- [ ] Add pause/resume queue controls.
-- [ ] Add retry failed item.
-- [ ] Add queue persistence for app restart.
+- [x] Add queue states: pending, running, paused, completed, failed, canceled.
+- [x] Add sequential execution.
+- [x] Add pause/resume queue controls.
+- [x] Add retry failed item.
+- [x] Add queue persistence for app restart.
 
 Acceptance criteria:
 
 - User can queue multiple items.
 - Queue survives app restart without corrupting active state.
+
+Verification on 2026-08-26:
+
+- Queue orchestration is Dart-side in `AppController`: one download runs at a
+  time, the next pending item starts on a terminal event.
+- Pause stops new items from starting; the active download finishes. Paused
+  state and waiting items persist through restart.
+- Failed/canceled history items expose a retry action that re-enqueues the
+  same URL/format/output.
+- Queue snapshots persist through `shared_preferences`; a persisted running
+  item is restored as pending because native downloads do not survive restart.
+- `flutter analyze` passed.
+- `flutter test` passed, including new sequential/pause/retry/restore tests.
+- `flutter build apk --debug` passed after disabling Kotlin incremental
+  compilation (`kotlin.incremental=false`), which fails on Windows when the
+  pub cache and the project are on different drive roots.
 
 ### Sprint 3.2 - Playlist
 

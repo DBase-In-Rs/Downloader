@@ -29,3 +29,6 @@ versioning once releases begin.
 - Android FFmpeg artifact integration for MP3/M4A extraction and MP4 merge.
 - Android MediaStore save path for completed audio and video files.
 - Jackson Databind dependency for app-side parsing of yt-dlp JSON metadata.
+- Sequential download queue with paused state, pause/resume controls, and
+  retry for failed or canceled items.
+- Queue persistence across app restarts through `shared_preferences`.

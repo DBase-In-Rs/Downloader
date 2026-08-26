@@ -4,6 +4,7 @@ import 'fake_media_backend.dart';
 import 'media_backend.dart';
 import 'platform_media_backend.dart';
 import 'platform_shared_url_service.dart';
+import 'queue_store.dart';
 import 'shared_url_service.dart';
 
 MediaBackend createMediaBackend() {
@@ -20,4 +21,12 @@ SharedUrlService createSharedUrlService() {
   }
 
   return const FakeSharedUrlService();
+}
+
+QueueStore createQueueStore() {
+  if (kIsWeb) {
+    return MemoryQueueStore();
+  }
+
+  return SharedPreferencesQueueStore();
 }

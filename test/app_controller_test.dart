@@ -1,8 +1,89 @@
+import 'dart:async';
+
 import 'package:dbase_downloader/src/models/download_models.dart';
 import 'package:dbase_downloader/src/services/app_controller.dart';
 import 'package:dbase_downloader/src/services/fake_media_backend.dart';
+import 'package:dbase_downloader/src/services/media_backend.dart';
+import 'package:dbase_downloader/src/services/queue_store.dart';
 import 'package:dbase_downloader/src/services/shared_url_service.dart';
 import 'package:flutter_test/flutter_test.dart';
+
+class ManualMediaBackend implements MediaBackend {
+  final _events = StreamController<BackendEvent>.broadcast();
+  final started = <DownloadRequest>[];
+  final canceled = <String>[];
+
+  @override
+  Stream<BackendEvent> get events => _events.stream;
+
+  @override
+  Future<MediaInfo> getInfo(MediaInfoRequest request) async {
+    return MediaInfo(
+      url: request.url,
+      title: 'Manual media',
+      formats: const [
+        MediaFormat(
+          id: 'best_mp4',
+          extension: 'mp4',
+          kind: MediaKind.muxed,
+          qualityLabel: '1080p',
+        ),
+      ],
+    );
+  }
+
+  @override
+  Future<void> startDownload(DownloadRequest request) async {
+    started.add(request);
+  }
+
+  @override
+  Future<void> cancelDownload(String id) async {
+    canceled.add(id);
+    emitCanceled(id);
+  }
+
+  void emitCompleted(String id) {
+    _events.add(DownloadCompletedEvent(id: id, outputLocation: 'out/$id'));
+  }
+
+  void emitFailed(String id, String message) {
+    _events.add(DownloadFailedEvent(id: id, message: message));
+  }
+
+  void emitCanceled(String id) {
+    _events.add(DownloadCanceledEvent(id));
+  }
+
+  @override
+  Future<CookieStatus> getCookieStatus() async => const CookieStatus.empty();
+
+  @override
+  Future<void> importCookies(String path) async {}
+
+  @override
+  Future<void> clearCookies() async {}
+
+  @override
+  void dispose() {
+    _events.close();
+  }
+}
+
+Future<AppController> analyzedController(
+  ManualMediaBackend backend, {
+  QueueStore? queueStore,
+}) async {
+  final controller = AppController(
+    backend: backend,
+    sharedUrlService: const FakeSharedUrlService(),
+    queueStore: queueStore,
+  );
+  await controller.initialize();
+  controller.setUrlText('https://example.com/media');
+  await controller.analyzeUrl();
+  return controller;
+}
 
 void main() {
   test('validates http and https URLs only', () {
@@ -33,5 +114,163 @@ void main() {
     expect(controller.extractionState, ExtractionState.loaded);
     expect(controller.mediaInfo?.title, 'Sample media preview');
     expect(controller.visibleFormats, hasLength(4));
+  });
+
+  test('queue item serialization round-trips', () {
+    const item = DownloadQueueItem(
+      id: '42',
+      url: 'https://example.com/media',
+      title: 'Media title',
+      format: MediaFormat(
+        id: 'best_mp4',
+        extension: 'mp4',
+        kind: MediaKind.muxed,
+        qualityLabel: '1080p',
+      ),
+      outputKind: OutputKind.mp4,
+      status: DownloadStatus.paused,
+      errorMessage: 'boom',
+    );
+
+    final restored = DownloadQueueItem.fromMap(item.toMap());
+
+    expect(restored.id, item.id);
+    expect(restored.url, item.url);
+    expect(restored.title, item.title);
+    expect(restored.format.id, item.format.id);
+    expect(restored.outputKind, item.outputKind);
+    expect(restored.status, item.status);
+    expect(restored.errorMessage, item.errorMessage);
+  });
+
+  test('queue runs downloads sequentially', () async {
+    final backend = ManualMediaBackend();
+    final controller = await analyzedController(backend);
+    addTearDown(controller.dispose);
+
+    final format = controller.visibleFormats.single;
+    await controller.startDownload(format);
+    await controller.startDownload(format);
+
+    expect(backend.started, hasLength(1));
+    expect(controller.queue, hasLength(2));
+    expect(controller.queue[0].status, DownloadStatus.running);
+    expect(controller.queue[1].status, DownloadStatus.pending);
+
+    backend.emitCompleted(backend.started[0].id);
+    await pumpEventQueue();
+
+    expect(backend.started, hasLength(2));
+    expect(controller.queue, hasLength(1));
+    expect(controller.queue[0].status, DownloadStatus.running);
+    expect(controller.history.single.status, DownloadStatus.completed);
+  });
+
+  test('paused queue does not start new downloads until resumed', () async {
+    final backend = ManualMediaBackend();
+    final controller = await analyzedController(backend);
+    addTearDown(controller.dispose);
+
+    await controller.pauseQueue();
+    await controller.startDownload(controller.visibleFormats.single);
+
+    expect(controller.queuePaused, isTrue);
+    expect(backend.started, isEmpty);
+    expect(controller.queue.single.status, DownloadStatus.paused);
+
+    await controller.resumeQueue();
+
+    expect(controller.queuePaused, isFalse);
+    expect(backend.started, hasLength(1));
+    expect(controller.queue.single.status, DownloadStatus.running);
+  });
+
+  test('failed download moves to history and can be retried', () async {
+    final backend = ManualMediaBackend();
+    final controller = await analyzedController(backend);
+    addTearDown(controller.dispose);
+
+    await controller.startDownload(controller.visibleFormats.single);
+    backend.emitFailed(backend.started.single.id, 'Network error.');
+    await pumpEventQueue();
+
+    expect(controller.queue, isEmpty);
+    final failed = controller.history.single;
+    expect(failed.status, DownloadStatus.failed);
+    expect(failed.errorMessage, 'Network error.');
+
+    await controller.retryDownload(failed);
+
+    expect(backend.started, hasLength(2));
+    expect(controller.queue.single.status, DownloadStatus.running);
+    expect(controller.queue.single.url, failed.url);
+  });
+
+  test('canceling a waiting item does not call the backend', () async {
+    final backend = ManualMediaBackend();
+    final controller = await analyzedController(backend);
+    addTearDown(controller.dispose);
+
+    final format = controller.visibleFormats.single;
+    await controller.startDownload(format);
+    await controller.startDownload(format);
+
+    final waitingId = controller.queue[1].id;
+    await controller.cancelDownload(waitingId);
+    await pumpEventQueue();
+
+    expect(backend.canceled, isEmpty);
+    expect(controller.queue, hasLength(1));
+    expect(controller.history.single.status, DownloadStatus.canceled);
+  });
+
+  test('queue is restored from the store after a restart', () async {
+    final store = MemoryQueueStore();
+    final backend = ManualMediaBackend();
+    final controller = await analyzedController(backend, queueStore: store);
+
+    final format = controller.visibleFormats.single;
+    await controller.startDownload(format);
+    await controller.startDownload(format);
+    expect(controller.queue, hasLength(2));
+    controller.dispose();
+
+    final restartedBackend = ManualMediaBackend();
+    final restarted = AppController(
+      backend: restartedBackend,
+      sharedUrlService: const FakeSharedUrlService(),
+      queueStore: store,
+    );
+    addTearDown(restarted.dispose);
+    await restarted.initialize();
+
+    // The previously running item is re-queued and started again.
+    expect(restarted.queue, hasLength(2));
+    expect(restartedBackend.started, hasLength(1));
+    expect(restarted.queue[0].status, DownloadStatus.running);
+    expect(restarted.queue[1].status, DownloadStatus.pending);
+  });
+
+  test('paused state survives a restart', () async {
+    final store = MemoryQueueStore();
+    final backend = ManualMediaBackend();
+    final controller = await analyzedController(backend, queueStore: store);
+
+    await controller.pauseQueue();
+    await controller.startDownload(controller.visibleFormats.single);
+    controller.dispose();
+
+    final restartedBackend = ManualMediaBackend();
+    final restarted = AppController(
+      backend: restartedBackend,
+      sharedUrlService: const FakeSharedUrlService(),
+      queueStore: store,
+    );
+    addTearDown(restarted.dispose);
+    await restarted.initialize();
+
+    expect(restarted.queuePaused, isTrue);
+    expect(restartedBackend.started, isEmpty);
+    expect(restarted.queue.single.status, DownloadStatus.paused);
   });
 }

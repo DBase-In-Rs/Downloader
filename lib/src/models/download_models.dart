@@ -8,7 +8,7 @@ enum MediaKindFilter { all, audio, video }
 
 enum OutputKind { mp3, m4a, mp4, original }
 
-enum DownloadStatus { pending, running, completed, failed, canceled }
+enum DownloadStatus { pending, running, paused, completed, failed, canceled }
 
 class MediaInfoRequest {
   const MediaInfoRequest({required this.url, this.useCookies = false});
@@ -240,6 +240,32 @@ class DownloadQueueItem {
       errorMessage: errorMessage ?? this.errorMessage,
     );
   }
+
+  factory DownloadQueueItem.fromMap(Map<Object?, Object?> map) {
+    return DownloadQueueItem(
+      id: stringValue(map['id']) ?? '',
+      url: stringValue(map['url']) ?? '',
+      title: stringValue(map['title']) ?? 'Untitled media',
+      format: MediaFormat.fromMap(mapValue(map['format'])),
+      outputKind: outputKindFromString(stringValue(map['outputKind'])),
+      status: downloadStatusFromString(stringValue(map['status'])),
+      outputLocation: stringValue(map['outputLocation']),
+      errorMessage: stringValue(map['errorMessage']),
+    );
+  }
+
+  Map<String, Object?> toMap() {
+    return {
+      'id': id,
+      'url': url,
+      'title': title,
+      'format': format.toMap(),
+      'outputKind': outputKind.name,
+      'status': status.name,
+      'outputLocation': outputLocation,
+      'errorMessage': errorMessage,
+    };
+  }
 }
 
 class CookieStatus {
@@ -273,6 +299,17 @@ MediaKind mediaKindFromString(String? value) {
     'video' => MediaKind.video,
     'muxed' => MediaKind.muxed,
     _ => MediaKind.unknown,
+  };
+}
+
+DownloadStatus downloadStatusFromString(String? value) {
+  return switch (value) {
+    'running' => DownloadStatus.running,
+    'paused' => DownloadStatus.paused,
+    'completed' => DownloadStatus.completed,
+    'failed' => DownloadStatus.failed,
+    'canceled' => DownloadStatus.canceled,
+    _ => DownloadStatus.pending,
   };
 }
 
@@ -411,6 +448,14 @@ Duration? durationFromSeconds(Object? value) {
   }
 
   return Duration(seconds: seconds);
+}
+
+Map<Object?, Object?> mapValue(Object? value) {
+  if (value is Map) {
+    return Map<Object?, Object?>.from(value);
+  }
+
+  return const {};
 }
 
 List<Map<Object?, Object?>> listOfMaps(Object? value) {

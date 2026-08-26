@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'models/download_models.dart';
 import 'services/app_controller.dart';
 import 'services/media_backend.dart';
+import 'services/queue_store.dart';
 import 'services/shared_url_service.dart';
 import 'ui/history_page.dart';
 import 'ui/home_page.dart';
@@ -13,11 +14,13 @@ class DBaseDownloaderApp extends StatelessWidget {
   const DBaseDownloaderApp({
     required this.backend,
     required this.sharedUrlService,
+    this.queueStore,
     super.key,
   });
 
   final MediaBackend backend;
   final SharedUrlService sharedUrlService;
+  final QueueStore? queueStore;
 
   @override
   Widget build(BuildContext context) {
@@ -42,6 +45,7 @@ class DBaseDownloaderApp extends StatelessWidget {
       home: DBaseDownloaderHome(
         backend: backend,
         sharedUrlService: sharedUrlService,
+        queueStore: queueStore,
       ),
     );
   }
@@ -51,11 +55,13 @@ class DBaseDownloaderHome extends StatefulWidget {
   const DBaseDownloaderHome({
     required this.backend,
     required this.sharedUrlService,
+    this.queueStore,
     super.key,
   });
 
   final MediaBackend backend;
   final SharedUrlService sharedUrlService;
+  final QueueStore? queueStore;
 
   @override
   State<DBaseDownloaderHome> createState() => _DBaseDownloaderHomeState();
@@ -70,6 +76,7 @@ class _DBaseDownloaderHomeState extends State<DBaseDownloaderHome> {
     _controller = AppController(
       backend: widget.backend,
       sharedUrlService: widget.sharedUrlService,
+      queueStore: widget.queueStore,
     )..initialize();
   }
 

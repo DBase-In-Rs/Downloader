@@ -73,12 +73,14 @@ Implemented:
 - Android foreground service for active downloads.
 - Android MediaStore save for audio/video on Android 10+.
 - Documented channel schema in [docs/PLATFORM_CHANNELS.md](docs/PLATFORM_CHANNELS.md).
+- Sequential download queue with pause/resume, retry for failed items, and
+  queue persistence across app restarts.
 
 Still pending:
 
 - real-device Android share/download/conversion/MediaStore QA;
 - Storage Access Framework fallback;
-- queue persistence and local history database;
+- local history database;
 - playlist expansion;
 - cookie import.
 - real Windows, macOS, and iOS media backends.

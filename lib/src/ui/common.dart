@@ -82,10 +82,16 @@ class EmptyState extends StatelessWidget {
 }
 
 class DownloadItemTile extends StatelessWidget {
-  const DownloadItemTile({required this.item, this.onCancel, super.key});
+  const DownloadItemTile({
+    required this.item,
+    this.onCancel,
+    this.onRetry,
+    super.key,
+  });
 
   final DownloadQueueItem item;
   final VoidCallback? onCancel;
+  final VoidCallback? onRetry;
 
   @override
   Widget build(BuildContext context) {
@@ -121,8 +127,15 @@ class DownloadItemTile extends StatelessWidget {
                     ],
                   ),
                 ),
-                if (onCancel != null &&
-                    item.status == DownloadStatus.running) ...[
+                if (onRetry != null) ...[
+                  const SizedBox(width: 8),
+                  IconButton(
+                    tooltip: 'Retry download',
+                    onPressed: onRetry,
+                    icon: const Icon(Icons.refresh),
+                  ),
+                ],
+                if (onCancel != null && _cancelable(item.status)) ...[
                   const SizedBox(width: 8),
                   IconButton(
                     tooltip: 'Cancel',
@@ -176,10 +189,17 @@ class DownloadItemTile extends StatelessWidget {
     );
   }
 
+  bool _cancelable(DownloadStatus status) {
+    return status == DownloadStatus.pending ||
+        status == DownloadStatus.paused ||
+        status == DownloadStatus.running;
+  }
+
   IconData _statusIcon(DownloadStatus status) {
     return switch (status) {
       DownloadStatus.pending => Icons.pending,
       DownloadStatus.running => Icons.downloading,
+      DownloadStatus.paused => Icons.pause_circle,
       DownloadStatus.completed => Icons.check_circle,
       DownloadStatus.failed => Icons.error,
       DownloadStatus.canceled => Icons.cancel,

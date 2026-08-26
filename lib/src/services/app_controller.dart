@@ -4,10 +4,15 @@ import 'package:flutter/foundation.dart';
 
 import '../models/download_models.dart';
 import 'media_backend.dart';
+import 'queue_store.dart';
 import 'shared_url_service.dart';
 
 class AppController extends ChangeNotifier {
-  AppController({required this.backend, required this.sharedUrlService}) {
+  AppController({
+    required this.backend,
+    required this.sharedUrlService,
+    QueueStore? queueStore,
+  }) : queueStore = queueStore ?? MemoryQueueStore() {
     _backendSubscription = backend.events.listen(_handleBackendEvent);
     _sharedUrlSubscription = sharedUrlService.sharedTextStream.listen(
       receiveSharedText,
@@ -16,6 +21,7 @@ class AppController extends ChangeNotifier {
 
   final MediaBackend backend;
   final SharedUrlService sharedUrlService;
+  final QueueStore queueStore;
 
   late final StreamSubscription<BackendEvent> _backendSubscription;
   late final StreamSubscription<String> _sharedUrlSubscription;
@@ -28,6 +34,7 @@ class AppController extends ChangeNotifier {
   MediaKindFilter _formatFilter = MediaKindFilter.all;
   OutputKind _outputKind = OutputKind.mp3;
   CookieStatus _cookieStatus = const CookieStatus.empty();
+  bool _queuePaused = false;
   final List<DownloadQueueItem> _queue = [];
   final List<DownloadQueueItem> _history = [];
 
@@ -46,6 +53,8 @@ class AppController extends ChangeNotifier {
   OutputKind get outputKind => _outputKind;
 
   CookieStatus get cookieStatus => _cookieStatus;
+
+  bool get queuePaused => _queuePaused;
 
   List<DownloadQueueItem> get queue => List.unmodifiable(_queue);
 
@@ -68,12 +77,14 @@ class AppController extends ChangeNotifier {
 
   Future<void> initialize() async {
     _cookieStatus = await backend.getCookieStatus();
+    await _restoreQueue();
     final sharedText = await sharedUrlService.getInitialSharedText();
     if (sharedText != null && sharedText.trim().isNotEmpty) {
       receiveSharedText(sharedText);
     } else {
       notifyListeners();
     }
+    await _pumpQueue();
   }
 
   void setSection(AppSection section) {
@@ -163,47 +174,62 @@ class AppController extends ChangeNotifier {
       return;
     }
 
-    final id = DateTime.now().microsecondsSinceEpoch.toString();
-    final item = DownloadQueueItem(
-      id: id,
+    await _enqueue(
       url: info.url,
       title: info.title,
       format: format,
       outputKind: _outputKind,
-      status: DownloadStatus.pending,
     );
-
-    _queue.insert(0, item);
-    _section = AppSection.queue;
-    notifyListeners();
-
-    try {
-      await backend.startDownload(
-        DownloadRequest(
-          id: id,
-          url: info.url,
-          formatId: format.id,
-          outputKind: _outputKind,
-          title: info.title,
-        ),
-      );
-      _replaceQueueItem(
-        id,
-        (current) => current.copyWith(status: DownloadStatus.running),
-      );
-    } catch (error) {
-      _replaceQueueItem(
-        id,
-        (current) => current.copyWith(
-          status: DownloadStatus.failed,
-          errorMessage: _friendlyError(error),
-        ),
-      );
-    }
   }
 
-  Future<void> cancelDownload(String id) {
-    return backend.cancelDownload(id);
+  Future<void> retryDownload(DownloadQueueItem source) async {
+    await _enqueue(
+      url: source.url,
+      title: source.title,
+      format: source.format,
+      outputKind: source.outputKind,
+    );
+  }
+
+  Future<void> pauseQueue() async {
+    if (_queuePaused) {
+      return;
+    }
+
+    _queuePaused = true;
+    _setWaitingStatuses(DownloadStatus.pending, DownloadStatus.paused);
+    notifyListeners();
+    await _persistQueue();
+  }
+
+  Future<void> resumeQueue() async {
+    if (!_queuePaused) {
+      return;
+    }
+
+    _queuePaused = false;
+    _setWaitingStatuses(DownloadStatus.paused, DownloadStatus.pending);
+    notifyListeners();
+    await _persistQueue();
+    await _pumpQueue();
+  }
+
+  Future<void> cancelDownload(String id) async {
+    final index = _queue.indexWhere((item) => item.id == id);
+    if (index == -1) {
+      return;
+    }
+
+    if (_queue[index].status == DownloadStatus.running) {
+      // The backend confirms with a canceled event that finishes the item.
+      await backend.cancelDownload(id);
+      return;
+    }
+
+    _finishQueueItem(
+      id,
+      (current) => current.copyWith(status: DownloadStatus.canceled),
+    );
   }
 
   Future<void> clearCookies() async {
@@ -224,6 +250,116 @@ class AppController extends ChangeNotifier {
     backend.dispose();
     sharedUrlService.dispose();
     super.dispose();
+  }
+
+  Future<void> _enqueue({
+    required String url,
+    required String title,
+    required MediaFormat format,
+    required OutputKind outputKind,
+  }) async {
+    final item = DownloadQueueItem(
+      id: DateTime.now().microsecondsSinceEpoch.toString(),
+      url: url,
+      title: title,
+      format: format,
+      outputKind: outputKind,
+      status: _queuePaused ? DownloadStatus.paused : DownloadStatus.pending,
+    );
+
+    _queue.add(item);
+    _section = AppSection.queue;
+    notifyListeners();
+    await _persistQueue();
+    await _pumpQueue();
+  }
+
+  Future<void> _pumpQueue() async {
+    if (_queuePaused) {
+      return;
+    }
+
+    if (_queue.any((item) => item.status == DownloadStatus.running)) {
+      return;
+    }
+
+    final index = _queue.indexWhere(
+      (item) => item.status == DownloadStatus.pending,
+    );
+    if (index == -1) {
+      return;
+    }
+
+    final item = _queue[index].copyWith(status: DownloadStatus.running);
+    _queue[index] = item;
+    notifyListeners();
+    await _persistQueue();
+
+    try {
+      await backend.startDownload(
+        DownloadRequest(
+          id: item.id,
+          url: item.url,
+          formatId: item.format.id,
+          outputKind: item.outputKind,
+          title: item.title,
+        ),
+      );
+    } catch (error) {
+      _finishQueueItem(
+        item.id,
+        (current) => current.copyWith(
+          status: DownloadStatus.failed,
+          errorMessage: _friendlyError(error),
+        ),
+      );
+    }
+  }
+
+  Future<void> _restoreQueue() async {
+    final snapshot = await queueStore.load();
+    if (snapshot == null) {
+      return;
+    }
+
+    _queuePaused = snapshot.paused;
+    _queue
+      ..clear()
+      ..addAll(
+        snapshot.items.where(_isWaitingOrRunning).map(_restoredItem),
+      );
+  }
+
+  bool _isWaitingOrRunning(DownloadQueueItem item) {
+    return item.status == DownloadStatus.pending ||
+        item.status == DownloadStatus.paused ||
+        item.status == DownloadStatus.running;
+  }
+
+  DownloadQueueItem _restoredItem(DownloadQueueItem item) {
+    // Native downloads do not survive an app restart, so a persisted running
+    // item is re-queued instead of restored as running.
+    return item.copyWith(
+      status: _queuePaused ? DownloadStatus.paused : DownloadStatus.pending,
+    );
+  }
+
+  void _setWaitingStatuses(DownloadStatus from, DownloadStatus to) {
+    for (var i = 0; i < _queue.length; i++) {
+      if (_queue[i].status == from) {
+        _queue[i] = _queue[i].copyWith(status: to);
+      }
+    }
+  }
+
+  Future<void> _persistQueue() async {
+    try {
+      await queueStore.save(
+        QueueSnapshot(items: List.of(_queue), paused: _queuePaused),
+      );
+    } catch (_) {
+      // Persistence failures must not break active downloads.
+    }
   }
 
   void _handleBackendEvent(BackendEvent event) {
@@ -288,6 +424,8 @@ class AppController extends ChangeNotifier {
     final finished = update(_queue.removeAt(index));
     _history.insert(0, finished);
     notifyListeners();
+    unawaited(_persistQueue());
+    unawaited(_pumpQueue());
   }
 
   String _friendlyError(Object error) {

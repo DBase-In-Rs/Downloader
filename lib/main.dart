@@ -10,6 +10,7 @@ void main() {
     DBaseDownloaderApp(
       backend: createMediaBackend(),
       sharedUrlService: createSharedUrlService(),
+      queueStore: createQueueStore(),
     ),
   );
 }

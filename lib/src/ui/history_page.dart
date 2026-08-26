@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../models/download_models.dart';
 import '../services/app_controller.dart';
 import 'common.dart';
 
@@ -38,7 +39,16 @@ class HistoryPage extends StatelessWidget {
                     itemCount: history.length,
                     separatorBuilder: (_, _) => const SizedBox(height: 10),
                     itemBuilder: (context, index) {
-                      return DownloadItemTile(item: history[index]);
+                      final item = history[index];
+                      final retryable =
+                          item.status == DownloadStatus.failed ||
+                          item.status == DownloadStatus.canceled;
+                      return DownloadItemTile(
+                        item: item,
+                        onRetry: retryable
+                            ? () => controller.retryDownload(item)
+                            : null,
+                      );
                     },
                   ),
           ),
