@@ -4,18 +4,18 @@ DBase Video & Music Downloader is a Flutter app for downloading video and audio
 from user-provided URLs. The canonical app/package identifier is
 `rs.in.dbase.downloader`.
 
-The first production target is Android. The planned architecture keeps the UI in
-Flutter and uses platform-specific native integrations for the media backend:
+The app ships for **Android and Windows**. The UI is Flutter; the media
+backend is platform-specific:
 
 - Android: Kotlin Platform Channels, youtubedl-android, yt-dlp, FFmpeg,
   foreground service, and MediaStore.
-- Windows: Flutter desktop UI with a Windows backend that runs bundled or
-  user-provided yt-dlp and FFmpeg binaries.
-- macOS: Flutter desktop UI with a macOS backend that runs bundled or
-  user-provided yt-dlp and FFmpeg binaries.
-- iPhone/iOS: Flutter UI with a separate feasibility track because yt-dlp,
-  FFmpeg packaging, background execution, cookies, and distribution rules are
-  more constrained than Android/desktop.
+- Windows: Flutter desktop UI with a backend that runs user-provided yt-dlp
+  and FFmpeg binaries (resolved from PATH or Settings).
+
+macOS and iPhone/iOS are **out of scope** (see PLAN.md): they require a macOS
+development machine, and iOS additionally has yt-dlp/FFmpeg packaging,
+background-execution, and distribution constraints. The shared Dart service
+contracts keep a future port possible.
 
 ```mermaid
 flowchart TD
@@ -83,12 +83,13 @@ Implemented:
 - Windows/desktop backend that runs local yt-dlp and FFmpeg processes with
   configurable binary paths and output folder.
 - Android download folder selection through the system folder picker.
+- Expired-cookie detection with a re-import hint in Settings.
+- Desktop cookie support (per-user app-data file; see PRIVACY.md).
 
 Still pending:
 
-- expired-cookie detection and desktop cookie support;
-- manual end-to-end Windows download verification;
-- real macOS and iOS media backends.
+- large-file, slow-network, and low-storage hardening tests;
+- Windows installer/package identity.
 
 ## YouTube Cookies
 

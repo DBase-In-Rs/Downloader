@@ -248,9 +248,19 @@ class AppController extends ChangeNotifier {
     } catch (error) {
       _extractionState = ExtractionState.failed;
       _errorMessage = _friendlyError(error);
+      unawaited(_refreshCookieStatus());
     }
 
     notifyListeners();
+  }
+
+  Future<void> _refreshCookieStatus() async {
+    try {
+      _cookieStatus = await backend.getCookieStatus();
+      notifyListeners();
+    } catch (_) {
+      // Keep the last known status when the backend cannot report one.
+    }
   }
 
   void togglePlaylistEntry(PlaylistEntry entry) {
@@ -554,6 +564,7 @@ class AppController extends ChangeNotifier {
             errorMessage: message,
           ),
         );
+        unawaited(_refreshCookieStatus());
       case DownloadCanceledEvent(:final id):
         _finishQueueItem(
           id,

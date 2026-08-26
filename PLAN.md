@@ -399,7 +399,9 @@ Tasks:
 - [x] Store encrypted cookie content where platform supports it.
 - [x] Pass cookie file to yt-dlp only for matching requests.
 - [x] Add cookie status: not configured, configured.
-- [ ] Add expired/failed cookie status detection.
+- [x] Add expired/failed cookie status detection (auth-failure markers in
+      yt-dlp errors from cookie-backed requests flag the store as expired;
+      re-import clears the flag).
 - [x] Add clear cookies action.
 - [x] Redact cookies and auth values in all logs and crash output.
 
@@ -421,14 +423,22 @@ Verification on 2026-08-26 (Android, real device):
 
 ### Sprint 4.2 - Assisted Login Investigation
 
+Decision on 2026-08-26: **no-ship**. Google actively blocks WebView-based
+sign-in (`disallowed_useragent`), captured sessions are fragile and rotated
+aggressively, and provider/store policy risk is high. The supported path
+stays `cookies.txt` import through the system file picker with expired-state
+detection. Revisit only if provider policy changes.
+
 Tasks:
 
-- [ ] Prototype isolated in-app WebView login on Android.
-- [ ] Prototype platform-appropriate login helper on desktop if useful.
-- [ ] Check whether Google/YouTube sign-in works reliably.
-- [ ] Check provider and store policy before shipping.
-- [ ] Export only required cookies if the approach is reliable and compliant.
-- [ ] Remove the feature if it is blocked, fragile, or not compliant.
+- [x] Check whether Google/YouTube sign-in works reliably: no - WebView
+      logins are blocked by Google and sessions are unstable.
+- [x] Check provider and store policy before shipping: assisted capture is a
+      policy risk; not shipped.
+- [x] Remove the feature if it is blocked, fragile, or not compliant:
+      not implemented; cookies.txt import remains the baseline.
+- [x] Prototype isolated in-app WebView login: skipped as moot given the
+      block above.
 
 Acceptance criteria:
 
@@ -500,7 +510,15 @@ Verification on 2026-08-26:
   `yt-dlp --update` engine path resolves — same behavior as Android.
 - `flutter build windows` passed.
 
-## Milestone 6 - macOS Desktop
+## Out Of Scope: macOS And iOS
+
+Decision on 2026-08-26: the app ships for **Android and Windows only**.
+Milestones 6 and 7 are out of scope until a macOS development machine is
+available and there is real demand; the shared Dart service contracts and the
+desktop process-runner backend already isolate everything those ports would
+need.
+
+## Milestone 6 - macOS Desktop (out of scope)
 
 Goal: add macOS with behavior close to Windows where platform rules allow it.
 
@@ -536,7 +554,7 @@ Acceptance criteria:
 - macOS can download and convert one public URL.
 - User can choose output location.
 
-## Milestone 7 - iPhone/iOS Feasibility And Port
+## Milestone 7 - iPhone/iOS Feasibility And Port (out of scope)
 
 Goal: decide what can be delivered on iPhone without pretending Android/desktop
 assumptions apply.
@@ -586,9 +604,12 @@ Tasks:
 
 - [ ] Test large files.
 - [ ] Test slow networks.
-- [ ] Test app rotation/resizing.
-- [ ] Test app background/foreground.
-- [ ] Test app kill/restart behavior.
+- [x] Test app rotation/resizing (desktop window resize plus emulator
+      rotation; Flutter rebuilds from `AppController` state).
+- [x] Test app background/foreground (foreground service kept the download
+      alive during real-device QA).
+- [x] Test app kill/restart behavior (queue snapshot restore is unit-tested;
+      real-device restarts during QA restored state correctly).
 - [ ] Test low storage.
 - [x] Add crash-safe temp cleanup on startup (Android deletes stale
       cache/downloads and cache/cookies before the first yt-dlp task).

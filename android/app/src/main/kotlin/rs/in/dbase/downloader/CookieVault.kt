@@ -20,10 +20,37 @@ object CookieVault {
     private const val KEY_ALIAS = "rs.in.dbase.downloader.cookies"
     private const val KEYSTORE = "AndroidKeyStore"
     private const val FILE_NAME = "cookies.enc"
+    private const val EXPIRED_MARKER = "cookies.expired"
     private const val GCM_TAG_BITS = 128
     private const val IV_BYTES = 12
 
+    private val authErrorMarkers = listOf(
+        "cookies are no longer valid",
+        "sign in to confirm",
+        "login required",
+        "not a bot",
+        "account cookies",
+    )
+
     fun isConfigured(context: Context): Boolean = vaultFile(context).isFile
+
+    fun isExpired(context: Context): Boolean =
+        isConfigured(context) && expiredMarker(context).isFile
+
+    /**
+     * Flags the stored cookies as expired when [errorText] looks like an
+     * authentication failure from a request that used cookies.
+     */
+    fun markExpiredIfAuthError(context: Context, errorText: String) {
+        if (!isConfigured(context)) {
+            return
+        }
+
+        val lower = errorText.lowercase()
+        if (authErrorMarkers.any(lower::contains)) {
+            runCatching { expiredMarker(context).writeText("1") }
+        }
+    }
 
     @Synchronized
     fun store(context: Context, content: String) {
@@ -31,11 +58,17 @@ object CookieVault {
         cipher.init(Cipher.ENCRYPT_MODE, obtainKey())
         val ciphertext = cipher.doFinal(content.toByteArray(Charsets.UTF_8))
         vaultFile(context).writeBytes(cipher.iv + ciphertext)
+        expiredMarker(context).delete()
     }
 
     @Synchronized
     fun clear(context: Context) {
         vaultFile(context).delete()
+        expiredMarker(context).delete()
+    }
+
+    private fun expiredMarker(context: Context): File {
+        return File(context.noBackupFilesDir, EXPIRED_MARKER)
     }
 
     /**

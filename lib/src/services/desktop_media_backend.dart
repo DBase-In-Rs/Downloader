@@ -23,9 +23,11 @@ class DesktopBackendConfig {
 /// Runs yt-dlp and FFmpeg as local processes on desktop platforms. Contains
 /// no Flutter dependencies so it can be exercised from plain Dart.
 class DesktopMediaBackend implements MediaBackend {
-  DesktopMediaBackend({required this.configProvider});
+  DesktopMediaBackend({required this.configProvider, String? configDir})
+    : _configDir = configDir ?? desktopConfigDir();
 
   final Future<DesktopBackendConfig> Function() configProvider;
+  final String _configDir;
 
   final _events = StreamController<BackendEvent>.broadcast();
   final _processes = <String, Process>{};
@@ -38,15 +40,21 @@ class DesktopMediaBackend implements MediaBackend {
   Future<MediaInfo> getInfo(MediaInfoRequest request) async {
     final config = await configProvider();
     final ytDlp = await _requireYtDlp(config);
+    final cookieArgs = request.useCookies ? _cookieArgs() : const <String>[];
     final result = await Process.run(ytDlp, [
       '--no-playlist',
       '--no-warnings',
       '--dump-json',
+      ...cookieArgs,
       request.url,
     ]).timeout(const Duration(seconds: 60));
 
     if (result.exitCode != 0) {
-      throw Exception(sanitizeProcessError(result.stderr.toString()));
+      final message = sanitizeProcessError(result.stderr.toString());
+      if (cookieArgs.isNotEmpty) {
+        markCookiesExpiredIfAuthError(result.stderr.toString());
+      }
+      throw Exception(message);
     }
 
     return mediaInfoFromYtDlpJson(
@@ -59,15 +67,21 @@ class DesktopMediaBackend implements MediaBackend {
   Future<PlaylistInfo> getPlaylistInfo(MediaInfoRequest request) async {
     final config = await configProvider();
     final ytDlp = await _requireYtDlp(config);
+    final cookieArgs = request.useCookies ? _cookieArgs() : const <String>[];
     final result = await Process.run(ytDlp, [
       '--flat-playlist',
       '--no-warnings',
       '--dump-single-json',
+      ...cookieArgs,
       request.url,
     ]).timeout(const Duration(seconds: 120));
 
     if (result.exitCode != 0) {
-      throw Exception(sanitizeProcessError(result.stderr.toString()));
+      final message = sanitizeProcessError(result.stderr.toString());
+      if (cookieArgs.isNotEmpty) {
+        markCookiesExpiredIfAuthError(result.stderr.toString());
+      }
+      throw Exception(message);
     }
 
     return playlistInfoFromYtDlpJson(
@@ -107,8 +121,10 @@ class DesktopMediaBackend implements MediaBackend {
         '--ffmpeg-location',
         config.ffmpegPath!,
       ],
+      ..._cookieArgs(),
       request.url,
     ];
+    final usedCookies = args.contains('--cookies');
 
     final process = await Process.start(ytDlp, args);
     _processes[request.id] = process;
@@ -143,6 +159,9 @@ class DesktopMediaBackend implements MediaBackend {
           }
 
           if (exitCode != 0) {
+            if (usedCookies) {
+              markCookiesExpiredIfAuthError(stderrBuffer.toString());
+            }
             _emit(
               DownloadFailedEvent(
                 id: request.id,
@@ -213,18 +232,68 @@ class DesktopMediaBackend implements MediaBackend {
 
   @override
   Future<CookieStatus> getCookieStatus() async {
-    return const CookieStatus.empty();
-  }
-
-  @override
-  Future<void> importCookies(String content) {
-    throw UnsupportedError(
-      'Cookie import is not supported on desktop yet.',
+    final configured = _cookieFile().existsSync();
+    final expired = configured && _cookieExpiredMarker().existsSync();
+    return CookieStatus(
+      configured: configured,
+      expired: expired,
+      message: expired
+          ? 'Cookies look expired or invalid; re-import cookies.txt.'
+          : null,
     );
   }
 
   @override
-  Future<void> clearCookies() async {}
+  Future<void> importCookies(String content) async {
+    final file = _cookieFile();
+    await file.parent.create(recursive: true);
+    await file.writeAsString(content);
+    if (_cookieExpiredMarker().existsSync()) {
+      await _cookieExpiredMarker().delete();
+    }
+  }
+
+  @override
+  Future<void> clearCookies() async {
+    for (final file in [_cookieFile(), _cookieExpiredMarker()]) {
+      if (file.existsSync()) {
+        await file.delete();
+      }
+    }
+  }
+
+  List<String> _cookieArgs() {
+    final file = _cookieFile();
+    return file.existsSync() ? ['--cookies', file.path] : const [];
+  }
+
+  void markCookiesExpiredIfAuthError(String errorText) {
+    if (!_cookieFile().existsSync()) {
+      return;
+    }
+
+    final lower = errorText.toLowerCase();
+    const markers = [
+      'cookies are no longer valid',
+      'sign in to confirm',
+      'login required',
+      'not a bot',
+      'account cookies',
+    ];
+    if (markers.any(lower.contains)) {
+      try {
+        _cookieExpiredMarker().writeAsStringSync('1');
+      } catch (_) {
+        // Marker is advisory only.
+      }
+    }
+  }
+
+  File _cookieFile() =>
+      File('$_configDir${Platform.pathSeparator}cookies.txt');
+
+  File _cookieExpiredMarker() =>
+      File('$_configDir${Platform.pathSeparator}cookies.expired');
 
   @override
   void dispose() {
@@ -324,6 +393,19 @@ class DesktopMediaBackend implements MediaBackend {
       return copied;
     }
   }
+}
+
+/// Per-user private app data directory used for the desktop cookie store.
+/// Desktop has no app-sandbox keystore, so the file relies on OS user-profile
+/// permissions; this is documented in PRIVACY.md.
+String desktopConfigDir() {
+  final base = Platform.isWindows
+      ? Platform.environment['APPDATA']
+      : Platform.isMacOS
+      ? '${Platform.environment['HOME']}/Library/Application Support'
+      : '${Platform.environment['HOME']}/.config';
+  return '${base ?? Directory.systemTemp.path}'
+      '${Platform.pathSeparator}rs.in.dbase.downloader';
 }
 
 String defaultDownloadsPath() {

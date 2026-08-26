@@ -55,8 +55,18 @@ class SettingsPage extends StatelessWidget {
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          status.configured ? 'Configured' : 'Not configured',
-                          style: Theme.of(context).textTheme.bodyMedium,
+                          status.expired
+                              ? (status.message ??
+                                    'Expired or invalid - re-import')
+                              : status.configured
+                              ? 'Configured'
+                              : 'Not configured',
+                          style: Theme.of(context).textTheme.bodyMedium
+                              ?.copyWith(
+                                color: status.expired
+                                    ? Theme.of(context).colorScheme.error
+                                    : null,
+                              ),
                         ),
                         const SizedBox(height: 4),
                         Text(

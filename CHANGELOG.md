@@ -25,6 +25,19 @@ versioning once releases begin.
 - Android download folder selection through the system folder picker (SAF),
   with fallback to the default MediaStore collections.
 - Crash-safe cleanup of stale temporary download files on Android startup.
+- Expired-cookie detection: auth failures from cookie-backed requests flag
+  the store as expired with a re-import hint in Settings.
+- Desktop cookie support: cookies.txt import, use, expiry detection, and
+  delete on Windows/desktop.
+- Release builds are signed with a private release keystore
+  (android/key.properties, kept outside the repository).
+
+### Changed
+
+- macOS and iOS are declared out of scope; the app ships for Android and
+  Windows (see PLAN.md).
+- Assisted WebView login investigation concluded as no-ship; cookies.txt
+  import remains the supported path.
 
 ## [1.0.0-beta.1] - 2026-08-26
 

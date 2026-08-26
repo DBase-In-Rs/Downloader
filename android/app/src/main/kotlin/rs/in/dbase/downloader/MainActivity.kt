@@ -165,8 +165,12 @@ class MainActivity : FlutterActivity() {
                 "getCookieStatus" -> result.success(
                     mapOf(
                         "configured" to CookieVault.isConfigured(applicationContext),
-                        "expired" to false,
-                        "message" to null,
+                        "expired" to CookieVault.isExpired(applicationContext),
+                        "message" to if (CookieVault.isExpired(applicationContext)) {
+                            "Cookies look expired or invalid; re-import cookies.txt."
+                        } else {
+                            null
+                        },
                     ),
                 )
 
@@ -479,6 +483,14 @@ class MainActivity : FlutterActivity() {
                 ?: throw IllegalStateException("Unable to parse media information.")
         } catch (error: YoutubeDL.CanceledException) {
             throw IllegalStateException("Metadata extraction timed out.")
+        } catch (error: Throwable) {
+            if (cookieFile != null) {
+                CookieVault.markExpiredIfAuthError(
+                    applicationContext,
+                    error.message ?: "",
+                )
+            }
+            throw error
         } finally {
             timeout.cancel(false)
             cookieFile?.delete()
@@ -691,6 +703,12 @@ class MainActivity : FlutterActivity() {
                 if (wasCanceled(id)) {
                     emitCanceled(id)
                 } else {
+                    if (cookieFile != null) {
+                        CookieVault.markExpiredIfAuthError(
+                            applicationContext,
+                            error.message ?: "",
+                        )
+                    }
                     emitFailed(id, sanitizeNativeError(error))
                 }
             } finally {

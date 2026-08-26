@@ -1,8 +1,40 @@
+import 'dart:io';
+
 import 'package:dbase_downloader/src/models/download_models.dart';
 import 'package:dbase_downloader/src/services/desktop_media_backend.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
+  test('desktop cookie store round-trips with expired marker', () async {
+    final dir = await Directory.systemTemp.createTemp('dbase-cookie-test');
+    addTearDown(() => dir.delete(recursive: true));
+    final backend = DesktopMediaBackend(
+      configProvider: () async => const DesktopBackendConfig(),
+      configDir: dir.path,
+    );
+    addTearDown(backend.dispose);
+
+    expect((await backend.getCookieStatus()).configured, isFalse);
+
+    await backend.importCookies('.a.com\tTRUE\t/\tTRUE\t1\tSID\tv\n');
+    var status = await backend.getCookieStatus();
+    expect(status.configured, isTrue);
+    expect(status.expired, isFalse);
+
+    backend.markCookiesExpiredIfAuthError(
+      'ERROR: Sign in to confirm you are not a bot',
+    );
+    status = await backend.getCookieStatus();
+    expect(status.expired, isTrue);
+
+    // Re-import resets the expired flag.
+    await backend.importCookies('.a.com\tTRUE\t/\tTRUE\t1\tSID\tv2\n');
+    expect((await backend.getCookieStatus()).expired, isFalse);
+
+    await backend.clearCookies();
+    expect((await backend.getCookieStatus()).configured, isFalse);
+  });
+
   test('maps yt-dlp media JSON into MediaInfo', () {
     final info = mediaInfoFromYtDlpJson({
       'webpage_url': 'https://example.com/watch?v=1',

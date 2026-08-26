@@ -31,9 +31,18 @@ Implemented behavior on Android:
 - cookies are never printed in logs, and error output is redacted;
 - users can clear cookies from Settings at any time.
 
+On Windows/desktop, cookies are stored as a file in the per-user application
+data directory. Desktop platforms have no app-sandbox keystore, so the file
+relies on operating-system user-profile permissions instead of encryption;
+users can delete it from Settings at any time.
+
+When a cookie-backed request fails with an authentication error, the app
+flags the stored cookies as expired and shows that in Settings; it never
+retries with captured or third-party credentials.
+
 The supported baseline is `cookies.txt` import through the system file picker.
-Assisted in-app login is an investigation item and may be removed if it is
-unreliable or not compliant.
+Assisted in-app login was investigated and rejected (see PLAN.md Sprint 4.2):
+provider sign-in blocks WebView logins and the approach carries policy risk.
 
 ## Network Requests
 
