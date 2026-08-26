@@ -459,9 +459,10 @@ class MainActivity : FlutterActivity() {
 
     private fun fetchMediaInfo(url: String, useCookies: Boolean): VideoInfo {
         val processId = "info-${System.currentTimeMillis()}"
+        // Warnings stay enabled: expired-cookie detection depends on the
+        // "cookies are no longer valid" warning text in failure output.
         val request = YoutubeDLRequest(url)
             .addOption("--no-playlist")
-            .addOption("--no-warnings")
             .addOption("--dump-json")
 
         val cookieFile = if (useCookies) {
@@ -501,7 +502,6 @@ class MainActivity : FlutterActivity() {
         val processId = "playlist-${System.currentTimeMillis()}"
         val request = YoutubeDLRequest(url)
             .addOption("--flat-playlist")
-            .addOption("--no-warnings")
             .addOption("--dump-single-json")
 
         val cookieFile = if (useCookies) {
