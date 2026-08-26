@@ -8,6 +8,8 @@ versioning once releases begin.
 
 ## [Unreleased]
 
+## [1.0.0-beta.3] - 2026-08-26
+
 ### Added
 
 - App branding: new launcher icon on Android (adaptive) and Windows, a dark
@@ -17,6 +19,12 @@ versioning once releases begin.
 - Release compliance audit: recorded dependency versions and licenses,
   update strategy, source availability, and source bundle procedure in
   THIRD_PARTY_NOTICES.md.
+- Project badges in the README.
+
+### Fixed
+
+- Expired-cookie detection now works for URL analysis: `--no-warnings`
+  suppressed the cookie-validity warnings the detector matches against.
 
 - Safe cookie import: `cookies.txt` through the system file picker, Netscape
   format validation, Android Keystore AES/GCM encryption at rest, short-lived

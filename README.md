@@ -1,5 +1,17 @@
 # DBase Video & Music Downloader
 
+[![CI](https://github.com/DBase-In-Rs/Downloader/actions/workflows/flutter.yml/badge.svg)](https://github.com/DBase-In-Rs/Downloader/actions/workflows/flutter.yml)
+[![Latest release](https://img.shields.io/github/v/release/DBase-In-Rs/Downloader?include_prereleases&label=release)](https://github.com/DBase-In-Rs/Downloader/releases)
+[![Downloads](https://img.shields.io/github/downloads/DBase-In-Rs/Downloader/total)](https://github.com/DBase-In-Rs/Downloader/releases)
+[![License: GPL-3.0-only](https://img.shields.io/badge/license-GPL--3.0--only-blue.svg)](LICENSE)
+[![Platforms](https://img.shields.io/badge/platforms-Android%20%7C%20Windows-3DDC84?logo=android&logoColor=white)](#)
+[![Made with Flutter](https://img.shields.io/badge/made%20with-Flutter-02569B?logo=flutter&logoColor=white)](https://flutter.dev)
+[![Powered by yt-dlp](https://img.shields.io/badge/powered%20by-yt--dlp-red)](https://github.com/yt-dlp/yt-dlp)
+[![FFmpeg](https://img.shields.io/badge/FFmpeg-GPL-007808?logo=ffmpeg&logoColor=white)](https://ffmpeg.org)
+[![Issues](https://img.shields.io/github/issues/DBase-In-Rs/Downloader)](https://github.com/DBase-In-Rs/Downloader/issues)
+[![Last commit](https://img.shields.io/github/last-commit/DBase-In-Rs/Downloader)](https://github.com/DBase-In-Rs/Downloader/commits/main)
+[![PRs welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
+
 DBase Video & Music Downloader is a Flutter app for downloading video and audio
 from user-provided URLs. The canonical app/package identifier is
 `rs.in.dbase.downloader`.
