@@ -48,6 +48,38 @@ Response:
 }
 ```
 
+### `getPlaylistInfo`
+
+Request:
+
+```json
+{
+  "url": "https://example.com/playlist?list=abc",
+  "useCookies": false
+}
+```
+
+Response:
+
+```json
+{
+  "url": "https://example.com/playlist?list=abc",
+  "title": "Playlist title",
+  "entries": [
+    {
+      "url": "https://example.com/media/1",
+      "title": "First item",
+      "durationSeconds": 200,
+      "uploader": "example.com"
+    }
+  ]
+}
+```
+
+Android behavior: runs yt-dlp with `--flat-playlist --dump-single-json` and a
+120 second timeout; entries without a resolvable URL are dropped; flat
+YouTube entries that only carry a video id are converted to watch URLs.
+
 ### `startDownload`
 
 Request:

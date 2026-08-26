@@ -129,6 +129,51 @@ class MediaFormat {
   }
 }
 
+class PlaylistEntry {
+  const PlaylistEntry({
+    required this.url,
+    required this.title,
+    this.duration,
+    this.uploader,
+  });
+
+  final String url;
+  final String title;
+  final Duration? duration;
+  final String? uploader;
+
+  factory PlaylistEntry.fromMap(Map<Object?, Object?> map) {
+    return PlaylistEntry(
+      url: stringValue(map['url']) ?? '',
+      title: stringValue(map['title']) ?? 'Untitled media',
+      duration: durationFromSeconds(map['durationSeconds']),
+      uploader: stringValue(map['uploader']),
+    );
+  }
+}
+
+class PlaylistInfo {
+  const PlaylistInfo({
+    required this.url,
+    required this.title,
+    required this.entries,
+  });
+
+  final String url;
+  final String title;
+  final List<PlaylistEntry> entries;
+
+  factory PlaylistInfo.fromMap(Map<Object?, Object?> map) {
+    return PlaylistInfo(
+      url: stringValue(map['url']) ?? '',
+      title: stringValue(map['title']) ?? 'Playlist',
+      entries: listOfMaps(
+        map['entries'],
+      ).map(PlaylistEntry.fromMap).where((e) => e.url.isNotEmpty).toList(),
+    );
+  }
+}
+
 class DownloadRequest {
   const DownloadRequest({
     required this.id,
@@ -210,6 +255,7 @@ class DownloadQueueItem {
     this.progress,
     this.outputLocation,
     this.errorMessage,
+    this.finishedAt,
   });
 
   final String id;
@@ -221,12 +267,14 @@ class DownloadQueueItem {
   final DownloadProgress? progress;
   final String? outputLocation;
   final String? errorMessage;
+  final DateTime? finishedAt;
 
   DownloadQueueItem copyWith({
     DownloadStatus? status,
     DownloadProgress? progress,
     String? outputLocation,
     String? errorMessage,
+    DateTime? finishedAt,
   }) {
     return DownloadQueueItem(
       id: id,
@@ -238,10 +286,12 @@ class DownloadQueueItem {
       progress: progress ?? this.progress,
       outputLocation: outputLocation ?? this.outputLocation,
       errorMessage: errorMessage ?? this.errorMessage,
+      finishedAt: finishedAt ?? this.finishedAt,
     );
   }
 
   factory DownloadQueueItem.fromMap(Map<Object?, Object?> map) {
+    final finishedAtMillis = intValue(map['finishedAtMillis']);
     return DownloadQueueItem(
       id: stringValue(map['id']) ?? '',
       url: stringValue(map['url']) ?? '',
@@ -251,6 +301,9 @@ class DownloadQueueItem {
       status: downloadStatusFromString(stringValue(map['status'])),
       outputLocation: stringValue(map['outputLocation']),
       errorMessage: stringValue(map['errorMessage']),
+      finishedAt: finishedAtMillis == null
+          ? null
+          : DateTime.fromMillisecondsSinceEpoch(finishedAtMillis),
     );
   }
 
@@ -264,6 +317,7 @@ class DownloadQueueItem {
       'status': status.name,
       'outputLocation': outputLocation,
       'errorMessage': errorMessage,
+      'finishedAtMillis': finishedAt?.millisecondsSinceEpoch,
     };
   }
 }
@@ -336,6 +390,31 @@ OutputKind outputKindFromString(String? value) {
   };
 }
 
+/// Format preset used for playlist items, where per-item format lists are
+/// not fetched; the id is a yt-dlp format selector expression.
+MediaFormat presetFormatFor(OutputKind outputKind) {
+  return switch (outputKind) {
+    OutputKind.mp3 || OutputKind.m4a => const MediaFormat(
+      id: 'bestaudio/best',
+      extension: 'auto',
+      kind: MediaKind.audio,
+      qualityLabel: 'Best audio',
+    ),
+    OutputKind.mp4 => const MediaFormat(
+      id: 'bestvideo*+bestaudio/best',
+      extension: 'auto',
+      kind: MediaKind.muxed,
+      qualityLabel: 'Best video',
+    ),
+    OutputKind.original => const MediaFormat(
+      id: 'best',
+      extension: 'auto',
+      kind: MediaKind.muxed,
+      qualityLabel: 'Best available',
+    ),
+  };
+}
+
 String outputKindLabel(OutputKind outputKind) {
   return switch (outputKind) {
     OutputKind.mp3 => 'MP3',
@@ -385,6 +464,17 @@ String formatDuration(Duration? duration) {
   }
 
   return '$minutes:$seconds';
+}
+
+String formatTimestamp(DateTime timestamp) {
+  final local = timestamp.toLocal();
+  final date =
+      '${local.year}-${local.month.toString().padLeft(2, '0')}-'
+      '${local.day.toString().padLeft(2, '0')}';
+  final time =
+      '${local.hour.toString().padLeft(2, '0')}:'
+      '${local.minute.toString().padLeft(2, '0')}';
+  return '$date $time';
 }
 
 String formatSpeed(int? bytesPerSecond) {

@@ -5,16 +5,22 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../models/download_models.dart';
 
 class QueueSnapshot {
-  const QueueSnapshot({required this.items, required this.paused});
+  const QueueSnapshot({
+    required this.items,
+    required this.paused,
+    this.history = const [],
+  });
 
   final List<DownloadQueueItem> items;
   final bool paused;
+  final List<DownloadQueueItem> history;
 
   Map<String, Object?> toMap() {
     return {
       'version': 1,
       'paused': paused,
       'items': items.map((item) => item.toMap()).toList(),
+      'history': history.map((item) => item.toMap()).toList(),
     };
   }
 
@@ -22,6 +28,9 @@ class QueueSnapshot {
     return QueueSnapshot(
       items: listOfMaps(map['items']).map(DownloadQueueItem.fromMap).toList(),
       paused: boolValue(map['paused']),
+      history: listOfMaps(
+        map['history'],
+      ).map(DownloadQueueItem.fromMap).toList(),
     );
   }
 }

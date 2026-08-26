@@ -75,6 +75,24 @@ class FakeMediaBackend implements MediaBackend {
   }
 
   @override
+  Future<PlaylistInfo> getPlaylistInfo(MediaInfoRequest request) async {
+    await Future<void>.delayed(const Duration(milliseconds: 350));
+
+    return PlaylistInfo(
+      url: request.url,
+      title: 'Sample playlist',
+      entries: List.generate(5, (index) {
+        return PlaylistEntry(
+          url: 'https://example.com/media/${index + 1}',
+          title: 'Sample track ${index + 1}',
+          duration: Duration(minutes: 3, seconds: 20 + index),
+          uploader: 'example.com',
+        );
+      }),
+    );
+  }
+
+  @override
   Future<void> startDownload(DownloadRequest request) async {
     await Future<void>.delayed(const Duration(milliseconds: 120));
 

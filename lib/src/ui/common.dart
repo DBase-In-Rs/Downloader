@@ -86,12 +86,14 @@ class DownloadItemTile extends StatelessWidget {
     required this.item,
     this.onCancel,
     this.onRetry,
+    this.onDelete,
     super.key,
   });
 
   final DownloadQueueItem item;
   final VoidCallback? onCancel;
   final VoidCallback? onRetry;
+  final VoidCallback? onDelete;
 
   @override
   Widget build(BuildContext context) {
@@ -121,7 +123,8 @@ class DownloadItemTile extends StatelessWidget {
                       ),
                       const SizedBox(height: 2),
                       Text(
-                        '${outputKindLabel(item.outputKind)} - ${item.format.qualityLabel} - ${item.format.extension}',
+                        '${outputKindLabel(item.outputKind)} - ${item.format.qualityLabel} - ${item.format.extension}'
+                        '${item.finishedAt != null ? ' - ${formatTimestamp(item.finishedAt!)}' : ''}',
                         style: Theme.of(context).textTheme.bodySmall,
                       ),
                     ],
@@ -141,6 +144,14 @@ class DownloadItemTile extends StatelessWidget {
                     tooltip: 'Cancel',
                     onPressed: onCancel,
                     icon: const Icon(Icons.close),
+                  ),
+                ],
+                if (onDelete != null) ...[
+                  const SizedBox(width: 8),
+                  IconButton(
+                    tooltip: 'Remove from history',
+                    onPressed: onDelete,
+                    icon: const Icon(Icons.delete_outline),
                   ),
                 ],
               ],

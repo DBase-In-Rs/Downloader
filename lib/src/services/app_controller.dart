@@ -32,6 +32,8 @@ class AppController extends ChangeNotifier {
   String _urlText = '';
   String? _errorMessage;
   MediaInfo? _mediaInfo;
+  PlaylistInfo? _playlistInfo;
+  final Set<String> _selectedPlaylistUrls = {};
   ExtractionState _extractionState = ExtractionState.idle;
   MediaKindFilter _formatFilter = MediaKindFilter.all;
   OutputKind _outputKind = OutputKind.mp3;
@@ -41,8 +43,11 @@ class AppController extends ChangeNotifier {
   String? _engineUpdateMessage;
   bool _queuePaused = false;
   int _idSequence = 0;
+  String _historyQuery = '';
   final List<DownloadQueueItem> _queue = [];
   final List<DownloadQueueItem> _history = [];
+
+  static const _historyLimit = 200;
 
   AppSection get section => _section;
 
@@ -51,6 +56,12 @@ class AppController extends ChangeNotifier {
   String? get errorMessage => _errorMessage;
 
   MediaInfo? get mediaInfo => _mediaInfo;
+
+  PlaylistInfo? get playlistInfo => _playlistInfo;
+
+  Set<String> get selectedPlaylistUrls => Set.unmodifiable(
+    _selectedPlaylistUrls,
+  );
 
   ExtractionState get extractionState => _extractionState;
 
@@ -71,6 +82,23 @@ class AppController extends ChangeNotifier {
   List<DownloadQueueItem> get queue => List.unmodifiable(_queue);
 
   List<DownloadQueueItem> get history => List.unmodifiable(_history);
+
+  String get historyQuery => _historyQuery;
+
+  List<DownloadQueueItem> get filteredHistory {
+    final query = _historyQuery.trim().toLowerCase();
+    if (query.isEmpty) {
+      return history;
+    }
+
+    return _history
+        .where(
+          (item) =>
+              item.title.toLowerCase().contains(query) ||
+              item.url.toLowerCase().contains(query),
+        )
+        .toList();
+  }
 
   List<MediaFormat> get visibleFormats {
     final info = _mediaInfo;
@@ -192,12 +220,30 @@ class AppController extends ChangeNotifier {
     _extractionState = ExtractionState.loading;
     _errorMessage = null;
     _mediaInfo = null;
+    _playlistInfo = null;
+    _selectedPlaylistUrls.clear();
     notifyListeners();
 
+    final request = MediaInfoRequest(
+      url: url,
+      useCookies: _cookieStatus.configured,
+    );
+
     try {
-      _mediaInfo = await backend.getInfo(
-        MediaInfoRequest(url: url, useCookies: _cookieStatus.configured),
-      );
+      if (isLikelyPlaylistUrl(url)) {
+        final playlist = await backend.getPlaylistInfo(request);
+        if (playlist.entries.isEmpty) {
+          // Not a real playlist; fall back to single-item analysis.
+          _mediaInfo = await backend.getInfo(request);
+        } else {
+          _playlistInfo = playlist;
+          _selectedPlaylistUrls.addAll(
+            playlist.entries.map((entry) => entry.url),
+          );
+        }
+      } else {
+        _mediaInfo = await backend.getInfo(request);
+      }
       _extractionState = ExtractionState.loaded;
     } catch (error) {
       _extractionState = ExtractionState.failed;
@@ -205,6 +251,44 @@ class AppController extends ChangeNotifier {
     }
 
     notifyListeners();
+  }
+
+  void togglePlaylistEntry(PlaylistEntry entry) {
+    if (!_selectedPlaylistUrls.remove(entry.url)) {
+      _selectedPlaylistUrls.add(entry.url);
+    }
+    notifyListeners();
+  }
+
+  void setAllPlaylistEntries(bool selected) {
+    _selectedPlaylistUrls.clear();
+    if (selected) {
+      _selectedPlaylistUrls.addAll(
+        _playlistInfo?.entries.map((entry) => entry.url) ?? const [],
+      );
+    }
+    notifyListeners();
+  }
+
+  Future<void> enqueueSelectedPlaylistEntries() async {
+    final playlist = _playlistInfo;
+    if (playlist == null) {
+      return;
+    }
+
+    final format = presetFormatFor(_outputKind);
+    for (final entry in playlist.entries) {
+      if (!_selectedPlaylistUrls.contains(entry.url)) {
+        continue;
+      }
+
+      await _enqueue(
+        url: entry.url,
+        title: entry.title,
+        format: format,
+        outputKind: _outputKind,
+      );
+    }
   }
 
   Future<void> startDownload(MediaFormat format) async {
@@ -295,9 +379,25 @@ class AppController extends ChangeNotifier {
     notifyListeners();
   }
 
+  void setHistoryQuery(String query) {
+    if (_historyQuery == query) {
+      return;
+    }
+
+    _historyQuery = query;
+    notifyListeners();
+  }
+
+  void deleteHistoryItem(String id) {
+    _history.removeWhere((item) => item.id == id);
+    notifyListeners();
+    unawaited(_persistQueue());
+  }
+
   void clearHistory() {
     _history.clear();
     notifyListeners();
+    unawaited(_persistQueue());
   }
 
   @override
@@ -387,6 +487,9 @@ class AppController extends ChangeNotifier {
       ..addAll(
         snapshot.items.where(_isWaitingOrRunning).map(_restoredItem),
       );
+    _history
+      ..clear()
+      ..addAll(snapshot.history.take(_historyLimit));
   }
 
   bool _isWaitingOrRunning(DownloadQueueItem item) {
@@ -414,7 +517,11 @@ class AppController extends ChangeNotifier {
   Future<void> _persistQueue() async {
     try {
       await queueStore.save(
-        QueueSnapshot(items: List.of(_queue), paused: _queuePaused),
+        QueueSnapshot(
+          items: List.of(_queue),
+          paused: _queuePaused,
+          history: _history.take(_historyLimit).toList(),
+        ),
       );
     } catch (_) {
       // Persistence failures must not break active downloads.
@@ -480,8 +587,13 @@ class AppController extends ChangeNotifier {
       return;
     }
 
-    final finished = update(_queue.removeAt(index));
+    final finished = update(
+      _queue.removeAt(index),
+    ).copyWith(finishedAt: DateTime.now());
     _history.insert(0, finished);
+    if (_history.length > _historyLimit) {
+      _history.removeRange(_historyLimit, _history.length);
+    }
     notifyListeners();
     unawaited(_persistQueue());
     unawaited(_pumpQueue());
@@ -510,6 +622,17 @@ String? extractFirstUrl(String text) {
   }
 
   return match.group(0)?.replaceAll(RegExp(r'[),.;]+$'), '');
+}
+
+bool isLikelyPlaylistUrl(String url) {
+  final uri = Uri.tryParse(url);
+  if (uri == null) {
+    return false;
+  }
+
+  return uri.queryParameters.containsKey('list') ||
+      uri.path.contains('/playlist') ||
+      uri.path.contains('/sets/');
 }
 
 /// Accepts Netscape-format cookie files: comment/blank lines plus at least

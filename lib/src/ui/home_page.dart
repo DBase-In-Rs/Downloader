@@ -68,6 +68,10 @@ class _HomePageState extends State<HomePage> {
               onStartDownload: widget.controller.startDownload,
             ),
           ],
+          if (widget.controller.playlistInfo != null) ...[
+            const SizedBox(height: 18),
+            _PlaylistPanel(controller: widget.controller),
+          ],
         ],
       ),
     );
@@ -315,6 +319,93 @@ class _MediaInfoPanel extends StatelessWidget {
               ),
             ),
           ),
+      ],
+    );
+  }
+}
+
+class _PlaylistPanel extends StatelessWidget {
+  const _PlaylistPanel({required this.controller});
+
+  final AppController controller;
+
+  @override
+  Widget build(BuildContext context) {
+    final playlist = controller.playlistInfo!;
+    final selected = controller.selectedPlaylistUrls;
+    final allSelected = selected.length == playlist.entries.length;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Card(
+          child: Padding(
+            padding: const EdgeInsets.all(14),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  playlist.title,
+                  style: Theme.of(context).textTheme.titleLarge,
+                ),
+                const SizedBox(height: 4),
+                Text('${playlist.entries.length} items'),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: 16),
+        Wrap(
+          spacing: 12,
+          runSpacing: 12,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          children: [
+            SegmentedButton<OutputKind>(
+              segments: const [
+                ButtonSegment(value: OutputKind.mp3, label: Text('MP3')),
+                ButtonSegment(value: OutputKind.m4a, label: Text('M4A')),
+                ButtonSegment(value: OutputKind.mp4, label: Text('MP4')),
+                ButtonSegment(
+                  value: OutputKind.original,
+                  label: Text('Original'),
+                ),
+              ],
+              selected: {controller.outputKind},
+              onSelectionChanged: (selection) =>
+                  controller.setOutputKind(selection.single),
+            ),
+            TextButton.icon(
+              onPressed: () => controller.setAllPlaylistEntries(!allSelected),
+              icon: Icon(allSelected ? Icons.deselect : Icons.select_all),
+              label: Text(allSelected ? 'Select none' : 'Select all'),
+            ),
+            FilledButton.icon(
+              onPressed: selected.isEmpty
+                  ? null
+                  : controller.enqueueSelectedPlaylistEntries,
+              icon: const Icon(Icons.playlist_add),
+              label: Text('Add ${selected.length} to queue'),
+            ),
+          ],
+        ),
+        const SizedBox(height: 10),
+        ...playlist.entries.map(
+          (entry) => Card(
+            child: CheckboxListTile(
+              value: selected.contains(entry.url),
+              onChanged: (_) => controller.togglePlaylistEntry(entry),
+              title: Text(
+                entry.title,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+              subtitle: Text(
+                '${formatDuration(entry.duration)}'
+                '${entry.uploader != null ? ' - ${entry.uploader}' : ''}',
+              ),
+            ),
+          ),
+        ),
       ],
     );
   }

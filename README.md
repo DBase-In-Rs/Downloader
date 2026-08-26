@@ -78,12 +78,12 @@ Implemented:
 - yt-dlp engine self-update on startup plus a manual update action in
   Settings.
 - Encrypted `cookies.txt` import for login-required media, with in-app delete.
+- Playlist analysis with item selection and bulk add-to-queue.
+- Persistent download history with search and delete.
 
 Still pending:
 
 - Storage Access Framework fallback and user-selected output folder;
-- local history database;
-- playlist expansion;
 - expired-cookie detection;
 - real Windows, macOS, and iOS media backends.
 

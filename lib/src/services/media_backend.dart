@@ -5,6 +5,9 @@ abstract class MediaBackend {
 
   Future<MediaInfo> getInfo(MediaInfoRequest request);
 
+  /// Fetches flat playlist metadata (entry URLs and titles, no formats).
+  Future<PlaylistInfo> getPlaylistInfo(MediaInfoRequest request);
+
   Future<void> startDownload(DownloadRequest request);
 
   Future<void> cancelDownload(String id);

@@ -29,6 +29,20 @@ class PlatformMediaBackend implements MediaBackend {
   }
 
   @override
+  Future<PlaylistInfo> getPlaylistInfo(MediaInfoRequest request) async {
+    final result = await _methodChannel.invokeMapMethod<Object?, Object?>(
+      'getPlaylistInfo',
+      request.toMap(),
+    );
+
+    if (result == null) {
+      throw StateError('Native backend returned no playlist info.');
+    }
+
+    return PlaylistInfo.fromMap(result);
+  }
+
+  @override
   Future<void> startDownload(DownloadRequest request) {
     return _methodChannel.invokeMethod<void>('startDownload', request.toMap());
   }

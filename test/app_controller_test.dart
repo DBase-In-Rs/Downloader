@@ -32,6 +32,14 @@ class ManualMediaBackend implements MediaBackend {
     );
   }
 
+  PlaylistInfo? playlistResponse;
+
+  @override
+  Future<PlaylistInfo> getPlaylistInfo(MediaInfoRequest request) async {
+    return playlistResponse ??
+        PlaylistInfo(url: request.url, title: 'Manual playlist', entries: []);
+  }
+
   @override
   Future<void> startDownload(DownloadRequest request) async {
     started.add(request);
@@ -192,6 +200,114 @@ void main() {
 
     await controller.clearCookies();
     expect(controller.cookieStatus.configured, isFalse);
+  });
+
+  test('detects playlist URLs', () {
+    expect(
+      isLikelyPlaylistUrl('https://www.youtube.com/playlist?list=PL123'),
+      isTrue,
+    );
+    expect(
+      isLikelyPlaylistUrl('https://www.youtube.com/watch?v=a&list=PL123'),
+      isTrue,
+    );
+    expect(isLikelyPlaylistUrl('https://soundcloud.com/a/sets/b'), isTrue);
+    expect(isLikelyPlaylistUrl('https://youtu.be/abc123'), isFalse);
+  });
+
+  test('playlist analysis selects all entries and enqueues them', () async {
+    final backend = ManualMediaBackend()
+      ..playlistResponse = const PlaylistInfo(
+        url: 'https://example.com/playlist?list=1',
+        title: 'Test playlist',
+        entries: [
+          PlaylistEntry(url: 'https://example.com/1', title: 'One'),
+          PlaylistEntry(url: 'https://example.com/2', title: 'Two'),
+          PlaylistEntry(url: 'https://example.com/3', title: 'Three'),
+        ],
+      );
+    final controller = AppController(
+      backend: backend,
+      sharedUrlService: const FakeSharedUrlService(),
+    );
+    addTearDown(controller.dispose);
+    await controller.initialize();
+
+    controller.setUrlText('https://example.com/playlist?list=1');
+    await controller.analyzeUrl();
+
+    expect(controller.playlistInfo?.entries, hasLength(3));
+    expect(controller.selectedPlaylistUrls, hasLength(3));
+
+    controller.togglePlaylistEntry(controller.playlistInfo!.entries[1]);
+    await controller.enqueueSelectedPlaylistEntries();
+
+    expect(controller.queue, hasLength(2));
+    expect(controller.queue[0].title, 'One');
+    expect(controller.queue[1].title, 'Three');
+    // Sequential execution: only the first item starts.
+    expect(backend.started, hasLength(1));
+    expect(backend.started.single.formatId, 'bestaudio/best');
+  });
+
+  test('one failed playlist item does not stop the rest', () async {
+    final backend = ManualMediaBackend()
+      ..playlistResponse = const PlaylistInfo(
+        url: 'https://example.com/playlist?list=1',
+        title: 'Test playlist',
+        entries: [
+          PlaylistEntry(url: 'https://example.com/1', title: 'One'),
+          PlaylistEntry(url: 'https://example.com/2', title: 'Two'),
+        ],
+      );
+    final controller = AppController(
+      backend: backend,
+      sharedUrlService: const FakeSharedUrlService(),
+    );
+    addTearDown(controller.dispose);
+    await controller.initialize();
+
+    controller.setUrlText('https://example.com/playlist?list=1');
+    await controller.analyzeUrl();
+    await controller.enqueueSelectedPlaylistEntries();
+
+    backend.emitFailed(backend.started[0].id, 'boom');
+    await pumpEventQueue();
+
+    expect(backend.started, hasLength(2));
+    expect(controller.queue.single.status, DownloadStatus.running);
+    expect(controller.history.single.status, DownloadStatus.failed);
+  });
+
+  test('history persists across restarts and supports search/delete', () async {
+    final store = MemoryQueueStore();
+    final backend = ManualMediaBackend();
+    final controller = await analyzedController(backend, queueStore: store);
+
+    await controller.startDownload(controller.visibleFormats.single);
+    backend.emitCompleted(backend.started.single.id);
+    await pumpEventQueue();
+    expect(controller.history.single.finishedAt, isNotNull);
+    controller.dispose();
+
+    final restarted = AppController(
+      backend: ManualMediaBackend(),
+      sharedUrlService: const FakeSharedUrlService(),
+      queueStore: store,
+    );
+    addTearDown(restarted.dispose);
+    await restarted.initialize();
+
+    expect(restarted.history, hasLength(1));
+    expect(restarted.history.single.status, DownloadStatus.completed);
+
+    restarted.setHistoryQuery('no-such-title');
+    expect(restarted.filteredHistory, isEmpty);
+    restarted.setHistoryQuery('manual');
+    expect(restarted.filteredHistory, hasLength(1));
+
+    restarted.deleteHistoryItem(restarted.history.single.id);
+    expect(restarted.history, isEmpty);
   });
 
   test('queue item serialization round-trips', () {

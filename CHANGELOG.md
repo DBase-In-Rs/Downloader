@@ -13,6 +13,11 @@ versioning once releases begin.
 - Safe cookie import: `cookies.txt` through the system file picker, Netscape
   format validation, Android Keystore AES/GCM encryption at rest, short-lived
   decrypted copies for yt-dlp requests, and a clear-cookies action.
+- Playlist support: flat playlist extraction, item selection with select
+  all/none, output presets, queue expansion, and independent per-item
+  failures.
+- Persistent download history with finish timestamps, search, per-item
+  delete, and clear-all, restored across app restarts.
 
 ## [1.0.0-beta.1] - 2026-08-26
 

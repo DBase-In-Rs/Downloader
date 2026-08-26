@@ -332,30 +332,52 @@ Verification on 2026-08-26:
 
 Tasks:
 
-- [ ] Add playlist metadata extraction.
-- [ ] Add item selection screen.
-- [ ] Add bulk format preset.
-- [ ] Add playlist-to-queue expansion.
-- [ ] Add partial failure reporting.
+- [x] Add playlist metadata extraction.
+- [x] Add item selection screen.
+- [x] Add bulk format preset.
+- [x] Add playlist-to-queue expansion.
+- [x] Add partial failure reporting.
 
 Acceptance criteria:
 
 - User can select playlist items and add them to queue.
 - One failed item does not destroy the whole playlist job.
 
+Verification on 2026-08-26:
+
+- Playlist URLs (list=, /playlist, /sets/) are analyzed with
+  `--flat-playlist --dump-single-json` through a new `getPlaylistInfo`
+  channel method; non-playlist URLs keep the single-item path.
+- Home shows a selection panel with select all/none, per-item checkboxes,
+  output preset (MP3/M4A/MP4/Original), and add-to-queue.
+- Playlist items enqueue with yt-dlp format selector presets
+  (`bestaudio/best`, `bestvideo*+bestaudio/best`, `best`).
+- Items fail independently; the queue continues (unit-tested).
+- `flutter analyze` and `flutter test` passed.
+
 ### Sprint 3.3 - History
 
 Tasks:
 
-- [ ] Add local database for download history.
-- [ ] Store URL, title, thumbnail path, output URI/path, format, status, date,
-      and error summary.
-- [ ] Add history filtering/search.
-- [ ] Add clear history and delete local record actions.
+- [x] Add local persistence for download history (shared_preferences JSON
+      snapshot shared with the queue store; a database can replace it if
+      history outgrows the 200-entry cap).
+- [x] Store URL, title, output URI/path, format, status, finish date, and
+      error summary. (Thumbnail path deferred: thumbnails are not downloaded.)
+- [x] Add history filtering/search.
+- [x] Add clear history and delete local record actions.
 
 Acceptance criteria:
 
 - Completed and failed jobs appear in history after restart.
+
+Verification on 2026-08-26:
+
+- History persists through the queue snapshot store, capped at 200 entries,
+  restored on startup (unit-tested restart round-trip).
+- Finished items carry a timestamp shown in the tile.
+- History page has search plus per-item delete and clear-all.
+- `flutter analyze` and `flutter test` passed.
 
 ## Milestone 4 - Cookie Support
 

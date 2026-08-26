@@ -75,6 +75,30 @@ class MainActivity : FlutterActivity() {
                     }
                 }
 
+                "getPlaylistInfo" -> {
+                    val url = call.argument<String>("url")
+                    val useCookies = call.argument<Boolean>("useCookies") ?: false
+                    if (url.isNullOrBlank()) {
+                        result.error("invalid_url", "URL is required.", null)
+                    } else {
+                        mediaExecutor.execute {
+                            try {
+                                ensureYoutubeDlInitialized()
+                                val playlist = fetchPlaylistInfo(url, useCookies)
+                                mainHandler.post { result.success(playlist) }
+                            } catch (error: Throwable) {
+                                mainHandler.post {
+                                    result.error(
+                                        "metadata_failed",
+                                        sanitizeNativeError(error),
+                                        null,
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+
                 "startDownload" -> {
                     val id = call.argument<String>("id")
                     val url = call.argument<String>("url")
@@ -336,6 +360,76 @@ class MainActivity : FlutterActivity() {
             timeout.cancel(false)
             cookieFile?.delete()
         }
+    }
+
+    private fun fetchPlaylistInfo(url: String, useCookies: Boolean): Map<String, Any?> {
+        val processId = "playlist-${System.currentTimeMillis()}"
+        val request = YoutubeDLRequest(url)
+            .addOption("--flat-playlist")
+            .addOption("--no-warnings")
+            .addOption("--dump-single-json")
+
+        val cookieFile = if (useCookies) {
+            CookieVault.materialize(applicationContext, File(cacheDir, "cookies"))
+        } else {
+            null
+        }
+        cookieFile?.let { request.addOption("--cookies", it.absolutePath) }
+
+        val timeout = scheduler.schedule(
+            { YoutubeDL.getInstance().destroyProcessById(processId) },
+            PLAYLIST_TIMEOUT_SECONDS,
+            TimeUnit.SECONDS,
+        )
+
+        try {
+            val response = YoutubeDL.getInstance().execute(request, processId, false, null)
+            val root = YoutubeDL.objectMapper.readTree(response.out)
+            val entries = root.path("entries").mapNotNull { entry ->
+                val entryUrl = playlistEntryUrl(entry) ?: return@mapNotNull null
+                mapOf(
+                    "url" to entryUrl,
+                    "title" to entry.path("title").asText(null),
+                    "durationSeconds" to entry.path("duration").asLong(0)
+                        .takeIf { it > 0 },
+                    "uploader" to (
+                        entry.path("uploader").asText(null)
+                            ?: entry.path("channel").asText(null)
+                        ),
+                )
+            }
+
+            return mapOf(
+                "url" to (root.path("webpage_url").asText(null) ?: url),
+                "title" to (root.path("title").asText(null) ?: "Playlist"),
+                "entries" to entries,
+            )
+        } catch (error: YoutubeDL.CanceledException) {
+            throw IllegalStateException("Playlist extraction timed out.")
+        } finally {
+            timeout.cancel(false)
+            cookieFile?.delete()
+        }
+    }
+
+    private fun playlistEntryUrl(entry: com.fasterxml.jackson.databind.JsonNode): String? {
+        val webpage = entry.path("webpage_url").asText(null)
+        if (!webpage.isNullOrBlank() && webpage.startsWith("http")) {
+            return webpage
+        }
+
+        val url = entry.path("url").asText(null)
+        if (!url.isNullOrBlank() && url.startsWith("http")) {
+            return url
+        }
+
+        // Flat YouTube playlist entries may carry only the video id.
+        val id = entry.path("id").asText(null) ?: url
+        if (!id.isNullOrBlank() && entry.path("ie_key").asText("").equals("Youtube", true)) {
+            return "https://www.youtube.com/watch?v=$id"
+        }
+
+        return null
     }
 
     private fun videoInfoToMap(info: VideoInfo, fallbackUrl: String): Map<String, Any?> {
@@ -847,6 +941,7 @@ class MainActivity : FlutterActivity() {
         private const val SHARE_CHANNEL = "rs.in.dbase.downloader/share"
         private const val SHARE_EVENTS_CHANNEL = "rs.in.dbase.downloader/share_events"
         private const val METADATA_TIMEOUT_SECONDS = 60L
+        private const val PLAYLIST_TIMEOUT_SECONDS = 120L
         private val PAGE_ALIGNED_FFMPEG_LIBS = listOf(
             "libsharpyuv.so",
             "libwebp.so",

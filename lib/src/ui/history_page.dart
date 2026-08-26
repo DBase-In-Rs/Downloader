@@ -11,7 +11,7 @@ class HistoryPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final history = controller.history;
+    final history = controller.filteredHistory;
 
     return PageSurface(
       child: Column(
@@ -20,7 +20,7 @@ class HistoryPage extends StatelessWidget {
           SectionHeader(
             title: 'History',
             icon: Icons.history,
-            trailing: history.isEmpty
+            trailing: controller.history.isEmpty
                 ? null
                 : IconButton(
                     tooltip: 'Clear history',
@@ -28,12 +28,25 @@ class HistoryPage extends StatelessWidget {
                     icon: const Icon(Icons.delete_sweep),
                   ),
           ),
+          if (controller.history.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            TextField(
+              onChanged: controller.setHistoryQuery,
+              decoration: const InputDecoration(
+                labelText: 'Search history',
+                prefixIcon: Icon(Icons.search),
+                isDense: true,
+              ),
+            ),
+          ],
           const SizedBox(height: 16),
           Expanded(
             child: history.isEmpty
-                ? const EmptyState(
+                ? EmptyState(
                     icon: Icons.history_toggle_off,
-                    title: 'History is empty',
+                    title: controller.history.isEmpty
+                        ? 'History is empty'
+                        : 'No matches',
                   )
                 : ListView.separated(
                     itemCount: history.length,
@@ -48,6 +61,7 @@ class HistoryPage extends StatelessWidget {
                         onRetry: retryable
                             ? () => controller.retryDownload(item)
                             : null,
+                        onDelete: () => controller.deleteHistoryItem(item.id),
                       );
                     },
                   ),
