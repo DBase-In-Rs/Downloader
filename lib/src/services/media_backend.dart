@@ -14,7 +14,8 @@ abstract class MediaBackend {
 
   Future<CookieStatus> getCookieStatus();
 
-  Future<void> importCookies(String path);
+  /// Stores the raw `cookies.txt` content in platform-encrypted storage.
+  Future<void> importCookies(String content);
 
   Future<void> clearCookies();
 

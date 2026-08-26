@@ -1,3 +1,4 @@
+import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
 
 import '../services/app_controller.dart';
@@ -39,12 +40,19 @@ class SettingsPage extends StatelessWidget {
                           status.configured ? 'Configured' : 'Not configured',
                           style: Theme.of(context).textTheme.bodyMedium,
                         ),
+                        const SizedBox(height: 4),
+                        Text(
+                          'Cookies stay on this device, encrypted, and are '
+                          'sent only to the media provider with yt-dlp '
+                          'requests.',
+                          style: Theme.of(context).textTheme.bodySmall,
+                        ),
                       ],
                     ),
                   ),
                   IconButton(
                     tooltip: 'Import cookies.txt',
-                    onPressed: null,
+                    onPressed: () => _importCookies(context),
                     icon: const Icon(Icons.upload_file),
                   ),
                   IconButton(
@@ -60,6 +68,29 @@ class SettingsPage extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+
+  Future<void> _importCookies(BuildContext context) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final file = await openFile(
+      acceptedTypeGroups: const [
+        XTypeGroup(label: 'cookies.txt', extensions: ['txt']),
+      ],
+    );
+    if (file == null) {
+      return;
+    }
+
+    String? failure;
+    try {
+      failure = await controller.importCookies(await file.readAsString());
+    } catch (_) {
+      failure = 'Could not read the selected file.';
+    }
+
+    messenger.showSnackBar(
+      SnackBar(content: Text(failure ?? 'Cookies imported.')),
     );
   }
 }

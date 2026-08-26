@@ -271,6 +271,24 @@ class AppController extends ChangeNotifier {
     );
   }
 
+  /// Imports raw `cookies.txt` content. Returns null on success or a
+  /// user-facing error message on failure.
+  Future<String?> importCookies(String content) async {
+    if (!isValidCookiesFile(content)) {
+      return 'Not a valid cookies.txt file (Netscape format expected).';
+    }
+
+    try {
+      await backend.importCookies(content);
+    } catch (error) {
+      return _friendlyError(error);
+    }
+
+    _cookieStatus = await backend.getCookieStatus();
+    notifyListeners();
+    return null;
+  }
+
   Future<void> clearCookies() async {
     await backend.clearCookies();
     _cookieStatus = await backend.getCookieStatus();
@@ -492,4 +510,21 @@ String? extractFirstUrl(String text) {
   }
 
   return match.group(0)?.replaceAll(RegExp(r'[),.;]+$'), '');
+}
+
+/// Accepts Netscape-format cookie files: comment/blank lines plus at least
+/// one cookie line with seven tab-separated fields.
+bool isValidCookiesFile(String content) {
+  if (content.length > 1024 * 1024) {
+    return false;
+  }
+
+  return content.split('\n').any((line) {
+    final trimmed = line.trim();
+    if (trimmed.isEmpty || trimmed.startsWith('#')) {
+      return false;
+    }
+
+    return line.split('\t').length == 7;
+  });
 }

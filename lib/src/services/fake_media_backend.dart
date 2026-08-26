@@ -149,8 +149,8 @@ class FakeMediaBackend implements MediaBackend {
   }
 
   @override
-  Future<void> importCookies(String path) async {
-    _cookieStatus = CookieStatus(configured: true, message: path);
+  Future<void> importCookies(String content) async {
+    _cookieStatus = const CookieStatus(configured: true);
   }
 
   @override

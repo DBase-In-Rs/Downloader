@@ -61,8 +61,10 @@ class PlatformMediaBackend implements MediaBackend {
   }
 
   @override
-  Future<void> importCookies(String path) {
-    return _methodChannel.invokeMethod<void>('importCookies', {'path': path});
+  Future<void> importCookies(String content) {
+    return _methodChannel.invokeMethod<void>('importCookies', {
+      'content': content,
+    });
   }
 
   @override

@@ -162,6 +162,38 @@ void main() {
     expect(controller.errorMessage, isNull);
   });
 
+  test('validates Netscape cookies.txt content', () {
+    const valid =
+        '# Netscape HTTP Cookie File\n'
+        '.youtube.com\tTRUE\t/\tTRUE\t1799999999\tSID\tabc123\n';
+    expect(isValidCookiesFile(valid), isTrue);
+    expect(isValidCookiesFile('# only comments\n\n'), isFalse);
+    expect(isValidCookiesFile('not a cookie file'), isFalse);
+    expect(isValidCookiesFile(''), isFalse);
+  });
+
+  test('importCookies stores valid content and updates status', () async {
+    final backend = FakeMediaBackend();
+    final controller = AppController(
+      backend: backend,
+      sharedUrlService: const FakeSharedUrlService(),
+    );
+    addTearDown(controller.dispose);
+
+    final rejected = await controller.importCookies('garbage');
+    expect(rejected, isNotNull);
+    expect(controller.cookieStatus.configured, isFalse);
+
+    final accepted = await controller.importCookies(
+      '.youtube.com\tTRUE\t/\tTRUE\t1799999999\tSID\tabc123\n',
+    );
+    expect(accepted, isNull);
+    expect(controller.cookieStatus.configured, isTrue);
+
+    await controller.clearCookies();
+    expect(controller.cookieStatus.configured, isFalse);
+  });
+
   test('queue item serialization round-trips', () {
     const item = DownloadQueueItem(
       id: '42',

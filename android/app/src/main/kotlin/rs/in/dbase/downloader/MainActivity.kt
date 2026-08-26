@@ -53,13 +53,14 @@ class MainActivity : FlutterActivity() {
             when (call.method) {
                 "getInfo" -> {
                     val url = call.argument<String>("url")
+                    val useCookies = call.argument<Boolean>("useCookies") ?: false
                     if (url.isNullOrBlank()) {
                         result.error("invalid_url", "URL is required.", null)
                     } else {
                         mediaExecutor.execute {
                             try {
                                 ensureYoutubeDlInitialized()
-                                val info = fetchMediaInfo(url)
+                                val info = fetchMediaInfo(url, useCookies)
                                 mainHandler.post { result.success(videoInfoToMap(info, url)) }
                             } catch (error: Throwable) {
                                 mainHandler.post {
@@ -136,19 +137,44 @@ class MainActivity : FlutterActivity() {
 
                 "getCookieStatus" -> result.success(
                     mapOf(
-                        "configured" to false,
+                        "configured" to CookieVault.isConfigured(applicationContext),
                         "expired" to false,
                         "message" to null,
                     ),
                 )
 
-                "importCookies" -> result.error(
-                    "not_implemented",
-                    "Cookie import is planned for Sprint 4.",
-                    null,
-                )
+                "importCookies" -> {
+                    val content = call.argument<String>("content")
+                    if (content.isNullOrBlank()) {
+                        result.error(
+                            "invalid_cookie_file",
+                            "Cookie file content is required.",
+                            null,
+                        )
+                    } else {
+                        controlExecutor.execute {
+                            try {
+                                CookieVault.store(applicationContext, content)
+                                mainHandler.post { result.success(null) }
+                            } catch (error: Throwable) {
+                                mainHandler.post {
+                                    result.error(
+                                        "cookie_import_failed",
+                                        sanitizeNativeError(error),
+                                        null,
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
 
-                "clearCookies" -> result.success(null)
+                "clearCookies" -> {
+                    controlExecutor.execute {
+                        runCatching { CookieVault.clear(applicationContext) }
+                        mainHandler.post { result.success(null) }
+                    }
+                }
 
                 else -> result.notImplemented()
             }
@@ -280,12 +306,19 @@ class MainActivity : FlutterActivity() {
         }
     }
 
-    private fun fetchMediaInfo(url: String): VideoInfo {
+    private fun fetchMediaInfo(url: String, useCookies: Boolean): VideoInfo {
         val processId = "info-${System.currentTimeMillis()}"
         val request = YoutubeDLRequest(url)
             .addOption("--no-playlist")
             .addOption("--no-warnings")
             .addOption("--dump-json")
+
+        val cookieFile = if (useCookies) {
+            CookieVault.materialize(applicationContext, File(cacheDir, "cookies"))
+        } else {
+            null
+        }
+        cookieFile?.let { request.addOption("--cookies", it.absolutePath) }
 
         val timeout = scheduler.schedule(
             { YoutubeDL.getInstance().destroyProcessById(processId) },
@@ -301,6 +334,7 @@ class MainActivity : FlutterActivity() {
             throw IllegalStateException("Metadata extraction timed out.")
         } finally {
             timeout.cancel(false)
+            cookieFile?.delete()
         }
     }
 
@@ -376,6 +410,7 @@ class MainActivity : FlutterActivity() {
 
         mediaExecutor.execute {
             var outputDir: File? = null
+            var cookieFile: File? = null
             try {
                 ensureYoutubeDlInitialized()
                 emitProgress(
@@ -392,6 +427,16 @@ class MainActivity : FlutterActivity() {
                 val workingDir = File(cacheDir, "downloads/$id").apply { mkdirs() }
                 outputDir = workingDir
                 val request = downloadRequest(url, formatId, outputKind, workingDir)
+
+                // The plain cookie file must stay OUTSIDE the working
+                // directory: output detection picks the newest file there,
+                // and yt-dlp rewrites the cookie file on exit, which would
+                // make it the newest and leak it as the saved output.
+                cookieFile = CookieVault.materialize(
+                    applicationContext,
+                    File(cacheDir, "cookies"),
+                )
+                cookieFile?.let { request.addOption("--cookies", it.absolutePath) }
 
                 YoutubeDL.getInstance().execute(request, id) { progress, etaSeconds, line ->
                     val percent = progress.takeIf { it >= 0 }?.let { it / 100.0 }
@@ -432,6 +477,7 @@ class MainActivity : FlutterActivity() {
                     emitFailed(id, sanitizeNativeError(error))
                 }
             } finally {
+                cookieFile?.delete()
                 outputDir?.deleteRecursively()
                 markDownloadFinished(id)
             }

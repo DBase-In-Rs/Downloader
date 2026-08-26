@@ -365,20 +365,31 @@ Goal: make login-required downloads usable without unsafe cookie handling.
 
 Tasks:
 
-- [ ] Add Settings screen section: Account cookies.
-- [ ] Add `cookies.txt` import through system file picker.
-- [ ] Validate imported cookie file structure before storing.
-- [ ] Store encrypted cookie content where platform supports it.
-- [ ] Pass cookie file to yt-dlp only for matching requests.
-- [ ] Add cookie status: not configured, configured, expired/failed.
-- [ ] Add clear cookies action.
-- [ ] Redact cookies and auth values in all logs and crash output.
+- [x] Add Settings screen section: Account cookies.
+- [x] Add `cookies.txt` import through system file picker.
+- [x] Validate imported cookie file structure before storing.
+- [x] Store encrypted cookie content where platform supports it.
+- [x] Pass cookie file to yt-dlp only for matching requests.
+- [x] Add cookie status: not configured, configured.
+- [ ] Add expired/failed cookie status detection.
+- [x] Add clear cookies action.
+- [x] Redact cookies and auth values in all logs and crash output.
 
 Acceptance criteria:
 
 - User has a guided cookie import path.
 - Cookies are encrypted at rest where supported.
 - User can delete cookies from inside the app.
+
+Verification on 2026-08-26 (Android, real device):
+
+- `cookies.txt` import through the system file picker works; invalid files are
+  rejected before storage.
+- Content is encrypted with an Android Keystore AES/GCM key in the no-backup
+  directory; yt-dlp receives a short-lived decrypted copy that is deleted
+  after each process and kept outside the download working directory.
+- Status card shows configured/not configured; clear action wipes the store.
+- `flutter analyze`, `flutter test`, and release builds passed.
 
 ### Sprint 4.2 - Assisted Login Investigation
 

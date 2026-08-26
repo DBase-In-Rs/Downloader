@@ -8,6 +8,12 @@ versioning once releases begin.
 
 ## [Unreleased]
 
+### Added
+
+- Safe cookie import: `cookies.txt` through the system file picker, Netscape
+  format validation, Android Keystore AES/GCM encryption at rest, short-lived
+  decrypted copies for yt-dlp requests, and a clear-cookies action.
+
 ## [1.0.0-beta.1] - 2026-08-26
 
 First public pre-release: Android-only beta with single-item downloads,

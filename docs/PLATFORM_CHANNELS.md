@@ -124,15 +124,29 @@ Request:
 
 ```json
 {
-  "path": "/user/selected/cookies.txt"
+  "content": "# Netscape HTTP Cookie File\n.youtube.com\tTRUE\t/\tTRUE\t1799999999\tSID\tvalue\n"
 }
 ```
 
-Status: reserved for Sprint 4.
+Response: `null` on success. Errors: `invalid_cookie_file`,
+`cookie_import_failed`.
+
+Android behavior:
+
+- content is validated in Dart (Netscape format) before the channel call;
+- content is encrypted with an Android Keystore AES/GCM key and stored in the
+  app's no-backup directory;
+- when cookies are configured, yt-dlp requests receive a short-lived decrypted
+  copy through `--cookies`; the plain file is deleted after the process
+  finishes and is kept outside the download working directory so it can never
+  be picked up as a download output;
+- `getInfo` attaches cookies only when the request sets `useCookies`;
+  downloads attach cookies whenever they are configured;
+- cookie values are never logged; error output is redacted.
 
 ### `clearCookies`
 
-Response: `null`.
+Response: `null`. Deletes the encrypted cookie store.
 
 ## Downloader Event Channel
 

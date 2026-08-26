@@ -38,6 +38,9 @@ dependencies:
   # Local key-value storage used for download queue persistence.
   shared_preferences: ^2.5.3
 
+  # System file picker used for cookies.txt import.
+  file_selector: ^1.0.3
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

@@ -27,6 +27,7 @@ GPL-3.0-only.
 | FFmpeg | Desktop conversion/remuxing if bundled separately | LGPL or GPL depending on build flags and linked libraries | Document artifact, configure flags, source offer, and license. |
 | Jackson Databind | Android JSON parsing for youtubedl-android metadata output | Apache-2.0 | Android app directly depends on `com.fasterxml.jackson.core:jackson-databind:2.11.1` because the youtubedl-android object mapper is used from the app module. |
 | shared_preferences | Flutter plugin for local key-value storage used for download queue persistence | BSD-3-Clause | Include in generated Flutter/Dart package notices. |
+| file_selector | Flutter plugin for the system file picker used for cookies.txt import | BSD-3-Clause | Include in generated Flutter/Dart package notices. |
 | libwebp 1.5.0 | 16 KB page-aligned replacement builds of the libwebp libraries bundled inside the youtubedl-android FFmpeg artifact | BSD-3-Clause | Built from https://github.com/webmproject/libwebp v1.5.0 with NDK r28.2 (`-Wl,-z,max-page-size=16384`), shipped in `android/app/src/main/jniLibs`. Include license text in release notices. |
 | Desktop yt-dlp binary | Windows/macOS extraction backend if bundled | To be verified before bundling | Prefer user-selected binary until release packaging is decided. |
 | Desktop FFmpeg binary | Windows/macOS conversion backend if bundled | To be verified before bundling | Prefer user-selected binary until release packaging is decided. |

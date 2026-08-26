@@ -77,14 +77,14 @@ Implemented:
   queue persistence across app restarts.
 - yt-dlp engine self-update on startup plus a manual update action in
   Settings.
+- Encrypted `cookies.txt` import for login-required media, with in-app delete.
 
 Still pending:
 
-- real-device Android share/download/conversion/MediaStore QA;
-- Storage Access Framework fallback;
+- Storage Access Framework fallback and user-selected output folder;
 - local history database;
 - playlist expansion;
-- cookie import.
+- expired-cookie detection;
 - real Windows, macOS, and iOS media backends.
 
 ## YouTube Cookies
