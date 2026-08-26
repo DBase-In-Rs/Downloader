@@ -478,7 +478,7 @@ Tasks:
 - [x] Add process cancellation.
 - [x] Add output path collision handling.
 - [x] Add Windows-specific tests/manual checklist.
-- [ ] Manual end-to-end Windows download verification with real binaries.
+- [x] Manual end-to-end Windows download verification with real binaries.
 
 Acceptance criteria:
 
@@ -493,6 +493,12 @@ Verification on 2026-08-26:
   `name (1).ext` collision handling; cancel kills the yt-dlp process; engine
   update runs `yt-dlp --update`.
 - Desktop cookies are not supported yet (import reports unsupported).
+- End-to-end verification on Windows with PATH binaries
+  (`tool/desktop_smoke.dart`): metadata extraction returned real formats,
+  and an MP3 download completed with live progress into a chosen output
+  folder. The stale system yt-dlp initially failed with HTTP 403, which the
+  `yt-dlp --update` engine path resolves — same behavior as Android.
+- `flutter build windows` passed.
 
 ## Milestone 6 - macOS Desktop
 
