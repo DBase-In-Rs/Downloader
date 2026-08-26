@@ -1,6 +1,7 @@
 # DBase Video & Music Downloader Plan
 
-Status: Approved, implementation started
+Status: Android MVP implementation in progress; native metadata/download path
+implemented, device QA pending
 
 Canonical app/package id: `rs.in.dbase.downloader`
 
@@ -78,7 +79,7 @@ Tasks:
 - [x] Set app label to final approved display name.
 - [x] Align iOS/macOS bundle identifiers when generated.
 - [x] Align Windows app display metadata where current template supports it.
-- [x] Add Android `ACTION_SEND` `text/plain` share intent placeholder.
+- [x] Add Android `ACTION_SEND` `text/plain` share intent.
 - [ ] Align Windows installer/package identity when packaging is configured.
 
 Acceptance criteria:
@@ -123,11 +124,11 @@ Goal: create one UI and domain model that every platform can use.
 
 Tasks:
 
-- [ ] Build main app layout.
-- [ ] Add Home, Queue, History, and Settings navigation.
-- [ ] Add URL input, paste action, validation, and submit.
-- [ ] Add pending/loading/error states.
-- [ ] Add domain models for media info, formats, queue item, progress, history,
+- [x] Build main app layout.
+- [x] Add Home, Queue, History, and Settings navigation.
+- [x] Add URL input, paste action, validation, and submit.
+- [x] Add pending/loading/error states.
+- [x] Add domain models for media info, formats, queue item, progress, history,
       and cookie status.
 
 Acceptance criteria:
@@ -139,17 +140,23 @@ Acceptance criteria:
 
 Tasks:
 
-- [ ] Define `MediaInfoService`.
-- [ ] Define `DownloadService`.
-- [ ] Define `DownloadQueue`.
-- [ ] Define `CookieStore`.
-- [ ] Add fake implementation for UI development.
-- [ ] Add unit tests for model parsing and state transitions.
+- [x] Define shared media info contract through `MediaBackend.getInfo`.
+- [x] Define shared download contract through `MediaBackend.startDownload`.
+- [x] Define queue state in `AppController`.
+- [x] Define cookie contract through `MediaBackend.getCookieStatus`,
+      `importCookies`, and `clearCookies`.
+- [x] Add fake implementation for UI development.
+- [x] Add unit tests for model parsing and state transitions.
 
 Acceptance criteria:
 
 - UI can be tested without real yt-dlp or FFmpeg.
 - Platform implementations can be added without rewriting screens.
+
+Verification on 2026-08-26:
+
+- `flutter analyze` passed.
+- `flutter test` passed.
 
 ## Milestone 2 - Android MVP
 
@@ -160,46 +167,62 @@ Goal: ship the first complete Android downloader path.
 Tasks:
 
 - [x] Add Android `ACTION_SEND` `text/plain` share intent.
-- [ ] Read and normalize the shared URL payload in Kotlin/Dart.
-- [ ] Create MethodChannel `rs.in.dbase.downloader/downloader`.
-- [ ] Create EventChannel `rs.in.dbase.downloader/events`.
-- [ ] Implement fake native progress events.
-- [ ] Add Android DTOs and channel schema docs.
+- [x] Read and normalize the shared URL payload in Kotlin/Dart.
+- [x] Create MethodChannel `rs.in.dbase.downloader/downloader`.
+- [x] Create EventChannel `rs.in.dbase.downloader/events`.
+- [x] Implement initial native progress event bridge.
+- [x] Add Android DTOs and channel schema docs.
 
 Acceptance criteria:
 
 - Sharing a URL from another Android app opens DBase Downloader.
 - Flutter receives native progress events without freezing.
 
+Verification on 2026-08-26:
+
+- `flutter analyze` passed.
+- `flutter test` passed.
+- `flutter build apk --debug` passed.
+- Manual Android share-sheet testing still requires a connected device/emulator.
+
 ### Sprint 2.2 - yt-dlp Metadata
 
 Tasks:
 
-- [ ] Add youtubedl-android dependency.
-- [ ] Initialize yt-dlp safely in Kotlin.
-- [ ] Implement `getInfo(url, options)` using JSON output.
-- [ ] Parse title, duration, uploader, thumbnail, extractor, and webpage URL.
-- [ ] Parse available formats with ext, resolution, bitrate, filesize estimate,
+- [x] Add youtubedl-android dependency.
+- [x] Initialize yt-dlp safely in Kotlin.
+- [x] Implement `getInfo(url, options)` using JSON output.
+- [x] Parse title, duration, uploader, thumbnail, extractor, and webpage URL.
+- [x] Parse available formats with ext, resolution, bitrate, filesize estimate,
       codec, and format id.
-- [ ] Show format list in Flutter.
-- [ ] Add timeout, cancellation, and structured error mapping.
+- [x] Show format list in Flutter.
+- [x] Add structured error mapping.
+- [x] Add timeout and cancellation for metadata extraction.
 
 Acceptance criteria:
 
 - App displays metadata and formats for common public URLs.
 - Unsupported/private/login-required URLs produce actionable errors.
 
+Verification on 2026-08-26:
+
+- `flutter build apk --debug` passed after adding youtubedl-android 0.18.1.
+- Metadata extraction uses a dedicated yt-dlp process id and a 60 second native
+  timeout.
+- Manual Android metadata extraction testing still requires a connected
+  device/emulator with network access.
+
 ### Sprint 2.3 - Android Download Engine
 
 Tasks:
 
-- [ ] Implement native download worker around yt-dlp.
-- [ ] Convert yt-dlp progress output into structured EventChannel updates.
-- [ ] Show percentage, speed, ETA, downloaded bytes, and current stage.
-- [ ] Add cancel support.
-- [ ] Add temporary working directory management.
-- [ ] Add filename sanitization and collision handling.
-- [ ] Add foreground service with ongoing notification.
+- [x] Implement native download worker around yt-dlp.
+- [x] Convert yt-dlp progress output into structured EventChannel updates.
+- [x] Show percentage, speed, ETA, downloaded bytes, and current stage.
+- [x] Add cancel support.
+- [x] Add temporary working directory management.
+- [x] Add filename sanitization and collision handling.
+- [x] Add foreground service with ongoing notification.
 
 Acceptance criteria:
 
@@ -208,24 +231,47 @@ Acceptance criteria:
 - Download continues while app is backgrounded.
 - Cancel stops native work and cleans partial files when appropriate.
 
+Verification on 2026-08-26:
+
+- `flutter analyze` passed.
+- `flutter test` passed.
+- `flutter build apk --debug` passed.
+- Native worker uses a cache working directory, destroys yt-dlp by process id on
+  cancel, emits terminal events, and deletes temporary files in the worker
+  cleanup path.
+- Manual foreground/background/cancel testing still requires a connected Android
+  device or emulator.
+
 ### Sprint 2.4 - Android FFmpeg And MediaStore
 
 Tasks:
 
-- [ ] Choose FFmpeg Android artifact and document its LGPL/GPL state.
-- [ ] Implement audio conversion to MP3.
-- [ ] Implement M4A keep/remux path.
-- [ ] Implement MP4 keep/remux path.
-- [ ] Write audio to MediaStore Audio collection.
-- [ ] Write video to MediaStore Video collection.
+- [x] Choose Android FFmpeg artifact.
+- [ ] Document exact FFmpeg Android artifact LGPL/GPL state and build flags for
+      public release.
+- [x] Implement audio conversion to MP3.
+- [x] Implement M4A keep/remux path.
+- [x] Implement MP4 keep/remux path.
+- [x] Write audio to MediaStore Audio collection.
+- [x] Write video to MediaStore Video collection.
 - [ ] Add SAF fallback for user-selected folder.
-- [ ] Clean temp files after successful save.
+- [x] Clean temp files after successful save, failure, or cancel.
 
 Acceptance criteria:
 
 - MP3 output appears in Android audio/media apps.
 - MP4 output appears in Android video/gallery apps.
 - Failed conversion leaves a clear error and no corrupt final MediaStore entry.
+
+Verification on 2026-08-26:
+
+- Android uses `io.github.junkfood02.youtubedl-android:ffmpeg:0.18.1`.
+- MP3/M4A extraction and MP4 merge are requested through yt-dlp/FFmpeg options.
+- Android 10+ saves through MediaStore Audio or Video collections.
+- Pre-Android 10 fallback saves to the app external files directory.
+- `flutter build apk --debug` passed.
+- Manual conversion and MediaStore visibility testing still requires a connected
+  Android device or emulator.
 
 ## Milestone 3 - Queue, Playlist, And History
 
@@ -490,7 +536,7 @@ Acceptance criteria:
 4. Add shared Dart service contracts.
 5. Build URL input screen.
 6. Add Android share intent.
-7. Add Android Platform Channel stub.
+7. Add Android Platform Channel bridge.
 8. Add fake progress events.
 9. Integrate youtubedl-android for metadata only.
 10. Add first real Android single-item download.
@@ -517,7 +563,7 @@ Acceptance criteria:
 - Minimum supported Android version.
 - State management package for Flutter.
 - Local database package for history.
-- FFmpeg Android distribution/build strategy.
+- FFmpeg Android artifact license/build-flag confirmation for public release.
 - yt-dlp/FFmpeg desktop binary distribution strategy.
 - Whether assisted WebView cookie capture is allowed to ship.
 - Whether first public release targets GitHub Releases only or also an app

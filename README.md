@@ -28,9 +28,15 @@ flowchart TD
 
 ## Status
 
-This repository is in planning/bootstrap stage. Platform folders for Android,
-iOS, macOS, and Windows exist, but the current app is not yet the finished
-downloader. See [PLAN.md](PLAN.md) for the sprint roadmap.
+This repository is in early implementation. Platform folders for Android, iOS,
+macOS, and Windows exist, and the Flutter app shell now includes URL intake,
+format selection UI, queue/history/settings screens, typed models, and a fake
+backend for development.
+
+Android now has a native Kotlin bridge for URL sharing, yt-dlp metadata
+extraction, single-item downloads, FFmpeg conversion/remux options, foreground
+service support, and MediaStore saves. Runtime testing on a real Android device
+or emulator is still pending. See [PLAN.md](PLAN.md) for the sprint roadmap.
 
 ## Planned Features
 
@@ -48,6 +54,34 @@ downloader. See [PLAN.md](PLAN.md) for the sprint roadmap.
   service.
 - Keep local download history.
 - Optional user-managed cookies for media that requires account access.
+
+## Current Implementation
+
+Implemented:
+
+- shared Flutter navigation for Home, Queue, History, and Settings;
+- URL input with validation and paste support;
+- media metadata and format list through the shared backend contract;
+- output selector for MP3, M4A, MP4, and original;
+- fake queue/progress/history flow;
+- Dart service contracts for media info, downloads, cookies, and shared URLs.
+- Android Platform Channels for metadata, downloads, progress events, and shared
+  text.
+- Android metadata extraction through `youtubedl-android` 0.18.1.
+- Android single-item yt-dlp download worker with cancel support.
+- Android FFmpeg MP3/M4A extraction and MP4 merge options.
+- Android foreground service for active downloads.
+- Android MediaStore save for audio/video on Android 10+.
+- Documented channel schema in [docs/PLATFORM_CHANNELS.md](docs/PLATFORM_CHANNELS.md).
+
+Still pending:
+
+- real-device Android share/download/conversion/MediaStore QA;
+- Storage Access Framework fallback;
+- queue persistence and local history database;
+- playlist expansion;
+- cookie import.
+- real Windows, macOS, and iOS media backends.
 
 ## YouTube Cookies
 
@@ -86,6 +120,7 @@ flutter pub get
 flutter analyze
 flutter test
 flutter run
+flutter build apk --debug
 ```
 
 Platform folders were generated with:

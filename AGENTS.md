@@ -50,11 +50,11 @@ repository/service interface.
 Android backend:
 
 - Kotlin Platform Channels;
-- youtubedl-android and yt-dlp;
-- FFmpeg integration;
+- youtubedl-android 0.18.1 and bundled yt-dlp;
+- youtubedl-android FFmpeg artifact 0.18.1;
 - foreground service and progress notification;
 - Android Share intent handling;
-- MediaStore and Storage Access Framework;
+- MediaStore, with Storage Access Framework still planned;
 - Android Keystore-backed encrypted cookie storage.
 
 Windows backend:
@@ -117,6 +117,21 @@ Preferred Android channel layout:
 
 Keep channel payloads explicit, versioned, and JSON-serializable. Avoid loosely
 typed maps without a documented schema.
+
+The current channel schema is documented in `docs/PLATFORM_CHANNELS.md`. Update
+that file whenever a channel name, method, event, or payload field changes.
+
+Android `getInfo` currently runs `YoutubeDL.execute` with `--dump-json`, a
+dedicated process id, and a native timeout, then parses the response with
+Jackson 2.11.1 into youtubedl-android's `VideoInfo` model. It maps only safe
+metadata/format fields to Dart. Do not pass direct media URLs, HTTP headers,
+cookies, or raw extractor output through the UI channel unless a specific
+privacy/security review approves it.
+
+Android `startDownload` currently runs yt-dlp from Kotlin with a cache working
+directory, reports progress through the EventChannel, uses FFmpeg options for
+MP3/M4A extraction and MP4 merge, saves completed files through MediaStore on
+Android 10+, and deletes temporary files in the worker cleanup path.
 
 ## Platform Identity
 
@@ -183,6 +198,7 @@ For Android integration changes, also verify on a real device or emulator:
 
 - share target opens the app with the URL;
 - format extraction works;
+- single-item MP3, M4A, MP4, and original downloads work;
 - foreground service continues during backgrounding;
 - progress events continue and recover after rotation;
 - MediaStore output appears in the expected collection;

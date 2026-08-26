@@ -1,5 +1,743 @@
 package rs.`in`.dbase.downloader
 
+import android.content.Intent
+import android.content.ContentValues
+import android.net.Uri
+import android.os.Build
+import android.os.Environment
+import android.os.Handler
+import android.os.Looper
+import android.provider.MediaStore
+import com.yausername.ffmpeg.FFmpeg
+import com.yausername.youtubedl_android.YoutubeDL
+import com.yausername.youtubedl_android.YoutubeDLRequest
+import com.yausername.youtubedl_android.mapper.VideoFormat
+import com.yausername.youtubedl_android.mapper.VideoInfo
 import io.flutter.embedding.android.FlutterActivity
+import io.flutter.embedding.engine.FlutterEngine
+import io.flutter.plugin.common.EventChannel
+import io.flutter.plugin.common.MethodChannel
+import java.io.File
+import java.util.concurrent.Executors
+import java.util.concurrent.TimeUnit
 
-class MainActivity : FlutterActivity()
+class MainActivity : FlutterActivity() {
+    private val mainHandler = Handler(Looper.getMainLooper())
+    private val mediaExecutor = Executors.newSingleThreadExecutor()
+    private val controlExecutor = Executors.newCachedThreadPool()
+    private val scheduler = Executors.newSingleThreadScheduledExecutor()
+    private val initLock = Any()
+    private val downloadLock = Any()
+    private val activeDownloadIds = mutableSetOf<String>()
+    private val canceledDownloadIds = mutableSetOf<String>()
+
+    private var downloaderEvents: EventChannel.EventSink? = null
+    private var shareEvents: EventChannel.EventSink? = null
+    private var initialSharedText: String? = null
+
+    @Volatile
+    private var youtubeDlInitialized = false
+
+    override fun onCreate(savedInstanceState: android.os.Bundle?) {
+        super.onCreate(savedInstanceState)
+        initialSharedText = sharedTextFromIntent(intent)
+    }
+
+    override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
+        super.configureFlutterEngine(flutterEngine)
+
+        MethodChannel(
+            flutterEngine.dartExecutor.binaryMessenger,
+            DOWNLOADER_CHANNEL,
+        ).setMethodCallHandler { call, result ->
+            when (call.method) {
+                "getInfo" -> {
+                    val url = call.argument<String>("url")
+                    if (url.isNullOrBlank()) {
+                        result.error("invalid_url", "URL is required.", null)
+                    } else {
+                        mediaExecutor.execute {
+                            try {
+                                ensureYoutubeDlInitialized()
+                                val info = fetchMediaInfo(url)
+                                mainHandler.post { result.success(videoInfoToMap(info, url)) }
+                            } catch (error: Throwable) {
+                                mainHandler.post {
+                                    result.error(
+                                        "metadata_failed",
+                                        sanitizeNativeError(error),
+                                        null,
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+
+                "startDownload" -> {
+                    val id = call.argument<String>("id")
+                    val url = call.argument<String>("url")
+                    val formatId = call.argument<String>("formatId")
+                    val outputKind = call.argument<String>("outputKind") ?: "original"
+                    if (id.isNullOrBlank() || url.isNullOrBlank() || formatId.isNullOrBlank()) {
+                        result.error(
+                            "invalid_download_request",
+                            "Download id, URL, and format id are required.",
+                            null,
+                        )
+                    } else {
+                        startDownload(id, url, formatId, outputKind)
+                        result.success(null)
+                    }
+                }
+
+                "cancelDownload" -> {
+                    val id = call.argument<String>("id")
+                    if (id.isNullOrBlank()) {
+                        result.error("invalid_download_id", "Download id is required.", null)
+                    } else {
+                        cancelDownload(id)
+                        result.success(null)
+                    }
+                }
+
+                "getCookieStatus" -> result.success(
+                    mapOf(
+                        "configured" to false,
+                        "expired" to false,
+                        "message" to null,
+                    ),
+                )
+
+                "importCookies" -> result.error(
+                    "not_implemented",
+                    "Cookie import is planned for Sprint 4.",
+                    null,
+                )
+
+                "clearCookies" -> result.success(null)
+
+                else -> result.notImplemented()
+            }
+        }
+
+        EventChannel(
+            flutterEngine.dartExecutor.binaryMessenger,
+            DOWNLOADER_EVENTS_CHANNEL,
+        ).setStreamHandler(
+            object : EventChannel.StreamHandler {
+                override fun onListen(arguments: Any?, events: EventChannel.EventSink?) {
+                    downloaderEvents = events
+                }
+
+                override fun onCancel(arguments: Any?) {
+                    downloaderEvents = null
+                }
+            },
+        )
+
+        MethodChannel(
+            flutterEngine.dartExecutor.binaryMessenger,
+            SHARE_CHANNEL,
+        ).setMethodCallHandler { call, result ->
+            when (call.method) {
+                "getInitialSharedText" -> {
+                    val sharedText = initialSharedText
+                    initialSharedText = null
+                    result.success(sharedText)
+                }
+
+                else -> result.notImplemented()
+            }
+        }
+
+        EventChannel(
+            flutterEngine.dartExecutor.binaryMessenger,
+            SHARE_EVENTS_CHANNEL,
+        ).setStreamHandler(
+            object : EventChannel.StreamHandler {
+                override fun onListen(arguments: Any?, events: EventChannel.EventSink?) {
+                    shareEvents = events
+                }
+
+                override fun onCancel(arguments: Any?) {
+                    shareEvents = null
+                }
+            },
+        )
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+
+        val sharedText = sharedTextFromIntent(intent) ?: return
+        val sink = shareEvents
+        if (sink == null) {
+            initialSharedText = sharedText
+        } else {
+            sink.success(sharedText)
+        }
+    }
+
+    override fun onDestroy() {
+        val ids = synchronized(downloadLock) {
+            activeDownloadIds.toList()
+        }
+        for (id in ids) {
+            runCatching { YoutubeDL.getInstance().destroyProcessById(id) }
+        }
+        DownloadForegroundService.stop(applicationContext)
+        mediaExecutor.shutdownNow()
+        controlExecutor.shutdownNow()
+        scheduler.shutdownNow()
+        super.onDestroy()
+    }
+
+    private fun sharedTextFromIntent(intent: Intent?): String? {
+        if (intent?.action != Intent.ACTION_SEND || intent.type != "text/plain") {
+            return null
+        }
+
+        return intent.getStringExtra(Intent.EXTRA_TEXT)?.takeIf { it.isNotBlank() }
+    }
+
+    private fun ensureYoutubeDlInitialized() {
+        if (youtubeDlInitialized) {
+            return
+        }
+
+        synchronized(initLock) {
+            if (youtubeDlInitialized) {
+                return
+            }
+
+            YoutubeDL.getInstance().init(applicationContext)
+            FFmpeg.getInstance().init(applicationContext)
+            youtubeDlInitialized = true
+        }
+    }
+
+    private fun fetchMediaInfo(url: String): VideoInfo {
+        val processId = "info-${System.currentTimeMillis()}"
+        val request = YoutubeDLRequest(url)
+            .addOption("--no-playlist")
+            .addOption("--no-warnings")
+            .addOption("--dump-json")
+
+        val timeout = scheduler.schedule(
+            { YoutubeDL.getInstance().destroyProcessById(processId) },
+            METADATA_TIMEOUT_SECONDS,
+            TimeUnit.SECONDS,
+        )
+
+        return try {
+            val response = YoutubeDL.getInstance().execute(request, processId, false, null)
+            YoutubeDL.objectMapper.readValue(response.out, VideoInfo::class.java)
+                ?: throw IllegalStateException("Unable to parse media information.")
+        } catch (error: YoutubeDL.CanceledException) {
+            throw IllegalStateException("Metadata extraction timed out.")
+        } finally {
+            timeout.cancel(false)
+        }
+    }
+
+    private fun videoInfoToMap(info: VideoInfo, fallbackUrl: String): Map<String, Any?> {
+        val formats = (info.formats ?: info.requestedFormats ?: arrayListOf())
+            .mapNotNull(::videoFormatToMap)
+
+        return mapOf(
+            "url" to (info.webpageUrl ?: fallbackUrl),
+            "title" to (info.fulltitle ?: info.title ?: "Untitled media"),
+            "uploader" to info.uploader,
+            "thumbnailUrl" to info.thumbnail,
+            "durationSeconds" to info.duration.takeIf { it > 0 },
+            "extractor" to (info.extractorKey ?: info.extractor),
+            "formats" to formats,
+        )
+    }
+
+    private fun videoFormatToMap(format: VideoFormat): Map<String, Any?>? {
+        val id = format.formatId ?: return null
+        val hasVideo = !format.vcodec.isNullOrBlank() && format.vcodec != "none"
+        val hasAudio = !format.acodec.isNullOrBlank() && format.acodec != "none"
+        val kind = when {
+            hasVideo && hasAudio -> "muxed"
+            hasVideo -> "video"
+            hasAudio -> "audio"
+            else -> "unknown"
+        }
+        val filesize = when {
+            format.fileSize > 0 -> format.fileSize
+            format.fileSizeApproximate > 0 -> format.fileSizeApproximate
+            else -> null
+        }
+        val codec = listOfNotNull(
+            format.vcodec?.takeUnless { it == "none" },
+            format.acodec?.takeUnless { it == "none" },
+        ).joinToString(" + ").takeIf { it.isNotBlank() }
+
+        return mapOf(
+            "id" to id,
+            "extension" to (format.ext ?: "unknown"),
+            "kind" to kind,
+            "qualityLabel" to qualityLabelFor(format),
+            "width" to format.width.takeIf { it > 0 },
+            "height" to format.height.takeIf { it > 0 },
+            "audioBitrateKbps" to format.abr.takeIf { it > 0 },
+            "videoBitrateKbps" to format.tbr.takeIf { it > 0 && hasVideo },
+            "filesizeBytes" to filesize,
+            "codec" to codec,
+            "note" to format.formatNote,
+        )
+    }
+
+    private fun qualityLabelFor(format: VideoFormat): String {
+        return when {
+            !format.formatNote.isNullOrBlank() -> format.formatNote!!
+            format.height > 0 -> "${format.height}p"
+            format.abr > 0 -> "${format.abr} kbps"
+            format.tbr > 0 -> "${format.tbr} kbps"
+            !format.format.isNullOrBlank() -> format.format!!
+            !format.formatId.isNullOrBlank() -> format.formatId!!
+            else -> "Unknown quality"
+        }
+    }
+
+    private fun startDownload(
+        id: String,
+        url: String,
+        formatId: String,
+        outputKind: String,
+    ) {
+        markDownloadStarted(id)
+
+        mediaExecutor.execute {
+            var outputDir: File? = null
+            try {
+                ensureYoutubeDlInitialized()
+                emitProgress(
+                    id = id,
+                    stage = "Starting",
+                    percent = 0.0,
+                    downloadedBytes = null,
+                    totalBytes = null,
+                    speedBytesPerSecond = null,
+                    etaSeconds = null,
+                    rawLine = null,
+                )
+
+                val workingDir = File(cacheDir, "downloads/$id").apply { mkdirs() }
+                outputDir = workingDir
+                val request = downloadRequest(url, formatId, outputKind, workingDir)
+
+                YoutubeDL.getInstance().execute(request, id) { progress, etaSeconds, line ->
+                    val percent = progress.takeIf { it >= 0 }?.let { it / 100.0 }
+                    val metrics = progressMetricsFromLine(line, percent)
+                    emitProgress(
+                        id = id,
+                        stage = stageFromOutput(line),
+                        percent = percent,
+                        downloadedBytes = metrics.downloadedBytes,
+                        totalBytes = metrics.totalBytes,
+                        speedBytesPerSecond = metrics.speedBytesPerSecond,
+                        etaSeconds = etaSeconds.takeIf { it >= 0 },
+                        rawLine = line,
+                    )
+                }
+
+                val outputFile = outputDir
+                    .walkTopDown()
+                    .filter { it.isFile && !it.name.endsWith(".part") }
+                    .maxByOrNull { it.lastModified() }
+                    ?: throw IllegalStateException("Download finished without an output file.")
+
+                if (!wasCanceled(id)) {
+                    val outputLocation = saveOutputFile(outputFile, outputKind)
+                    emitCompleted(id, outputLocation)
+                }
+            } catch (error: YoutubeDL.CanceledException) {
+                markCanceled(id)
+                emitCanceled(id)
+            } catch (error: InterruptedException) {
+                Thread.currentThread().interrupt()
+                markCanceled(id)
+                emitCanceled(id)
+            } catch (error: Throwable) {
+                if (wasCanceled(id)) {
+                    emitCanceled(id)
+                } else {
+                    emitFailed(id, sanitizeNativeError(error))
+                }
+            } finally {
+                outputDir?.deleteRecursively()
+                markDownloadFinished(id)
+            }
+        }
+    }
+
+    private fun downloadRequest(
+        url: String,
+        formatId: String,
+        outputKind: String,
+        outputDir: File,
+    ): YoutubeDLRequest {
+        val request = YoutubeDLRequest(url)
+            .addOption("--no-playlist")
+            .addOption("--newline")
+            .addOption("--restrict-filenames")
+            .addOption("--trim-filenames", 180)
+            .addOption("--retries", 10)
+            .addOption("--fragment-retries", 10)
+            .addOption("-f", formatId)
+            .addOption("-o", File(outputDir, "%(title)s.%(ext)s").absolutePath)
+
+        when (outputKind) {
+            "mp3" -> request
+                .addOption("-x")
+                .addOption("--audio-format", "mp3")
+                .addOption("--audio-quality", "0")
+
+            "m4a" -> request
+                .addOption("-x")
+                .addOption("--audio-format", "m4a")
+
+            "mp4" -> request.addOption("--merge-output-format", "mp4")
+        }
+
+        return request
+    }
+
+    private fun cancelDownload(id: String) {
+        val wasActive = synchronized(downloadLock) {
+            val active = activeDownloadIds.contains(id)
+            canceledDownloadIds.add(id)
+            active
+        }
+        controlExecutor.execute {
+            runCatching { YoutubeDL.getInstance().destroyProcessById(id) }
+            if (!wasActive) {
+                emitCanceled(id)
+            }
+        }
+    }
+
+    private fun stageFromOutput(line: String): String {
+        return when {
+            line.contains("[ExtractAudio]") -> "Converting"
+            line.contains("[Merger]") -> "Merging"
+            line.contains("[download]") -> "Downloading"
+            line.contains("[ffmpeg]") -> "Finalizing"
+            else -> "Working"
+        }
+    }
+
+    private fun emitProgress(
+        id: String,
+        stage: String,
+        percent: Double?,
+        downloadedBytes: Long?,
+        totalBytes: Long?,
+        speedBytesPerSecond: Long?,
+        etaSeconds: Long?,
+        rawLine: String?,
+    ) {
+        mainHandler.post {
+            downloaderEvents?.success(
+                mapOf(
+                    "type" to "progress",
+                    "id" to id,
+                    "stage" to stage,
+                    "percent" to percent,
+                    "downloadedBytes" to downloadedBytes,
+                    "totalBytes" to totalBytes,
+                    "speedBytesPerSecond" to speedBytesPerSecond,
+                    "etaSeconds" to etaSeconds,
+                    "message" to rawLine?.let(::safeProgressLine),
+                ),
+            )
+        }
+    }
+
+    private fun emitCompleted(id: String, outputLocation: String) {
+        mainHandler.post {
+            downloaderEvents?.success(
+                mapOf(
+                    "type" to "completed",
+                    "id" to id,
+                    "outputLocation" to outputLocation,
+                ),
+            )
+        }
+    }
+
+    private fun emitFailed(id: String, message: String) {
+        mainHandler.post {
+            downloaderEvents?.success(
+                mapOf(
+                    "type" to "failed",
+                    "id" to id,
+                    "message" to message,
+                ),
+            )
+        }
+    }
+
+    private fun emitCanceled(id: String) {
+        mainHandler.post {
+            downloaderEvents?.success(
+                mapOf(
+                    "type" to "canceled",
+                    "id" to id,
+                ),
+            )
+        }
+    }
+
+    private fun markCanceled(id: String) {
+        synchronized(downloadLock) {
+            canceledDownloadIds.add(id)
+        }
+    }
+
+    private fun markDownloadStarted(id: String) {
+        val shouldStartService = synchronized(downloadLock) {
+            val firstDownload = activeDownloadIds.isEmpty()
+            activeDownloadIds.add(id)
+            canceledDownloadIds.remove(id)
+            firstDownload
+        }
+
+        if (shouldStartService) {
+            DownloadForegroundService.start(applicationContext)
+        }
+    }
+
+    private fun markDownloadFinished(id: String) {
+        val shouldStopService = synchronized(downloadLock) {
+            activeDownloadIds.remove(id)
+            canceledDownloadIds.remove(id)
+            activeDownloadIds.isEmpty()
+        }
+
+        if (shouldStopService) {
+            DownloadForegroundService.stop(applicationContext)
+        }
+    }
+
+    private fun wasCanceled(id: String): Boolean {
+        return synchronized(downloadLock) {
+            canceledDownloadIds.contains(id)
+        }
+    }
+
+    private fun progressMetricsFromLine(line: String, percent: Double?): ProgressMetrics {
+        val match = progressMetricsRegex.find(line) ?: return ProgressMetrics()
+        val totalBytes = bytesFromUnitValue(
+            match.groups["totalValue"]?.value,
+            match.groups["totalUnit"]?.value,
+        )
+        val speedBytes = bytesFromUnitValue(
+            match.groups["speedValue"]?.value,
+            match.groups["speedUnit"]?.value,
+        )
+        val downloadedBytes = if (totalBytes != null && percent != null) {
+            (totalBytes * percent).toLong()
+        } else {
+            null
+        }
+
+        return ProgressMetrics(
+            downloadedBytes = downloadedBytes,
+            totalBytes = totalBytes,
+            speedBytesPerSecond = speedBytes,
+        )
+    }
+
+    private fun bytesFromUnitValue(value: String?, unit: String?): Long? {
+        val number = value?.toDoubleOrNull() ?: return null
+        val multiplier = when (unit?.lowercase()) {
+            "b" -> 1.0
+            "kb" -> 1000.0
+            "kib" -> 1024.0
+            "mb" -> 1000.0 * 1000.0
+            "mib" -> 1024.0 * 1024.0
+            "gb" -> 1000.0 * 1000.0 * 1000.0
+            "gib" -> 1024.0 * 1024.0 * 1024.0
+            "tb" -> 1000.0 * 1000.0 * 1000.0 * 1000.0
+            "tib" -> 1024.0 * 1024.0 * 1024.0 * 1024.0
+            else -> return null
+        }
+
+        return (number * multiplier).toLong()
+    }
+
+    private fun sanitizeNativeError(error: Throwable): String {
+        val raw = error.message ?: error.javaClass.simpleName
+        return raw
+            .replace(
+                Regex("(?i)(cookie|token|auth|session)[^\\s&=]*=([^\\s&]+)"),
+                "$1=<redacted>",
+            )
+            .replace(Regex("https?://\\S+"), "<url>")
+            .take(800)
+    }
+
+    private fun safeProgressLine(line: String): String {
+        return line
+            .replace(Regex("https?://\\S+"), "<url>")
+            .take(240)
+    }
+
+    private fun saveOutputFile(file: File, outputKind: String): String {
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            saveOutputFileToMediaStore(file, outputKind).toString()
+        } else {
+            saveOutputFileToAppExternalStorage(file, outputKind).absolutePath
+        }
+    }
+
+    private fun saveOutputFileToMediaStore(file: File, outputKind: String): Uri {
+        val audio = isAudioOutput(file, outputKind)
+        val resolver = applicationContext.contentResolver
+        val displayName = displayNameFor(file, outputKind)
+        val collection = if (audio) {
+            MediaStore.Audio.Media.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY)
+        } else {
+            MediaStore.Video.Media.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY)
+        }
+        val relativePath = if (audio) {
+            "${Environment.DIRECTORY_MUSIC}/DBase Downloader"
+        } else {
+            "${Environment.DIRECTORY_MOVIES}/DBase Downloader"
+        }
+        val values = ContentValues().apply {
+            put(MediaStore.MediaColumns.DISPLAY_NAME, displayName)
+            put(MediaStore.MediaColumns.MIME_TYPE, mimeTypeFor(file, outputKind))
+            put(MediaStore.MediaColumns.RELATIVE_PATH, relativePath)
+            put(MediaStore.MediaColumns.IS_PENDING, 1)
+        }
+        val uri = resolver.insert(collection, values)
+            ?: throw IllegalStateException("MediaStore insert failed.")
+
+        try {
+            file.inputStream().use { input ->
+                resolver.openOutputStream(uri)?.use { output ->
+                    input.copyTo(output)
+                } ?: throw IllegalStateException("MediaStore output stream failed.")
+            }
+
+            val completeValues = ContentValues().apply {
+                put(MediaStore.MediaColumns.IS_PENDING, 0)
+            }
+            resolver.update(uri, completeValues, null, null)
+            return uri
+        } catch (error: Throwable) {
+            resolver.delete(uri, null, null)
+            throw error
+        }
+    }
+
+    private fun saveOutputFileToAppExternalStorage(file: File, outputKind: String): File {
+        val directoryType = if (isAudioOutput(file, outputKind)) {
+            Environment.DIRECTORY_MUSIC
+        } else {
+            Environment.DIRECTORY_MOVIES
+        }
+        val baseDir = getExternalFilesDir(directoryType) ?: filesDir
+        val outputDir = File(baseDir, "DBase Downloader").apply { mkdirs() }
+        val target = uniqueFile(outputDir, displayNameFor(file, outputKind))
+
+        file.copyTo(target, overwrite = false)
+        return target
+    }
+
+    private fun uniqueFile(directory: File, displayName: String): File {
+        val cleanName = displayName.ifBlank { "dbase-download" }
+        val extension = cleanName.substringAfterLast('.', "")
+        val baseName = if (extension.isBlank()) {
+            cleanName
+        } else {
+            cleanName.removeSuffix(".$extension")
+        }
+        var candidate = File(directory, cleanName)
+        var index = 1
+
+        while (candidate.exists()) {
+            val nextName = if (extension.isBlank()) {
+                "$baseName ($index)"
+            } else {
+                "$baseName ($index).$extension"
+            }
+            candidate = File(directory, nextName)
+            index++
+        }
+
+        return candidate
+    }
+
+    private fun displayNameFor(file: File, outputKind: String): String {
+        val extension = when (outputKind) {
+            "mp3", "m4a", "mp4" -> outputKind
+            else -> file.extension.ifBlank { "media" }
+        }
+        val baseName = file.nameWithoutExtension
+            .ifBlank { "dbase-download" }
+            .replace(Regex("[\\\\/:*?\"<>|]+"), "_")
+            .take(180)
+
+        return "$baseName.$extension"
+    }
+
+    private fun mimeTypeFor(file: File, outputKind: String): String {
+        val extension = when (outputKind) {
+            "mp3", "m4a", "mp4" -> outputKind
+            else -> file.extension.lowercase()
+        }
+
+        return when (extension) {
+            "mp3" -> "audio/mpeg"
+            "m4a" -> "audio/mp4"
+            "aac" -> "audio/aac"
+            "opus" -> "audio/opus"
+            "ogg" -> "audio/ogg"
+            "wav" -> "audio/wav"
+            "mp4", "m4v" -> "video/mp4"
+            "webm" -> "video/webm"
+            "mkv" -> "video/x-matroska"
+            else -> if (isAudioOutput(file, outputKind)) {
+                "audio/*"
+            } else {
+                "video/*"
+            }
+        }
+    }
+
+    private fun isAudioOutput(file: File, outputKind: String): Boolean {
+        if (outputKind == "mp3" || outputKind == "m4a") {
+            return true
+        }
+        if (outputKind == "mp4") {
+            return false
+        }
+
+        return file.extension.lowercase() in setOf("mp3", "m4a", "aac", "opus", "ogg", "wav")
+    }
+
+    companion object {
+        private const val DOWNLOADER_CHANNEL = "rs.in.dbase.downloader/downloader"
+        private const val DOWNLOADER_EVENTS_CHANNEL = "rs.in.dbase.downloader/events"
+        private const val SHARE_CHANNEL = "rs.in.dbase.downloader/share"
+        private const val SHARE_EVENTS_CHANNEL = "rs.in.dbase.downloader/share_events"
+        private const val METADATA_TIMEOUT_SECONDS = 60L
+        private val progressMetricsRegex = Regex(
+            """of\s+~?\s*(?<totalValue>[0-9.]+)\s*(?<totalUnit>[KMGT]?i?B|[KMGT]?B)\s+at\s+(?<speedValue>[0-9.]+)\s*(?<speedUnit>[KMGT]?i?B|[KMGT]?B)/s""",
+        )
+    }
+}
+
+private data class ProgressMetrics(
+    val downloadedBytes: Long? = null,
+    val totalBytes: Long? = null,
+    val speedBytesPerSecond: Long? = null,
+)

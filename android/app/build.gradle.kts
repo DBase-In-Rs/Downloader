@@ -26,6 +26,10 @@ android {
         // flag during build.
         versionCode = flutter.versionCode
         versionName = flutter.versionName
+
+        ndk {
+            abiFilters += listOf("arm64-v8a", "armeabi-v7a", "x86", "x86_64")
+        }
     }
 
     buildTypes {
@@ -33,6 +37,16 @@ android {
             // TODO: Add your own signing config for the release build.
             // Signing with the debug keys for now, so `flutter run --release` works.
             signingConfig = signingConfigs.getByName("debug")
+        }
+    }
+
+    packaging {
+        jniLibs {
+            useLegacyPackaging = true
+            keepDebugSymbols += listOf(
+                "**/libpython.zip.so",
+                "**/libffmpeg.zip.so",
+            )
         }
     }
 }
@@ -45,4 +59,13 @@ kotlin {
 
 flutter {
     source = "../.."
+}
+
+dependencies {
+    val youtubedlAndroid = "0.18.1"
+    val jackson = "2.11.1"
+
+    implementation("io.github.junkfood02.youtubedl-android:library:$youtubedlAndroid")
+    implementation("io.github.junkfood02.youtubedl-android:ffmpeg:$youtubedlAndroid")
+    implementation("com.fasterxml.jackson.core:jackson-databind:$jackson")
 }
