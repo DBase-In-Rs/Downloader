@@ -635,7 +635,12 @@ class MainActivity : FlutterActivity() {
     }
 
     private fun sanitizeNativeError(error: Throwable): String {
-        val raw = error.message ?: error.javaClass.simpleName
+        // Walk the cause chain so a wrapper exception without a message still
+        // produces something actionable instead of a bare class name.
+        val raw = generateSequence(error) { it.cause }
+            .mapNotNull { it.message?.takeIf(String::isNotBlank) }
+            .firstOrNull()
+            ?: error.javaClass.name
         // yt-dlp output mixes WARNING lines into the failure message; surface
         // only the ERROR lines to the user when they are present.
         val errorLines = raw.lines().filter { it.trimStart().startsWith("ERROR:") }

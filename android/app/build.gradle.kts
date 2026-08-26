@@ -33,6 +33,11 @@ android {
             // TODO: Add your own signing config for the release build.
             // Signing with the debug keys for now, so `flutter run --release` works.
             signingConfig = signingConfigs.getByName("debug")
+            // R8 breaks youtubedl-android and Jackson, which rely on
+            // reflection; code shrinking saves almost nothing next to the
+            // bundled native libraries, so keep it off.
+            isMinifyEnabled = false
+            isShrinkResources = false
         }
     }
 
