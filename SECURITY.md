@@ -2,9 +2,9 @@
 
 ## Supported Versions
 
-The project is pre-1.0 and does not yet provide supported production releases.
-Security fixes will target the latest development branch until versioned
-releases exist.
+Pre-releases (1.0.0 betas) are published on GitHub Releases. Security fixes
+target the latest release line and the `main` branch; older pre-releases are
+not patched — update to the newest release.
 
 ## Reporting A Vulnerability
 

@@ -39,6 +39,21 @@ class SettingsPage extends StatelessWidget {
             const SizedBox(height: 10),
           ],
           Card(
+            child: ListTile(
+              leading: const Icon(Icons.description_outlined),
+              title: const Text('Open Source Licenses'),
+              subtitle: const Text(
+                'GPL-3.0-only app; bundled third-party components',
+              ),
+              onTap: () => showLicensePage(
+                context: context,
+                applicationName: 'DBase Downloader',
+                applicationLegalese:
+                    'GPL-3.0-only. Source: github.com/DBase-In-Rs/Downloader',
+              ),
+            ),
+          ),
+          Card(
             child: Padding(
               padding: const EdgeInsets.all(14),
               child: Row(

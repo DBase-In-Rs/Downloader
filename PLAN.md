@@ -625,18 +625,32 @@ Acceptance criteria:
 
 Tasks:
 
-- [ ] Full dependency license audit.
-- [ ] Confirm FFmpeg artifact license and source availability.
-- [ ] Confirm youtubedl-android/yt-dlp update strategy.
-- [ ] Add release source bundle procedure.
-- [ ] Add generated dependency notices.
-- [ ] Review privacy policy against implemented behavior.
-- [ ] Review security policy against implemented behavior.
+- [x] Full dependency license audit (Recorded Versions table in
+      THIRD_PARTY_NOTICES.md; all components GPL-3.0-compatible).
+- [x] Confirm FFmpeg artifact license and source availability (GPL 7.1.1,
+      runtime-verified; sources linked).
+- [x] Confirm youtubedl-android/yt-dlp update strategy (yt-dlp self-updates
+      from stable; libraries via pinned dependency bumps).
+- [x] Add release source bundle procedure (THIRD_PARTY_NOTICES.md).
+- [x] Add generated dependency notices (Settings > Open Source Licenses via
+      the Flutter license registry).
+- [x] Review privacy policy against implemented behavior (updated for
+      cookies, expired detection, desktop storage).
+- [x] Review security policy against implemented behavior (supported-versions
+      section updated for the beta release line).
 
 Acceptance criteria:
 
 - README, license, notices, privacy, and security docs match the build.
 - Release build can be reproduced from source.
+
+Verification on 2026-08-26:
+
+- Every bundled component and its license is recorded with exact versions;
+  no proprietary or GPL-incompatible dependency is bundled.
+- Reproducibility notes: Flutter 3.47.1, NDK r28.2 for the libwebp rebuild,
+  signing config external to the repository (debug fallback keeps builds
+  possible for contributors).
 
 ### Sprint 8.3 - Beta Release
 

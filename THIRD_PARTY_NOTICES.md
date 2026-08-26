@@ -32,19 +32,71 @@ GPL-3.0-only.
 | Desktop yt-dlp binary | Windows/macOS extraction backend | Not bundled | Resolved from PATH or a user-selected path in Settings; nothing is redistributed. |
 | Desktop FFmpeg binary | Windows/macOS conversion backend | Not bundled | User-selected path in Settings passed to yt-dlp via `--ffmpeg-location`; nothing is redistributed. |
 
+## Recorded Versions (1.0.0 release line, audited 2026-08-26)
+
+| Component | Version | License |
+| --- | --- | --- |
+| Flutter SDK | 3.47.1 stable (rev 6655482ec0) | BSD-3-Clause |
+| cupertino_icons | 1.0.9 | MIT |
+| shared_preferences (+android 2.4.27) | 2.5.5 | BSD-3-Clause |
+| file_selector (+android 0.5.2+9) | 1.1.0 | BSD-3-Clause |
+| youtubedl-android (library, ffmpeg) | 0.18.1 | GPL-3.0 |
+| yt-dlp | bundled by 0.18.1, self-updated at runtime to latest stable (2026.08.19 at audit time) | Unlicense |
+| FFmpeg (Android artifact) | 7.1.1, `--enable-gpl --enable-version3` (runtime-verified) | GPL |
+| Jackson Databind | 2.11.1 | Apache-2.0 |
+| libwebp (16 KB-aligned rebuild) | 1.5.0, NDK r28.2 | BSD-3-Clause |
+| Kotlin / AndroidX / AGP toolchain | per `android/` gradle files | Apache-2.0 |
+
+The full transitive Dart dependency list with licenses is bundled in the app
+and shown at Settings > Open Source Licenses (Flutter license registry).
+
+## Update Strategy
+
+- yt-dlp: self-updates from the official stable channel via the in-app
+  engine update (automatic on startup, manual in Settings).
+- youtubedl-android, Flutter, and Dart packages: pinned versions, updated by
+  dependency bumps in this repository.
+- Desktop yt-dlp/FFmpeg: user-managed binaries; the app never redistributes
+  them and can run `yt-dlp --update` on request.
+
+## Source Availability
+
+- This app: complete corresponding source is this repository; every release
+  tag carries GitHub's auto-generated source archives.
+- youtubedl-android and its FFmpeg/yt-dlp packaging:
+  https://github.com/yausername/youtubedl-android (build scripts in-repo).
+- yt-dlp: https://github.com/yt-dlp/yt-dlp
+- FFmpeg: https://ffmpeg.org (artifact build recipe in the youtubedl-android
+  repository).
+- libwebp: https://github.com/webmproject/libwebp (rebuild command below).
+
+## Release Source Bundle Procedure
+
+1. Tag the release commit (`vX.Y.Z[-suffix]`) and push the tag.
+2. Publish binaries only on that GitHub release so the auto-generated source
+   archive of the same tag accompanies them.
+3. Verify `android/key.properties`, keystores, cookies, and other secrets are
+   absent from the archive (they are gitignored; spot-check the tag).
+4. Release notes must link `THIRD_PARTY_NOTICES.md` and state the GPL-3.0
+   source offer.
+
 ## Required Before Public Binary Release
 
-- [ ] Record exact dependency versions.
-- [ ] Record exact youtubedl-android version.
-- [ ] Record exact yt-dlp version.
-- [ ] Record exact FFmpeg artifact and build flags.
-- [ ] Confirm whether FFmpeg build is LGPL or GPL.
-- [ ] Include GPL-3.0 license text.
-- [ ] Include source code for this app.
-- [ ] Include or link complete corresponding source for GPL components.
-- [ ] Include generated Flutter/Dart package notices.
-- [ ] Confirm no proprietary or incompatible binary dependency is bundled.
-- [ ] Confirm no signing key, cookie, token, or private test URL is included.
+- [x] Record exact dependency versions.
+- [x] Record exact youtubedl-android version.
+- [x] Record exact yt-dlp version (self-updating; record audit-time version).
+- [x] Record exact FFmpeg artifact and build flags (runtime-verified; full
+      configure flags listed in `ffmpeg -version` output on device).
+- [x] Confirm whether FFmpeg build is LGPL or GPL: GPL.
+- [x] Include GPL-3.0 license text (repository LICENSE).
+- [x] Include source code for this app (GitHub tag archives per release).
+- [x] Include or link complete corresponding source for GPL components.
+- [x] Include generated Flutter/Dart package notices (Settings > Open Source
+      Licenses).
+- [x] Confirm no proprietary or incompatible binary dependency is bundled.
+- [x] Confirm no signing key, cookie, token, or private test URL is included
+      (keystore and key.properties live outside the repository; cookies are
+      never committed).
 
 ## FFmpeg Notes
 

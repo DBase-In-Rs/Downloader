@@ -10,6 +10,11 @@ versioning once releases begin.
 
 ### Added
 
+- Open Source Licenses screen in Settings (Flutter license registry).
+- Release compliance audit: recorded dependency versions and licenses,
+  update strategy, source availability, and source bundle procedure in
+  THIRD_PARTY_NOTICES.md.
+
 - Safe cookie import: `cookies.txt` through the system file picker, Netscape
   format validation, Android Keystore AES/GCM encryption at rest, short-lived
   decrypted copies for yt-dlp requests, and a clear-cookies action.
