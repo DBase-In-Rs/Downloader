@@ -440,31 +440,53 @@ Tasks:
 
 - [x] Generate Windows platform folder if not already present.
 - [x] Verify Flutter desktop build on Windows.
-- [ ] Add Windows implementation of shared service contracts.
-- [ ] Decide bundled vs user-selected yt-dlp and FFmpeg binaries.
-- [ ] Add binary path settings if user-selected binaries are used.
-- [ ] Save output to Downloads or user-selected folder.
+- [x] Add Windows implementation of shared service contracts.
+- [x] Decide bundled vs user-selected yt-dlp and FFmpeg binaries: binaries
+      are user-selected or resolved from PATH; nothing is bundled, so no
+      binary redistribution/licensing burden for now.
+- [x] Add binary path settings if user-selected binaries are used.
+- [x] Save output to Downloads or user-selected folder.
 
 Acceptance criteria:
 
 - Windows build launches and can run fake backend flows.
 - License decision for bundled binaries is documented.
 
+Verification on 2026-08-26:
+
+- `DesktopMediaBackend` implements the full `MediaBackend` contract with
+  local yt-dlp/FFmpeg processes; no Flutter imports, so it is unit-testable.
+- Settings shows a desktop card with yt-dlp path, FFmpeg location, and
+  output folder pickers; unset values fall back to PATH lookup and the
+  Downloads folder.
+- `flutter analyze` and `flutter test` passed.
+
 ### Sprint 5.2 - Windows Real Downloads
 
 Tasks:
 
-- [ ] Run yt-dlp process and parse metadata JSON.
-- [ ] Parse progress output.
-- [ ] Run FFmpeg process for conversion/remux.
-- [ ] Add process cancellation.
-- [ ] Add output path collision handling.
-- [ ] Add Windows-specific tests/manual checklist.
+- [x] Run yt-dlp process and parse metadata JSON.
+- [x] Parse progress output.
+- [x] Run FFmpeg process for conversion/remux (through yt-dlp
+      `--ffmpeg-location`).
+- [x] Add process cancellation.
+- [x] Add output path collision handling.
+- [x] Add Windows-specific tests/manual checklist.
+- [ ] Manual end-to-end Windows download verification with real binaries.
 
 Acceptance criteria:
 
 - Windows can download and convert one public URL.
 - User can choose output location.
+
+Verification on 2026-08-26:
+
+- Metadata/playlist JSON mapping, `--newline` progress parsing (percent,
+  size, speed, ETA, stage), and error redaction are unit-tested.
+- Downloads run in a temp directory and move to the output folder with
+  `name (1).ext` collision handling; cancel kills the yt-dlp process; engine
+  update runs `yt-dlp --update`.
+- Desktop cookies are not supported yet (import reports unsupported).
 
 ## Milestone 6 - macOS Desktop
 

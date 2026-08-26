@@ -18,6 +18,10 @@ versioning once releases begin.
   failures.
 - Persistent download history with finish timestamps, search, per-item
   delete, and clear-all, restored across app restarts.
+- Desktop (Windows-first) media backend running local yt-dlp and FFmpeg
+  processes: metadata, playlists, downloads with progress, cancel, collision
+  handling, engine self-update, and Settings for binary paths and output
+  folder.
 
 ## [1.0.0-beta.1] - 2026-08-26
 

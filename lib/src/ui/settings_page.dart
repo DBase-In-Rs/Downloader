@@ -1,8 +1,17 @@
 import 'package:file_selector/file_selector.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../services/app_controller.dart';
+import '../services/desktop_media_backend.dart';
+import '../services/desktop_settings.dart';
 import 'common.dart';
+
+bool get _isDesktopPlatform =>
+    !kIsWeb &&
+    (defaultTargetPlatform == TargetPlatform.windows ||
+        defaultTargetPlatform == TargetPlatform.linux ||
+        defaultTargetPlatform == TargetPlatform.macOS);
 
 class SettingsPage extends StatelessWidget {
   const SettingsPage({required this.controller, super.key});
@@ -20,6 +29,10 @@ class SettingsPage extends StatelessWidget {
           const SizedBox(height: 16),
           _EngineCard(controller: controller),
           const SizedBox(height: 10),
+          if (_isDesktopPlatform) ...[
+            const _DesktopPathsCard(),
+            const SizedBox(height: 10),
+          ],
           Card(
             child: Padding(
               padding: const EdgeInsets.all(14),
@@ -91,6 +104,146 @@ class SettingsPage extends StatelessWidget {
 
     messenger.showSnackBar(
       SnackBar(content: Text(failure ?? 'Cookies imported.')),
+    );
+  }
+}
+
+class _DesktopPathsCard extends StatefulWidget {
+  const _DesktopPathsCard();
+
+  @override
+  State<_DesktopPathsCard> createState() => _DesktopPathsCardState();
+}
+
+class _DesktopPathsCardState extends State<_DesktopPathsCard> {
+  final _settings = DesktopSettings();
+  DesktopBackendConfig _config = const DesktopBackendConfig();
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    final config = await _settings.load();
+    if (mounted) {
+      setState(() => _config = config);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Desktop Binaries & Output',
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'yt-dlp is required (from PATH when unset); FFmpeg is needed '
+              'for MP3/M4A/MP4 conversion.',
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+            const SizedBox(height: 8),
+            _PathRow(
+              label: 'yt-dlp binary',
+              value: _config.ytDlpPath,
+              placeholder: 'Auto-detect on PATH',
+              onPick: () => _pickFile(_settings.setYtDlpPath),
+              onClear: () => _update(() => _settings.setYtDlpPath(null)),
+            ),
+            _PathRow(
+              label: 'FFmpeg location',
+              value: _config.ffmpegPath,
+              placeholder: 'Not set',
+              onPick: () => _pickFile(_settings.setFfmpegPath),
+              onClear: () => _update(() => _settings.setFfmpegPath(null)),
+            ),
+            _PathRow(
+              label: 'Output folder',
+              value: _config.outputDirectory,
+              placeholder: 'Downloads folder',
+              onPick: _pickOutputDirectory,
+              onClear: () => _update(() => _settings.setOutputDirectory(null)),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _pickFile(Future<void> Function(String?) save) async {
+    final file = await openFile();
+    if (file == null) {
+      return;
+    }
+    await _update(() => save(file.path));
+  }
+
+  Future<void> _pickOutputDirectory() async {
+    final directory = await getDirectoryPath();
+    if (directory == null) {
+      return;
+    }
+    await _update(() => _settings.setOutputDirectory(directory));
+  }
+
+  Future<void> _update(Future<void> Function() action) async {
+    await action();
+    await _load();
+  }
+}
+
+class _PathRow extends StatelessWidget {
+  const _PathRow({
+    required this.label,
+    required this.value,
+    required this.placeholder,
+    required this.onPick,
+    required this.onClear,
+  });
+
+  final String label;
+  final String? value;
+  final String placeholder;
+  final VoidCallback onPick;
+  final VoidCallback onClear;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(label, style: Theme.of(context).textTheme.bodyMedium),
+              Text(
+                value?.isNotEmpty == true ? value! : placeholder,
+                style: Theme.of(context).textTheme.bodySmall,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ],
+          ),
+        ),
+        IconButton(
+          tooltip: 'Browse',
+          onPressed: onPick,
+          icon: const Icon(Icons.folder_open),
+        ),
+        IconButton(
+          tooltip: 'Reset to default',
+          onPressed: value?.isNotEmpty == true ? onClear : null,
+          icon: const Icon(Icons.restart_alt),
+        ),
+      ],
     );
   }
 }

@@ -80,12 +80,16 @@ Implemented:
 - Encrypted `cookies.txt` import for login-required media, with in-app delete.
 - Playlist analysis with item selection and bulk add-to-queue.
 - Persistent download history with search and delete.
+- Windows/desktop backend that runs local yt-dlp and FFmpeg processes with
+  configurable binary paths and output folder.
 
 Still pending:
 
-- Storage Access Framework fallback and user-selected output folder;
-- expired-cookie detection;
-- real Windows, macOS, and iOS media backends.
+- Storage Access Framework fallback and user-selected output folder on
+  Android;
+- expired-cookie detection and desktop cookie support;
+- manual end-to-end Windows download verification;
+- real macOS and iOS media backends.
 
 ## YouTube Cookies
 
