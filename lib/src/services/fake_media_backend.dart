@@ -139,6 +139,11 @@ class FakeMediaBackend implements MediaBackend {
   }
 
   @override
+  Future<EngineUpdateResult> updateEngine() async {
+    return const EngineUpdateResult(updated: false, version: 'fake-engine');
+  }
+
+  @override
   Future<CookieStatus> getCookieStatus() async {
     return _cookieStatus;
   }

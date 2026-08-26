@@ -55,6 +55,19 @@ class ManualMediaBackend implements MediaBackend {
     _events.add(DownloadCanceledEvent(id));
   }
 
+  var engineUpdateCalls = 0;
+  Object? engineUpdateError;
+
+  @override
+  Future<EngineUpdateResult> updateEngine() async {
+    engineUpdateCalls++;
+    final error = engineUpdateError;
+    if (error != null) {
+      throw error;
+    }
+    return const EngineUpdateResult(updated: true, version: '2026.08.20');
+  }
+
   @override
   Future<CookieStatus> getCookieStatus() async => const CookieStatus.empty();
 
@@ -114,6 +127,39 @@ void main() {
     expect(controller.extractionState, ExtractionState.loaded);
     expect(controller.mediaInfo?.title, 'Sample media preview');
     expect(controller.visibleFormats, hasLength(4));
+  });
+
+  test('initialize triggers an engine update check', () async {
+    final backend = ManualMediaBackend();
+    final controller = AppController(
+      backend: backend,
+      sharedUrlService: const FakeSharedUrlService(),
+    );
+    addTearDown(controller.dispose);
+
+    await controller.initialize();
+    await pumpEventQueue();
+
+    expect(backend.engineUpdateCalls, 1);
+    expect(controller.engineUpdateState, EngineUpdateState.updated);
+    expect(controller.engineVersion, '2026.08.20');
+  });
+
+  test('failed engine update is surfaced without blocking the app', () async {
+    final backend = ManualMediaBackend()
+      ..engineUpdateError = Exception('No network.');
+    final controller = AppController(
+      backend: backend,
+      sharedUrlService: const FakeSharedUrlService(),
+    );
+    addTearDown(controller.dispose);
+
+    await controller.initialize();
+    await pumpEventQueue();
+
+    expect(controller.engineUpdateState, EngineUpdateState.failed);
+    expect(controller.engineUpdateMessage, 'No network.');
+    expect(controller.errorMessage, isNull);
   });
 
   test('queue item serialization round-trips', () {

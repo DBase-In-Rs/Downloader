@@ -87,6 +87,25 @@ Request:
 
 Response: `null` on accepted cancellation.
 
+### `updateEngine`
+
+Updates the bundled yt-dlp engine to the latest stable release. The Android
+implementation runs the update on the same single-thread executor as metadata
+extraction and downloads, so an update never overlaps a running yt-dlp
+process. Called automatically on app startup and manually from Settings.
+
+Response:
+
+```json
+{
+  "updated": true,
+  "version": "2026.08.20"
+}
+```
+
+`updated` is `false` when the engine was already up to date. Errors are
+reported with code `engine_update_failed`.
+
 ### `getCookieStatus`
 
 Response:

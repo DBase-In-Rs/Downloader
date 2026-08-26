@@ -268,6 +268,20 @@ class DownloadQueueItem {
   }
 }
 
+class EngineUpdateResult {
+  const EngineUpdateResult({required this.updated, this.version});
+
+  final bool updated;
+  final String? version;
+
+  factory EngineUpdateResult.fromMap(Map<Object?, Object?> map) {
+    return EngineUpdateResult(
+      updated: boolValue(map['updated']),
+      version: stringValue(map['version']),
+    );
+  }
+}
+
 class CookieStatus {
   const CookieStatus({
     required this.configured,

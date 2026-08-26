@@ -27,6 +27,7 @@ GPL-3.0-only.
 | FFmpeg | Desktop conversion/remuxing if bundled separately | LGPL or GPL depending on build flags and linked libraries | Document artifact, configure flags, source offer, and license. |
 | Jackson Databind | Android JSON parsing for youtubedl-android metadata output | Apache-2.0 | Android app directly depends on `com.fasterxml.jackson.core:jackson-databind:2.11.1` because the youtubedl-android object mapper is used from the app module. |
 | shared_preferences | Flutter plugin for local key-value storage used for download queue persistence | BSD-3-Clause | Include in generated Flutter/Dart package notices. |
+| libwebp 1.5.0 | 16 KB page-aligned replacement builds of the libwebp libraries bundled inside the youtubedl-android FFmpeg artifact | BSD-3-Clause | Built from https://github.com/webmproject/libwebp v1.5.0 with NDK r28.2 (`-Wl,-z,max-page-size=16384`), shipped in `android/app/src/main/jniLibs`. Include license text in release notices. |
 | Desktop yt-dlp binary | Windows/macOS extraction backend if bundled | To be verified before bundling | Prefer user-selected binary until release packaging is decided. |
 | Desktop FFmpeg binary | Windows/macOS conversion backend if bundled | To be verified before bundling | Prefer user-selected binary until release packaging is decided. |
 
@@ -49,9 +50,36 @@ GPL-3.0-only.
 FFmpeg's license depends on how it is configured and which external libraries
 are enabled. If GPL components are enabled, the FFmpeg build becomes GPL. The
 selected Android artifact is currently
-`io.github.junkfood02.youtubedl-android:ffmpeg:0.18.1`, but its exact FFmpeg
-version, configure flags, and LGPL/GPL state still need release verification.
+`io.github.junkfood02.youtubedl-android:ffmpeg:0.18.1`. Runtime inspection on
+2026-08-26 (`ffmpeg -version` on device) shows it bundles FFmpeg 7.1.1 built
+with `--enable-gpl --enable-version3` (a Termux-based build), so the Android
+FFmpeg build is GPL — compatible with this app's GPL-3.0-only license. The
+full configure flags should still be captured verbatim for release notices.
 Windows and macOS FFmpeg distribution is not selected yet.
+
+The 0.18.1 FFmpeg artifact ships five libwebp libraries (`libsharpyuv.so`,
+`libwebp.so`, `libwebpdecoder.so`, `libwebpdemux.so`, `libwebpmux.so`) built
+with 4 KB ELF page alignment, which the Android dynamic linker rejects on
+16 KB page-size devices, breaking every FFmpeg invocation there. The app
+bundles 16 KB-aligned libwebp 1.5.0 replacement builds in
+`android/app/src/main/jniLibs` and overwrites the extracted copies after
+`FFmpeg.init` (see `MainActivity.fixFfmpegPageSizeLibs`). Rebuild command per
+ABI:
+
+```bash
+cmake -G Ninja -S libwebp-1.5.0 -B out/<abi> \
+  -DCMAKE_TOOLCHAIN_FILE=$NDK/build/cmake/android.toolchain.cmake \
+  -DANDROID_ABI=<abi> -DANDROID_PLATFORM=android-21 \
+  -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=ON \
+  -DCMAKE_SHARED_LINKER_FLAGS="-Wl,-z,max-page-size=16384" \
+  -DWEBP_BUILD_ANIM_UTILS=OFF -DWEBP_BUILD_CWEBP=OFF -DWEBP_BUILD_DWEBP=OFF \
+  -DWEBP_BUILD_GIF2WEBP=OFF -DWEBP_BUILD_IMG2WEBP=OFF -DWEBP_BUILD_VWEBP=OFF \
+  -DWEBP_BUILD_WEBPINFO=OFF -DWEBP_BUILD_WEBPMUX=OFF -DWEBP_BUILD_EXTRAS=OFF
+cmake --build out/<abi>
+llvm-strip --strip-unneeded out/<abi>/*.so
+```
+
+Remove the jniLibs overrides once upstream ships 16 KB-aligned libwebp.
 
 ## Android Packaging Notes
 

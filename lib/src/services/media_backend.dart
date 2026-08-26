@@ -9,6 +9,9 @@ abstract class MediaBackend {
 
   Future<void> cancelDownload(String id);
 
+  /// Updates the bundled media engine (yt-dlp) to the latest stable release.
+  Future<EngineUpdateResult> updateEngine();
+
   Future<CookieStatus> getCookieStatus();
 
   Future<void> importCookies(String path);

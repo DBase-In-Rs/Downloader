@@ -255,6 +255,8 @@ Tasks:
 - [x] Write audio to MediaStore Audio collection.
 - [x] Write video to MediaStore Video collection.
 - [ ] Add SAF fallback for user-selected folder.
+- [ ] Add a Settings option to choose the download output folder (system
+      folder picker, persisted, used for new downloads).
 - [x] Clean temp files after successful save, failure, or cancel.
 
 Acceptance criteria:
@@ -262,6 +264,24 @@ Acceptance criteria:
 - MP3 output appears in Android audio/media apps.
 - MP4 output appears in Android video/gallery apps.
 - Failed conversion leaves a clear error and no corrupt final MediaStore entry.
+
+Device QA follow-up on 2026-08-26: real-device YouTube downloads failed with
+HTTP 403 because the yt-dlp bundled in youtubedl-android 0.18.1 (2025.11.12)
+is too old for current YouTube SABR streaming. Fixed by adding an
+`updateEngine` channel method that updates yt-dlp to the latest stable release
+through youtubedl-android's updater — checked automatically on app startup and
+available manually in Settings. Native failure messages now surface only
+yt-dlp `ERROR:` lines instead of full warning output.
+
+Second device QA follow-up on 2026-08-26: after the engine update, MP3
+conversion failed with "ffprobe and ffmpeg not found" on the emulator. Root
+cause: the 0.18.1 FFmpeg artifact ships libwebp libraries with 4 KB ELF
+alignment, which 16 KB page-size Android builds refuse to load, so ffmpeg
+could not start at all. Fixed by bundling 16 KB-aligned libwebp 1.5.0 builds
+in `jniLibs` and overwriting the extracted copies after `FFmpeg.init` (see
+THIRD_PARTY_NOTICES for build details). Verified on the emulator: `ffmpeg
+-version`/`ffprobe -version` execute, and a full MP3 download completed
+end to end.
 
 Verification on 2026-08-26:
 

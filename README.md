@@ -75,6 +75,8 @@ Implemented:
 - Documented channel schema in [docs/PLATFORM_CHANNELS.md](docs/PLATFORM_CHANNELS.md).
 - Sequential download queue with pause/resume, retry for failed items, and
   queue persistence across app restarts.
+- yt-dlp engine self-update on startup plus a manual update action in
+  Settings.
 
 Still pending:
 

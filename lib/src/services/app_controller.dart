@@ -7,6 +7,8 @@ import 'media_backend.dart';
 import 'queue_store.dart';
 import 'shared_url_service.dart';
 
+enum EngineUpdateState { idle, checking, updated, upToDate, failed }
+
 class AppController extends ChangeNotifier {
   AppController({
     required this.backend,
@@ -34,7 +36,11 @@ class AppController extends ChangeNotifier {
   MediaKindFilter _formatFilter = MediaKindFilter.all;
   OutputKind _outputKind = OutputKind.mp3;
   CookieStatus _cookieStatus = const CookieStatus.empty();
+  EngineUpdateState _engineUpdateState = EngineUpdateState.idle;
+  String? _engineVersion;
+  String? _engineUpdateMessage;
   bool _queuePaused = false;
+  int _idSequence = 0;
   final List<DownloadQueueItem> _queue = [];
   final List<DownloadQueueItem> _history = [];
 
@@ -53,6 +59,12 @@ class AppController extends ChangeNotifier {
   OutputKind get outputKind => _outputKind;
 
   CookieStatus get cookieStatus => _cookieStatus;
+
+  EngineUpdateState get engineUpdateState => _engineUpdateState;
+
+  String? get engineVersion => _engineVersion;
+
+  String? get engineUpdateMessage => _engineUpdateMessage;
 
   bool get queuePaused => _queuePaused;
 
@@ -84,7 +96,34 @@ class AppController extends ChangeNotifier {
     } else {
       notifyListeners();
     }
+    // Keeping yt-dlp current is required for working extraction; providers
+    // regularly break older releases. The native side serializes the update
+    // with downloads, so this can run alongside queue startup.
+    unawaited(updateEngine());
     await _pumpQueue();
+  }
+
+  Future<void> updateEngine() async {
+    if (_engineUpdateState == EngineUpdateState.checking) {
+      return;
+    }
+
+    _engineUpdateState = EngineUpdateState.checking;
+    _engineUpdateMessage = null;
+    notifyListeners();
+
+    try {
+      final result = await backend.updateEngine();
+      _engineVersion = result.version ?? _engineVersion;
+      _engineUpdateState = result.updated
+          ? EngineUpdateState.updated
+          : EngineUpdateState.upToDate;
+    } catch (error) {
+      _engineUpdateState = EngineUpdateState.failed;
+      _engineUpdateMessage = _friendlyError(error);
+    }
+
+    notifyListeners();
   }
 
   void setSection(AppSection section) {
@@ -258,8 +297,10 @@ class AppController extends ChangeNotifier {
     required MediaFormat format,
     required OutputKind outputKind,
   }) async {
+    // A timestamp alone can collide when two items are enqueued within the
+    // same clock tick, so a session-local sequence keeps ids unique.
     final item = DownloadQueueItem(
-      id: DateTime.now().microsecondsSinceEpoch.toString(),
+      id: '${DateTime.now().microsecondsSinceEpoch}-${_idSequence++}',
       url: url,
       title: title,
       format: format,

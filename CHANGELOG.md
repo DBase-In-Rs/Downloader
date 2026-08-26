@@ -8,6 +8,12 @@ versioning once releases begin.
 
 ## [Unreleased]
 
+## [1.0.0-beta.1] - 2026-08-26
+
+First public pre-release: Android-only beta with single-item downloads,
+MP3/M4A/MP4 output, a sequential queue, and yt-dlp engine self-update.
+Release builds are signed with debug keys for this beta.
+
 ### Added
 
 - Initial project documentation.
@@ -32,3 +38,21 @@ versioning once releases begin.
 - Sequential download queue with paused state, pause/resume controls, and
   retry for failed or canceled items.
 - Queue persistence across app restarts through `shared_preferences`.
+- yt-dlp engine self-update: automatic check on app startup and a manual
+  update action in Settings, fixing YouTube HTTP 403 failures caused by a
+  stale bundled yt-dlp.
+
+### Changed
+
+- Native error messages now surface only yt-dlp `ERROR:` lines instead of the
+  full output with warnings.
+- Download queue ids include a session-local sequence so rapid enqueues can
+  no longer collide on the same clock tick.
+
+### Fixed
+
+- FFmpeg postprocessing ("ffprobe and ffmpeg not found") on 16 KB page-size
+  Android devices: the FFmpeg artifact ships 4 KB-aligned libwebp libraries
+  that the dynamic linker rejects, so the app now bundles 16 KB-aligned
+  libwebp 1.5.0 builds and overwrites the extracted copies after FFmpeg
+  initialization.

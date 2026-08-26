@@ -101,6 +101,39 @@ class MainActivity : FlutterActivity() {
                     }
                 }
 
+                "updateEngine" -> {
+                    // Runs on the media executor so an engine update never
+                    // overlaps a running yt-dlp process.
+                    mediaExecutor.execute {
+                        try {
+                            ensureYoutubeDlInitialized()
+                            val status = YoutubeDL.getInstance().updateYoutubeDL(
+                                applicationContext,
+                                YoutubeDL.UpdateChannel.STABLE,
+                            )
+                            val version = runCatching {
+                                YoutubeDL.getInstance().version(applicationContext)
+                            }.getOrNull()
+                            mainHandler.post {
+                                result.success(
+                                    mapOf(
+                                        "updated" to (status == YoutubeDL.UpdateStatus.DONE),
+                                        "version" to version,
+                                    ),
+                                )
+                            }
+                        } catch (error: Throwable) {
+                            mainHandler.post {
+                                result.error(
+                                    "engine_update_failed",
+                                    sanitizeNativeError(error),
+                                    null,
+                                )
+                            }
+                        }
+                    }
+                }
+
                 "getCookieStatus" -> result.success(
                     mapOf(
                         "configured" to false,
@@ -214,7 +247,36 @@ class MainActivity : FlutterActivity() {
 
             YoutubeDL.getInstance().init(applicationContext)
             FFmpeg.getInstance().init(applicationContext)
+            fixFfmpegPageSizeLibs()
             youtubeDlInitialized = true
+        }
+    }
+
+    /**
+     * youtubedl-android 0.18.1 ships libwebp shared libraries built with 4 KB
+     * page alignment, which the dynamic linker rejects on 16 KB page-size
+     * devices ("program alignment (4096) cannot be smaller than system page
+     * size (16384)"), so every FFmpeg invocation fails there. The app bundles
+     * 16 KB-aligned libwebp builds in jniLibs and overwrites the extracted
+     * copies after FFmpeg.init. Size comparison re-applies the fix whenever a
+     * library update re-extracts the original files.
+     */
+    private fun fixFfmpegPageSizeLibs() {
+        val nativeDir = File(applicationInfo.nativeLibraryDir)
+        val ffmpegLibDir = File(
+            applicationContext.noBackupFilesDir,
+            "youtubedl-android/packages/ffmpeg/usr/lib",
+        )
+        if (!ffmpegLibDir.isDirectory) {
+            return
+        }
+
+        for (name in PAGE_ALIGNED_FFMPEG_LIBS) {
+            val source = File(nativeDir, name)
+            val target = File(ffmpegLibDir, name)
+            if (source.isFile && target.isFile && source.length() != target.length()) {
+                runCatching { source.copyTo(target, overwrite = true) }
+            }
         }
     }
 
@@ -574,7 +636,11 @@ class MainActivity : FlutterActivity() {
 
     private fun sanitizeNativeError(error: Throwable): String {
         val raw = error.message ?: error.javaClass.simpleName
-        return raw
+        // yt-dlp output mixes WARNING lines into the failure message; surface
+        // only the ERROR lines to the user when they are present.
+        val errorLines = raw.lines().filter { it.trimStart().startsWith("ERROR:") }
+        val message = if (errorLines.isEmpty()) raw else errorLines.joinToString("\n")
+        return message
             .replace(
                 Regex("(?i)(cookie|token|auth|session)[^\\s&=]*=([^\\s&]+)"),
                 "$1=<redacted>",
@@ -730,6 +796,13 @@ class MainActivity : FlutterActivity() {
         private const val SHARE_CHANNEL = "rs.in.dbase.downloader/share"
         private const val SHARE_EVENTS_CHANNEL = "rs.in.dbase.downloader/share_events"
         private const val METADATA_TIMEOUT_SECONDS = 60L
+        private val PAGE_ALIGNED_FFMPEG_LIBS = listOf(
+            "libsharpyuv.so",
+            "libwebp.so",
+            "libwebpdecoder.so",
+            "libwebpdemux.so",
+            "libwebpmux.so",
+        )
         private val progressMetricsRegex = Regex(
             """of\s+~?\s*(?<totalValue>[0-9.]+)\s*(?<totalUnit>[KMGT]?i?B|[KMGT]?B)\s+at\s+(?<speedValue>[0-9.]+)\s*(?<speedUnit>[KMGT]?i?B|[KMGT]?B)/s""",
         )
