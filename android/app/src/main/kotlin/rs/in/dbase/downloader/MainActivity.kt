@@ -1,5 +1,6 @@
 package rs.`in`.dbase.downloader
 
+import android.content.Context
 import android.content.Intent
 import android.content.ContentValues
 import android.net.Uri
@@ -7,6 +8,7 @@ import android.os.Build
 import android.os.Environment
 import android.os.Handler
 import android.os.Looper
+import android.provider.DocumentsContract
 import android.provider.MediaStore
 import com.yausername.ffmpeg.FFmpeg
 import com.yausername.youtubedl_android.YoutubeDL
@@ -34,6 +36,7 @@ class MainActivity : FlutterActivity() {
     private var downloaderEvents: EventChannel.EventSink? = null
     private var shareEvents: EventChannel.EventSink? = null
     private var initialSharedText: String? = null
+    private var pendingFolderPick: MethodChannel.Result? = null
 
     @Volatile
     private var youtubeDlInitialized = false
@@ -193,6 +196,40 @@ class MainActivity : FlutterActivity() {
                     }
                 }
 
+                "pickOutputFolder" -> {
+                    if (pendingFolderPick != null) {
+                        result.error("busy", "Folder picker already open.", null)
+                    } else {
+                        pendingFolderPick = result
+                        startActivityForResult(
+                            Intent(Intent.ACTION_OPEN_DOCUMENT_TREE).addFlags(
+                                Intent.FLAG_GRANT_READ_URI_PERMISSION or
+                                    Intent.FLAG_GRANT_WRITE_URI_PERMISSION or
+                                    Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION,
+                            ),
+                            FOLDER_PICK_REQUEST_CODE,
+                        )
+                    }
+                }
+
+                "getOutputFolder" -> result.success(
+                    outputTreeUri()?.let(::folderDisplayName),
+                )
+
+                "clearOutputFolder" -> {
+                    outputTreeUri()?.let { uri ->
+                        runCatching {
+                            contentResolver.releasePersistableUriPermission(
+                                uri,
+                                Intent.FLAG_GRANT_READ_URI_PERMISSION or
+                                    Intent.FLAG_GRANT_WRITE_URI_PERMISSION,
+                            )
+                        }
+                    }
+                    settingsPrefs().edit().remove(OUTPUT_TREE_KEY).apply()
+                    result.success(null)
+                }
+
                 "clearCookies" -> {
                     controlExecutor.execute {
                         runCatching { CookieVault.clear(applicationContext) }
@@ -250,6 +287,35 @@ class MainActivity : FlutterActivity() {
         )
     }
 
+    @Deprecated("Deprecated in Java")
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        @Suppress("DEPRECATION")
+        super.onActivityResult(requestCode, resultCode, data)
+        if (requestCode != FOLDER_PICK_REQUEST_CODE) {
+            return
+        }
+
+        val pending = pendingFolderPick
+        pendingFolderPick = null
+        val uri = data?.data
+        if (resultCode != RESULT_OK || uri == null) {
+            pending?.success(null)
+            return
+        }
+
+        try {
+            contentResolver.takePersistableUriPermission(
+                uri,
+                Intent.FLAG_GRANT_READ_URI_PERMISSION or
+                    Intent.FLAG_GRANT_WRITE_URI_PERMISSION,
+            )
+            settingsPrefs().edit().putString(OUTPUT_TREE_KEY, uri.toString()).apply()
+            pending?.success(folderDisplayName(uri))
+        } catch (error: Throwable) {
+            pending?.error("folder_pick_failed", sanitizeNativeError(error), null)
+        }
+    }
+
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
@@ -295,10 +361,67 @@ class MainActivity : FlutterActivity() {
                 return
             }
 
+            cleanStaleTempFiles()
             YoutubeDL.getInstance().init(applicationContext)
             FFmpeg.getInstance().init(applicationContext)
             fixFfmpegPageSizeLibs()
             youtubeDlInitialized = true
+        }
+    }
+
+    /**
+     * Removes temp files left behind by a crash or process kill. Runs before
+     * the first yt-dlp task of the process, so no download can be active yet.
+     */
+    private fun cleanStaleTempFiles() {
+        runCatching { File(cacheDir, "downloads").deleteRecursively() }
+        runCatching { File(cacheDir, "cookies").deleteRecursively() }
+    }
+
+    private fun settingsPrefs() =
+        getSharedPreferences("downloader_settings", Context.MODE_PRIVATE)
+
+    private fun outputTreeUri(): Uri? {
+        val stored = settingsPrefs().getString(OUTPUT_TREE_KEY, null) ?: return null
+        val uri = Uri.parse(stored)
+        val stillGranted = contentResolver.persistedUriPermissions.any {
+            it.uri == uri && it.isWritePermission
+        }
+        if (!stillGranted) {
+            settingsPrefs().edit().remove(OUTPUT_TREE_KEY).apply()
+            return null
+        }
+
+        return uri
+    }
+
+    private fun folderDisplayName(uri: Uri): String {
+        return uri.lastPathSegment ?: uri.toString()
+    }
+
+    private fun saveToDocumentTree(file: File, outputKind: String, tree: Uri): Uri {
+        val parent = DocumentsContract.buildDocumentUriUsingTree(
+            tree,
+            DocumentsContract.getTreeDocumentId(tree),
+        )
+        // createDocument de-duplicates names itself (appends " (1)").
+        val target = DocumentsContract.createDocument(
+            contentResolver,
+            parent,
+            mimeTypeFor(file, outputKind),
+            displayNameFor(file, outputKind),
+        ) ?: throw IllegalStateException("Could not create a file in the selected folder.")
+
+        try {
+            file.inputStream().use { input ->
+                contentResolver.openOutputStream(target)?.use { output ->
+                    input.copyTo(output)
+                } ?: throw IllegalStateException("Could not write to the selected folder.")
+            }
+            return target
+        } catch (error: Throwable) {
+            runCatching { DocumentsContract.deleteDocument(contentResolver, target) }
+            throw error
         }
     }
 
@@ -801,6 +924,12 @@ class MainActivity : FlutterActivity() {
     }
 
     private fun saveOutputFile(file: File, outputKind: String): String {
+        outputTreeUri()?.let { tree ->
+            // If the chosen folder became unavailable (deleted, unmounted),
+            // fall back to the default MediaStore path instead of failing.
+            runCatching { return saveToDocumentTree(file, outputKind, tree).toString() }
+        }
+
         return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             saveOutputFileToMediaStore(file, outputKind).toString()
         } else {
@@ -942,6 +1071,8 @@ class MainActivity : FlutterActivity() {
         private const val SHARE_EVENTS_CHANNEL = "rs.in.dbase.downloader/share_events"
         private const val METADATA_TIMEOUT_SECONDS = 60L
         private const val PLAYLIST_TIMEOUT_SECONDS = 120L
+        private const val FOLDER_PICK_REQUEST_CODE = 4001
+        private const val OUTPUT_TREE_KEY = "output_tree_uri"
         private val PAGE_ALIGNED_FFMPEG_LIBS = listOf(
             "libsharpyuv.so",
             "libwebp.so",

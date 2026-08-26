@@ -22,6 +22,9 @@ versioning once releases begin.
   processes: metadata, playlists, downloads with progress, cancel, collision
   handling, engine self-update, and Settings for binary paths and output
   folder.
+- Android download folder selection through the system folder picker (SAF),
+  with fallback to the default MediaStore collections.
+- Crash-safe cleanup of stale temporary download files on Android startup.
 
 ## [1.0.0-beta.1] - 2026-08-26
 

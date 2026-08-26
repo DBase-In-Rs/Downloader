@@ -180,6 +180,25 @@ Android behavior:
 
 Response: `null`. Deletes the encrypted cookie store.
 
+### `pickOutputFolder`
+
+Opens the system `ACTION_OPEN_DOCUMENT_TREE` picker and persists the
+selected tree URI with a write permission. Response: the folder display
+label, or `null` when the user cancels.
+
+### `getOutputFolder`
+
+Response: the selected folder display label, or `null` when the default
+MediaStore collections are used. A folder whose permission was revoked is
+cleared and reported as `null`.
+
+### `clearOutputFolder`
+
+Response: `null`. Releases the persisted permission and returns saves to the
+default MediaStore collections. When a folder is configured, completed files
+are created inside it through `DocumentsContract`; if writing fails, the save
+falls back to MediaStore.
+
 ## Downloader Event Channel
 
 Name: `rs.in.dbase.downloader/events`

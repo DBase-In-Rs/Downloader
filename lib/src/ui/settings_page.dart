@@ -2,6 +2,7 @@ import 'package:file_selector/file_selector.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
+import '../services/android_storage_service.dart';
 import '../services/app_controller.dart';
 import '../services/desktop_media_backend.dart';
 import '../services/desktop_settings.dart';
@@ -31,6 +32,10 @@ class SettingsPage extends StatelessWidget {
           const SizedBox(height: 10),
           if (_isDesktopPlatform) ...[
             const _DesktopPathsCard(),
+            const SizedBox(height: 10),
+          ],
+          if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) ...[
+            const _AndroidFolderCard(),
             const SizedBox(height: 10),
           ],
           Card(
@@ -105,6 +110,88 @@ class SettingsPage extends StatelessWidget {
     messenger.showSnackBar(
       SnackBar(content: Text(failure ?? 'Cookies imported.')),
     );
+  }
+}
+
+class _AndroidFolderCard extends StatefulWidget {
+  const _AndroidFolderCard();
+
+  @override
+  State<_AndroidFolderCard> createState() => _AndroidFolderCardState();
+}
+
+class _AndroidFolderCardState extends State<_AndroidFolderCard> {
+  final _storage = AndroidStorageService();
+  String? _folder;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    final folder = await _storage.getOutputFolder();
+    if (mounted) {
+      setState(() => _folder = folder);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Row(
+          children: [
+            const Icon(Icons.folder),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Download Folder',
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    _folder ?? 'Default (Music/Movies collections)',
+                    style: Theme.of(context).textTheme.bodyMedium,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
+            ),
+            IconButton(
+              tooltip: 'Choose folder',
+              onPressed: _pick,
+              icon: const Icon(Icons.folder_open),
+            ),
+            IconButton(
+              tooltip: 'Reset to default',
+              onPressed: _folder == null ? null : _clear,
+              icon: const Icon(Icons.restart_alt),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _pick() async {
+    try {
+      await _storage.pickOutputFolder();
+    } catch (_) {
+      // Cancel or picker failure keeps the previous folder.
+    }
+    await _load();
+  }
+
+  Future<void> _clear() async {
+    await _storage.clearOutputFolder();
+    await _load();
   }
 }
 

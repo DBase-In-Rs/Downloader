@@ -82,11 +82,10 @@ Implemented:
 - Persistent download history with search and delete.
 - Windows/desktop backend that runs local yt-dlp and FFmpeg processes with
   configurable binary paths and output folder.
+- Android download folder selection through the system folder picker.
 
 Still pending:
 
-- Storage Access Framework fallback and user-selected output folder on
-  Android;
 - expired-cookie detection and desktop cookie support;
 - manual end-to-end Windows download verification;
 - real macOS and iOS media backends.

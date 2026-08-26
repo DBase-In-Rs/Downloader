@@ -254,8 +254,8 @@ Tasks:
 - [x] Implement MP4 keep/remux path.
 - [x] Write audio to MediaStore Audio collection.
 - [x] Write video to MediaStore Video collection.
-- [ ] Add SAF fallback for user-selected folder.
-- [ ] Add a Settings option to choose the download output folder (system
+- [x] Add SAF fallback for user-selected folder.
+- [x] Add a Settings option to choose the download output folder (system
       folder picker, persisted, used for new downloads).
 - [x] Clean temp files after successful save, failure, or cancel.
 
@@ -292,6 +292,12 @@ Verification on 2026-08-26:
 - `flutter build apk --debug` passed.
 - Manual conversion and MediaStore visibility testing still requires a connected
   Android device or emulator.
+
+Folder selection added on 2026-08-26: Settings has a Download Folder card
+backed by `ACTION_OPEN_DOCUMENT_TREE` with a persisted URI permission;
+completed files are written into the selected tree through
+`DocumentsContract`, falling back to MediaStore when the folder becomes
+unavailable or none is chosen.
 
 ## Milestone 3 - Queue, Playlist, And History
 
@@ -578,8 +584,10 @@ Tasks:
 - [ ] Test app background/foreground.
 - [ ] Test app kill/restart behavior.
 - [ ] Test low storage.
-- [ ] Add crash-safe temp cleanup on startup.
-- [ ] Add log redaction tests.
+- [x] Add crash-safe temp cleanup on startup (Android deletes stale
+      cache/downloads and cache/cookies before the first yt-dlp task).
+- [x] Add log redaction tests (desktop backend error sanitizer is
+      unit-tested; Android uses the same redaction rules).
 
 Acceptance criteria:
 
