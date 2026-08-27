@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../models/download_models.dart';
+import '../models/media_providers.dart';
 import '../services/app_controller.dart';
 import 'common.dart';
 
@@ -43,6 +44,7 @@ class _HomePageState extends State<HomePage> {
           const SizedBox(height: 16),
           _UrlInput(
             controller: _urlController,
+            provider: widget.controller.currentProvider,
             loading:
                 widget.controller.extractionState == ExtractionState.loading,
             onPaste: _pasteUrl,
@@ -105,12 +107,14 @@ class _HomePageState extends State<HomePage> {
 class _UrlInput extends StatelessWidget {
   const _UrlInput({
     required this.controller,
+    required this.provider,
     required this.loading,
     required this.onPaste,
     required this.onAnalyze,
   });
 
   final TextEditingController controller;
+  final MediaProviderInfo provider;
   final bool loading;
   final VoidCallback onPaste;
   final VoidCallback onAnalyze;
@@ -141,20 +145,35 @@ class _UrlInput extends StatelessWidget {
       label: const Text('Analyze'),
     );
 
-    if (wide) {
-      return Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Expanded(child: field),
-          const SizedBox(width: 12),
-          SizedBox(height: 56, child: button),
-        ],
-      );
-    }
+    final input = wide
+        ? Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(child: field),
+              const SizedBox(width: 12),
+              SizedBox(height: 56, child: button),
+            ],
+          )
+        : Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [field, const SizedBox(height: 10), button],
+          );
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [field, const SizedBox(height: 10), button],
+      children: [
+        input,
+        if (provider.id != unknownMediaProvider.id) ...[
+          const SizedBox(height: 10),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: Chip(
+              avatar: const Icon(Icons.public, size: 18),
+              label: Text(provider.displayName),
+            ),
+          ),
+        ],
+      ],
     );
   }
 }
@@ -226,6 +245,10 @@ class _MediaInfoPanel extends StatelessWidget {
                   runSpacing: 8,
                   children: [
                     _MetadataItem(
+                      icon: Icons.public,
+                      value: info.providerName ?? 'Generic URL',
+                    ),
+                    _MetadataItem(
                       icon: Icons.person,
                       value: info.uploader ?? 'Unknown uploader',
                     ),
@@ -233,10 +256,11 @@ class _MediaInfoPanel extends StatelessWidget {
                       icon: Icons.schedule,
                       value: formatDuration(info.duration),
                     ),
-                    _MetadataItem(
-                      icon: Icons.extension,
-                      value: info.extractor ?? 'Unknown extractor',
-                    ),
+                    if (info.extractor != null)
+                      _MetadataItem(
+                        icon: Icons.extension,
+                        value: info.extractor!,
+                      ),
                   ],
                 ),
               ],
@@ -349,7 +373,10 @@ class _PlaylistPanel extends StatelessWidget {
                   style: Theme.of(context).textTheme.titleLarge,
                 ),
                 const SizedBox(height: 4),
-                Text('${playlist.entries.length} items'),
+                Text(
+                  '${playlist.providerName ?? 'Generic URL'}'
+                  ' - ${playlist.entries.length} items',
+                ),
               ],
             ),
           ),

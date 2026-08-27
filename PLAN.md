@@ -1,12 +1,14 @@
 # DBase Video & Music Downloader Plan
 
-Status: Android MVP implemented and device QA pending; queue states,
-sequential execution, pause/resume, retry, and queue persistence implemented
+Status: Android and Windows beta implemented; next planned track is multi-site
+provider validation beyond YouTube
 
 Canonical app/package id: `rs.in.dbase.downloader`
 
-Targets: Android first, then Windows and macOS, with iPhone/iOS as a separate
-feasibility and parity track.
+Active targets: Android and Windows.
+
+Backlog targets: macOS, iPhone/iOS, and Linux. These stay planned but blocked
+until they can be built and tested on their target operating systems.
 
 License target: `GPL-3.0-only`
 
@@ -35,10 +37,16 @@ signing iOS/macOS still requires macOS and Xcode.
 - Hide platform-specific download logic behind a shared Dart service interface.
 - Android is the first MVP because youtubedl-android, foreground service, and
   MediaStore are Android-specific.
-- Windows and macOS use a desktop process-runner backend for yt-dlp and FFmpeg.
+- Windows uses a desktop process-runner backend for yt-dlp and FFmpeg.
+- macOS and Linux can probably reuse most of the desktop backend, but they are
+  not supported until tested on those systems.
 - iPhone/iOS must be validated separately before promising full parity.
 - YouTube cookies are user-managed, local-only, encrypted where possible, and
   optional.
+- Provider support is yt-dlp-first: add site-specific code only for URL cleanup,
+  provider detection, better errors, cookies, QA, or UI labels.
+- A provider is not "supported" in README/release notes until metadata and at
+  least one download path are tested on Android and Windows.
 - No DRM bypass, no paywall bypass, and no hidden cookie extraction.
 
 ## Architecture
@@ -50,13 +58,16 @@ flowchart TD
     C --> D["Android Kotlin backend"]
     C --> E["Windows backend"]
     C --> F["macOS backend"]
-    C --> G["iOS backend feasibility"]
+    C --> G["Linux backend"]
+    C --> M["iOS backend feasibility"]
     D --> H["yt-dlp via youtubedl-android"]
     E --> I["yt-dlp process"]
     F --> J["yt-dlp process"]
+    G --> N["yt-dlp process"]
     H --> K["FFmpeg"]
     I --> K
     J --> K
+    N --> K
     K --> L["MP3, M4A, MP4, or original file"]
 ```
 
@@ -510,19 +521,261 @@ Verification on 2026-08-26:
   `yt-dlp --update` engine path resolves — same behavior as Android.
 - `flutter build windows` passed.
 
-## Out Of Scope: macOS And iOS
+## Milestone 6 - Multi-Site Provider Expansion
 
-Decision on 2026-08-26: the app ships for **Android and Windows only**.
-Milestones 6 and 7 are out of scope until a macOS development machine is
-available and there is real demand; the shared Dart service contracts and the
-desktop process-runner backend already isolate everything those ports would
-need.
+Goal: make the app feel like a general video/music downloader instead of a
+YouTube-only downloader, while still relying on yt-dlp as the extraction
+engine and validating every advertised provider on Android and Windows.
 
-## Milestone 6 - macOS Desktop (out of scope)
+Reference checked on 2026-08-27:
+https://github.com/yt-dlp/yt-dlp/blob/master/supportedsites.md. The official
+yt-dlp supported-sites list says that support can break when websites change
+and that the reliable check is to try the target URL. Treat the matrix below
+as a QA roadmap, not a permanent guarantee.
+
+### Provider Support Matrix
+
+| Provider | Priority | yt-dlp status | Planned scope |
+| --- | --- | --- | --- |
+| YouTube videos | Existing | Explicit extractor | Keep supported; continue regression tests. |
+| YouTube Shorts | High | YouTube extractor | Add explicit `/shorts/` URL detection and QA. |
+| Dailymotion | High | Explicit extractor | First new batch: public videos and playlists. |
+| Vimeo | High | Explicit extractor | First new batch: public videos; private/password content only if user has valid cookies or URL access. |
+| SoundCloud | High | Explicit extractor | First new batch: tracks, sets/playlists, and MP3/M4A output. |
+| TikTok | High | Explicit extractor | Second new provider: public videos and shared short links. |
+| Instagram | High | Explicit extractor | Reels/posts first; stories/private content require cookies and may remain limited. |
+| Facebook | High | Explicit extractor | Public videos/reels first; many URLs may require cookies. |
+| Twitter/X | High | Explicit extractor | `x.com` and `twitter.com` videos; spaces/audio later if needed. |
+| Pinterest | Medium | Explicit extractor | Video pins first; image-only pins are not part of yt-dlp download flow. |
+| Reddit | Medium | Explicit extractor | Video posts with audio merge; useful missing social provider. |
+| Twitch | Medium | Explicit extractor | Clips and VODs; livestream capture is out of MVP. |
+| Rumble | Medium | Explicit extractor | Public videos. |
+| Bandcamp | Medium | Explicit extractor | Tracks/albums; useful missing music provider. |
+| Audiomack | Low | Explicit extractor | Tracks/albums after SoundCloud/Bandcamp. |
+| Mixcloud | Low | Explicit extractor | Long-form audio mixes after core audio providers. |
+| Audius | Low | Explicit extractor | Tracks/playlists after core audio providers. |
+| Internet Archive | Low | Explicit extractor | Video/audio archive items. |
+| LinkedIn | Low | Explicit extractor | Public videos only if testing is stable. |
+| Tumblr | Low | Explicit extractor | Public video/audio posts. |
+| VK / VK Video | Low | Explicit extractor | Public videos; region/login risk. |
+| Odysee/LBRY | Low | Explicit extractor | Public videos after social/video core. |
+| BuzzVideo | Research | Not confirmed in current yt-dlp supported-sites list | Try generic extractor only; do not advertise until proven. |
+| Tubidy | Research | Not confirmed in current yt-dlp supported-sites list | Try generic extractor only; likely needs separate decision. |
+| Wallpaper sites | Research | Not a video/audio provider category | Decide whether this becomes a separate image/wallpaper downloader mode. |
+| Threads | Research | Not confirmed in current yt-dlp supported-sites list | Try generic/Instagram-related extraction only; do not advertise until proven. |
+| Snapchat | Research | Not confirmed in current yt-dlp supported-sites list | Try generic extractor only; do not advertise until proven. |
+
+### Sprint 6.1 - Provider Capability Layer
+
+Tasks:
+
+- [x] Add a provider registry in Dart with provider id, display name, domain
+      aliases, URL examples, supported output kinds, cookie behavior, and
+      playlist support.
+- [x] Detect provider from input URL before analysis.
+- [x] Reconcile URL provider detection with yt-dlp's returned extractor name.
+- [x] Store provider id/name in queue and history records.
+- [x] Add provider filter/search in History.
+- [ ] Add provider-specific user-facing errors for unsupported, login-required,
+      private, age-restricted, geo-blocked, rate-limited, and extractor-broken
+      failures.
+- [x] Add a manual smoke-test matrix file format under ignored `secrets/` so
+      real provider test URLs are never committed.
+- [x] Extend `tool/desktop_smoke.dart` or add a new provider smoke tool that
+      can run metadata/download checks for a matrix of URLs.
+- [ ] Add Android manual QA checklist per provider: share intent, direct paste,
+      metadata, MP3, MP4/original, cancel, backgrounding, save location.
+- [ ] Add Windows manual QA checklist per provider: PATH binaries, configured
+      binaries, metadata, MP3, MP4/original, cancel, output collision.
+
+Acceptance criteria:
+
+- The app can show which provider it thinks a URL belongs to.
+- Provider support is measured through repeatable Android and Windows smoke
+  tests.
+- Unsupported providers fail with a clear message instead of a generic yt-dlp
+  error dump.
+
+Implementation notes on 2026-08-27:
+
+- Provider catalog added in `lib/src/models/media_providers.dart`.
+- Home shows detected provider before/after analysis.
+- Queue and History items persist provider id/name with fallback detection for
+  older saved records.
+- History can filter by provider.
+- `docs/SUPPORTED_WEBSITES.md` mirrors the upstream yt-dlp extractor list.
+- `docs/PROVIDER_QA.md` documents the private `secrets/provider_smoke.json`
+  format.
+- `tool/provider_smoke.dart` runs Windows/desktop metadata and download smoke
+  tests from that private matrix.
+
+### Sprint 6.2 - Dailymotion, Vimeo, And SoundCloud
+
+Tasks:
+
+- [x] Add Dailymotion provider entry and URL aliases:
+      `dailymotion.com` and `dai.ly`.
+- [x] Add Vimeo provider entry and URL aliases:
+      `vimeo.com` and `player.vimeo.com`.
+- [x] Add SoundCloud provider entry and URL aliases:
+      `soundcloud.com` and `snd.sc`.
+- [x] Show detected provider in the Home media panel.
+- [x] Store provider id/name in queue and history records.
+- [x] Add provider filtering in History.
+- [ ] Test Dailymotion public video metadata on Android and Windows.
+- [ ] Test Dailymotion public video MP4/original and MP3 download on Android
+      and Windows.
+- [ ] Test Vimeo public video metadata on Android and Windows.
+- [ ] Test Vimeo public video MP4/original and MP3 download on Android and
+      Windows.
+- [ ] Test SoundCloud track metadata on Android and Windows.
+- [ ] Test SoundCloud MP3/M4A/original download on Android and Windows.
+- [ ] Test SoundCloud set/playlist expansion on Android and Windows.
+- [ ] Verify playlist/set expansion where yt-dlp returns entries.
+- [ ] Add provider-specific output presets for audio-first services.
+
+Acceptance criteria:
+
+- Dailymotion, Vimeo, and SoundCloud have repeatable Android and Windows smoke
+  results.
+- These providers can be listed as verified in README/release notes only after
+  the smoke tests pass.
+- SoundCloud defaults to sensible audio output choices.
+
+### Sprint 6.3 - TikTok Videos
+
+Tasks:
+
+- [ ] Add TikTok provider entry and URL aliases:
+      `tiktok.com`, `www.tiktok.com`, `m.tiktok.com`, `vm.tiktok.com`, and
+      `vt.tiktok.com`.
+- [ ] Normalize shared TikTok URLs by trimming tracking query parameters while
+      preserving the real media URL.
+- [ ] Verify public video metadata on Android and Windows.
+- [ ] Verify MP4/original download on Android and Windows.
+- [ ] Verify MP3 extraction on Android and Windows.
+- [ ] Verify shared short links from the Android TikTok app/share sheet.
+- [ ] Add TikTok-specific handling for login/rate-limit/region errors.
+- [ ] Document known limits: private videos, deleted videos, region-blocked
+      videos, and any provider-side bot checks.
+
+Acceptance criteria:
+
+- Public TikTok video URLs can be pasted or shared into the app.
+- User can download TikTok as MP4/original and MP3.
+- Failures are understandable and do not leak full URLs, cookies, or tokens.
+
+### Sprint 6.4 - Instagram Reels And Videos
+
+Tasks:
+
+- [ ] Add Instagram provider entry and URL aliases:
+      `instagram.com`, `www.instagram.com`, `m.instagram.com`.
+- [ ] Validate Reels URLs.
+- [ ] Validate post URLs with video media.
+- [ ] Validate shared links from Android Instagram.
+- [ ] Decide whether carousel posts should enqueue each video or only the first
+      extractable video.
+- [ ] Add cookie guidance for login-required/private/restricted content.
+- [ ] Add provider-scoped cookie handling so Instagram/Facebook cookies are not
+      blindly sent to unrelated providers.
+- [ ] Verify Android and Windows MP4/original plus MP3 output.
+
+Acceptance criteria:
+
+- Public Instagram Reel/video URLs work where yt-dlp supports them.
+- Private or login-required content produces a cookie/import guidance message.
+
+### Sprint 6.5 - Facebook And Twitter/X
+
+Tasks:
+
+- [ ] Add Facebook provider entry and aliases:
+      `facebook.com`, `www.facebook.com`, `m.facebook.com`, `fb.watch`.
+- [ ] Add Twitter/X provider entry and aliases:
+      `x.com`, `www.x.com`, `twitter.com`, `www.twitter.com`, `mobile.twitter.com`.
+- [ ] Verify public Facebook videos and Reels.
+- [ ] Verify public Twitter/X videos.
+- [ ] Verify Android share links from Facebook and X apps.
+- [ ] Verify Windows paste/download flow.
+- [ ] Add cookie guidance for Facebook/X login-required videos.
+- [ ] Add error mapping for deleted posts, unavailable posts, sensitive-content
+      gating, and rate limits.
+- [ ] Decide whether X Spaces/audio belongs in this release or later.
+
+Acceptance criteria:
+
+- Public Facebook and X/Twitter video URLs can be analyzed and downloaded.
+- Login-required URLs fail into a clear cookie/support path.
+
+### Sprint 6.6 - Pinterest, Reddit, Twitch, Rumble, And Secondary Providers
+
+Tasks:
+
+- [ ] Add Pinterest provider entry and validate video pins.
+- [ ] Add Reddit provider entry and validate video posts with audio.
+- [ ] Add Twitch provider entry and validate clips and VODs.
+- [ ] Add Rumble provider entry and validate public videos.
+- [ ] Add Audiomack, Mixcloud, Audius, Internet Archive, LinkedIn, Tumblr,
+      VK/VK Video, and Odysee/LBRY entries as lower-priority smoke targets.
+- [ ] Mark livestream capture, DRM-protected media, and private/paywalled media
+      as out of scope.
+
+Acceptance criteria:
+
+- Secondary providers either move to supported status with smoke evidence or
+  stay hidden as experimental/research providers.
+
+### Sprint 6.7 - Research And Generic Extractor Candidates
+
+Tasks:
+
+- [ ] Test BuzzVideo URLs if still available; use generic extractor only unless
+      yt-dlp adds a dedicated extractor.
+- [ ] Test Tubidy URLs; use generic extractor only unless yt-dlp adds a
+      dedicated extractor.
+- [ ] Define "Wallpaper" scope: video wallpapers through yt-dlp, static image
+      wallpaper downloads through a separate image pipeline, or no support.
+- [ ] Test Threads and Snapchat URLs through generic extraction.
+- [ ] Keep unproven providers out of public badges, README feature claims, and
+      release notes.
+
+Acceptance criteria:
+
+- Research providers have a written ship/no-ship decision.
+- The app does not advertise provider support that was not verified.
+
+### Sprint 6.8 - Provider QA And Release Readiness
+
+Tasks:
+
+- [ ] Build a private provider smoke matrix with at least one public URL per
+      supported provider.
+- [ ] Run the provider matrix on Android.
+- [ ] Run the provider matrix on Windows.
+- [ ] Update README supported-provider list from smoke results.
+- [ ] Update privacy/security docs for multi-provider cookies.
+- [ ] Update release notes with supported and experimental providers.
+- [ ] Add a troubleshooting section for "update yt-dlp first".
+
+Acceptance criteria:
+
+- Every advertised provider has current Android and Windows smoke evidence.
+- Unsupported and experimental providers are clearly separated.
+
+## Out Of Scope: macOS, iOS, And Linux
+
+Decision on 2026-08-27: the app ships for **Android and Windows only** for now.
+macOS, iPhone/iOS, and Linux stay in the plan but out of active work until a
+target machine/environment is available and there is real demand. The shared
+Dart service contracts and the desktop process-runner backend already isolate
+most of the code those ports would need.
+
+## Milestone 7 - macOS Desktop (out of scope)
 
 Goal: add macOS with behavior close to Windows where platform rules allow it.
 
-### Sprint 6.1 - macOS Platform Bring-Up
+### Sprint 7.1 - macOS Platform Bring-Up
 
 Tasks:
 
@@ -538,7 +791,7 @@ Acceptance criteria:
 - macOS build launches and can run fake backend flows.
 - Packaging/signing constraints are documented.
 
-### Sprint 6.2 - macOS Real Downloads
+### Sprint 7.2 - macOS Real Downloads
 
 Tasks:
 
@@ -554,12 +807,12 @@ Acceptance criteria:
 - macOS can download and convert one public URL.
 - User can choose output location.
 
-## Milestone 7 - iPhone/iOS Feasibility And Port (out of scope)
+## Milestone 8 - iPhone/iOS Feasibility And Port (out of scope)
 
 Goal: decide what can be delivered on iPhone without pretending Android/desktop
 assumptions apply.
 
-### Sprint 7.1 - iOS Feasibility Spike
+### Sprint 8.1 - iOS Feasibility Spike
 
 Tasks:
 
@@ -577,7 +830,7 @@ Acceptance criteria:
 - Project has a written decision on iOS scope.
 - Unsupported Android/desktop features are explicitly marked.
 
-### Sprint 7.2 - iOS Implementation If Approved
+### Sprint 8.2 - iOS Implementation If Approved
 
 Tasks:
 
@@ -594,11 +847,31 @@ Acceptance criteria:
 - iPhone build has a tested, documented feature set.
 - Any missing parity is visible to users.
 
-## Milestone 8 - Hardening, Policy, And Release
+## Milestone 9 - Linux Desktop (out of scope)
+
+Goal: add Linux only after Android and Windows are stable and a Linux test
+environment is available.
+
+### Sprint 9.1 - Linux Platform Bring-Up
+
+Tasks:
+
+- [ ] Generate Linux platform folder if the target is approved.
+- [ ] Verify Flutter Linux build on Linux.
+- [ ] Reuse the desktop process-runner backend where possible.
+- [ ] Add Linux output folder selection and PATH binary behavior.
+- [ ] Add Linux package identity/distribution notes.
+
+Acceptance criteria:
+
+- Linux build launches and can run metadata/download smoke tests on Linux.
+- Linux is not advertised until tested on Linux.
+
+## Milestone 10 - Hardening, Policy, And Release
 
 Goal: prepare public releases with source and compliance.
 
-### Sprint 8.1 - Hardening
+### Sprint 10.1 - Hardening
 
 Tasks:
 
@@ -621,7 +894,7 @@ Acceptance criteria:
 - No cookie, token, or private URL appears in logs.
 - Failed jobs recover cleanly.
 
-### Sprint 8.2 - Release Compliance
+### Sprint 10.2 - Release Compliance
 
 Tasks:
 
@@ -652,7 +925,7 @@ Verification on 2026-08-26:
   signing config external to the repository (debug fallback keeps builds
   possible for contributors).
 
-### Sprint 8.3 - Beta Release
+### Sprint 10.3 - Beta Release
 
 Tasks:
 
@@ -684,17 +957,30 @@ Acceptance criteria:
 12. Add FFmpeg MP3 conversion.
 13. Add queue/history.
 14. Add safe cookie import.
-15. Port proven flows to Windows/macOS.
-16. Decide iOS scope after feasibility.
+15. Validate multi-site provider support on Android and Windows.
+16. Start with Dailymotion, Vimeo, and SoundCloud because they are technically
+    simpler validation targets.
+17. Continue with TikTok, then Instagram, Facebook, and Twitter/X.
+18. Expand to secondary providers only after smoke evidence exists.
+19. Port proven flows to macOS/Linux only when target machines are available.
+20. Decide iOS scope after feasibility.
 
 ## Main Risks
 
 - YouTube and other providers may change extraction behavior.
-- YouTube account cookies are sensitive and may expire or be invalidated.
+- Social providers such as TikTok, Instagram, Facebook, X/Twitter, and
+  Pinterest may rate-limit, geo-block, require login, or change shared URL
+  formats without notice.
+- Provider support in yt-dlp is not a guarantee that every URL from that
+  provider will work.
+- Account cookies for any provider are sensitive and may expire or be
+  invalidated.
 - Embedded login may not work reliably or may be blocked by provider policy.
 - FFmpeg license depends on the exact build and linked libraries.
 - Downloader apps can have distribution policy risk, especially in app stores.
 - Large downloads need careful background and temp storage handling.
+- Wallpaper/static-image support may require a separate pipeline outside
+  yt-dlp and should not be mixed into the video/audio MVP without a decision.
 - iOS may not support full parity with Android/desktop.
 
 ## Open Decisions
@@ -705,6 +991,13 @@ Acceptance criteria:
 - Local database package for history.
 - FFmpeg Android artifact license/build-flag confirmation for public release.
 - yt-dlp/FFmpeg desktop binary distribution strategy.
-- Whether assisted WebView cookie capture is allowed to ship.
+- Provider-scoped cookie storage and status for Instagram/Facebook/X/TikTok
+  instead of one generic cookie status.
+- Whether TikTok/Instagram/Facebook/X support should be shown as stable or
+  experimental in the first multi-site beta.
+- Whether wallpapers mean video wallpapers, static images, or no support.
+- Whether BuzzVideo, Tubidy, Threads, and Snapchat are viable through yt-dlp's
+  generic extractor.
+- Whether assisted WebView cookie capture is allowed to ship for any provider.
 - Whether first public release targets GitHub Releases only or also an app
   store.

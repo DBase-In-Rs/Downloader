@@ -24,6 +24,9 @@ void main() {
   });
 
   testWidgets('analyzes a URL and queues a fake download', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(1200, 900));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
     await tester.pumpWidget(
       DBaseDownloaderApp(
         backend: FakeMediaBackend(),
@@ -44,7 +47,10 @@ void main() {
     expect(find.text('Available Formats'), findsOneWidget);
     expect(find.text('1080p - mp4'), findsOneWidget);
 
-    await tester.tap(find.byTooltip('Add to queue').first);
+    final addButton = find.byTooltip('Add to queue').first;
+    await tester.ensureVisible(addButton);
+    await tester.pumpAndSettle();
+    await tester.tap(addButton);
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 200));
 

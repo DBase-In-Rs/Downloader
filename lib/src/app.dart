@@ -175,9 +175,7 @@ class _SplashScreen extends StatelessWidget {
             ),
             const SizedBox(height: 16),
             Text(
-              updating
-                  ? 'Preparing downloader engine...'
-                  : 'Starting...',
+              updating ? 'Preparing downloader engine...' : 'Starting...',
               style: const TextStyle(color: Colors.white70, fontSize: 14),
             ),
           ],

@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 
 import '../models/download_models.dart';
+import '../models/media_providers.dart';
 import 'media_backend.dart';
 import 'queue_store.dart';
 import 'shared_url_service.dart';
@@ -44,6 +45,7 @@ class AppController extends ChangeNotifier {
   bool _queuePaused = false;
   int _idSequence = 0;
   String _historyQuery = '';
+  String? _historyProviderFilter;
   final List<DownloadQueueItem> _queue = [];
   final List<DownloadQueueItem> _history = [];
 
@@ -59,9 +61,8 @@ class AppController extends ChangeNotifier {
 
   PlaylistInfo? get playlistInfo => _playlistInfo;
 
-  Set<String> get selectedPlaylistUrls => Set.unmodifiable(
-    _selectedPlaylistUrls,
-  );
+  Set<String> get selectedPlaylistUrls =>
+      Set.unmodifiable(_selectedPlaylistUrls);
 
   ExtractionState get extractionState => _extractionState;
 
@@ -85,19 +86,61 @@ class AppController extends ChangeNotifier {
 
   String get historyQuery => _historyQuery;
 
+  String? get historyProviderFilter => _historyProviderFilter;
+
+  MediaProviderInfo get currentProvider {
+    final info = _mediaInfo;
+    if (info != null) {
+      return resolveMediaProvider(url: info.url, extractor: info.extractor);
+    }
+
+    final playlist = _playlistInfo;
+    if (playlist != null) {
+      return playlist.providerId == null
+          ? mediaProviderForUrl(playlist.url)
+          : mediaProviderById(playlist.providerId);
+    }
+
+    return mediaProviderForUrl(_urlText);
+  }
+
+  List<MediaProviderInfo> get historyProviderOptions {
+    final providers = <String, MediaProviderInfo>{};
+    for (final item in _history) {
+      final provider = item.providerId == null
+          ? mediaProviderForUrl(item.url)
+          : mediaProviderById(item.providerId);
+      providers[provider.id] = provider;
+    }
+
+    final values = providers.values.toList()
+      ..sort((a, b) => a.displayName.compareTo(b.displayName));
+    return values;
+  }
+
   List<DownloadQueueItem> get filteredHistory {
     final query = _historyQuery.trim().toLowerCase();
-    if (query.isEmpty) {
+    final providerFilter = _historyProviderFilter;
+    if (query.isEmpty && providerFilter == null) {
       return history;
     }
 
-    return _history
-        .where(
-          (item) =>
-              item.title.toLowerCase().contains(query) ||
-              item.url.toLowerCase().contains(query),
-        )
-        .toList();
+    return _history.where((item) {
+      final providerId = item.providerId ?? mediaProviderForUrl(item.url).id;
+      final providerName = providerDisplayName(
+        providerId: item.providerId,
+        providerName: item.providerName,
+      ).toLowerCase();
+      final providerMatches =
+          providerFilter == null || providerId == providerFilter;
+      final queryMatches =
+          query.isEmpty ||
+          item.title.toLowerCase().contains(query) ||
+          item.url.toLowerCase().contains(query) ||
+          providerName.contains(query);
+
+      return providerMatches && queryMatches;
+    }).toList();
   }
 
   List<MediaFormat> get visibleFormats {
@@ -234,15 +277,15 @@ class AppController extends ChangeNotifier {
         final playlist = await backend.getPlaylistInfo(request);
         if (playlist.entries.isEmpty) {
           // Not a real playlist; fall back to single-item analysis.
-          _mediaInfo = await backend.getInfo(request);
+          _mediaInfo = _withResolvedProvider(await backend.getInfo(request));
         } else {
-          _playlistInfo = playlist;
+          _playlistInfo = _withResolvedPlaylistProvider(playlist);
           _selectedPlaylistUrls.addAll(
             playlist.entries.map((entry) => entry.url),
           );
         }
       } else {
-        _mediaInfo = await backend.getInfo(request);
+        _mediaInfo = _withResolvedProvider(await backend.getInfo(request));
       }
       _extractionState = ExtractionState.loaded;
     } catch (error) {
@@ -398,6 +441,15 @@ class AppController extends ChangeNotifier {
     notifyListeners();
   }
 
+  void setHistoryProviderFilter(String? providerId) {
+    if (_historyProviderFilter == providerId) {
+      return;
+    }
+
+    _historyProviderFilter = providerId;
+    notifyListeners();
+  }
+
   void deleteHistoryItem(String id) {
     _history.removeWhere((item) => item.id == id);
     notifyListeners();
@@ -427,6 +479,7 @@ class AppController extends ChangeNotifier {
   }) async {
     // A timestamp alone can collide when two items are enqueued within the
     // same clock tick, so a session-local sequence keeps ids unique.
+    final provider = mediaProviderForUrl(url);
     final item = DownloadQueueItem(
       id: '${DateTime.now().microsecondsSinceEpoch}-${_idSequence++}',
       url: url,
@@ -434,6 +487,8 @@ class AppController extends ChangeNotifier {
       format: format,
       outputKind: outputKind,
       status: _queuePaused ? DownloadStatus.paused : DownloadStatus.pending,
+      providerId: provider.id,
+      providerName: provider.displayName,
     );
 
     _queue.add(item);
@@ -494,9 +549,7 @@ class AppController extends ChangeNotifier {
     _queuePaused = snapshot.paused;
     _queue
       ..clear()
-      ..addAll(
-        snapshot.items.where(_isWaitingOrRunning).map(_restoredItem),
-      );
+      ..addAll(snapshot.items.where(_isWaitingOrRunning).map(_restoredItem));
     _history
       ..clear()
       ..addAll(snapshot.history.take(_historyLimit));
@@ -598,9 +651,8 @@ class AppController extends ChangeNotifier {
       return;
     }
 
-    final finished = update(
-      _queue.removeAt(index),
-    ).copyWith(finishedAt: DateTime.now());
+    final finished = update(_queue.removeAt(index))
+        .copyWith(finishedAt: DateTime.now());
     _history.insert(0, finished);
     if (_history.length > _historyLimit) {
       _history.removeRange(_historyLimit, _history.length);
@@ -616,6 +668,25 @@ class AppController extends ChangeNotifier {
     }
 
     return error.toString().replaceFirst('Exception: ', '');
+  }
+
+  MediaInfo _withResolvedProvider(MediaInfo info) {
+    final provider = resolveMediaProvider(
+      url: info.url,
+      extractor: info.extractor,
+    );
+    return info.copyWith(
+      providerId: info.providerId ?? provider.id,
+      providerName: info.providerName ?? provider.displayName,
+    );
+  }
+
+  PlaylistInfo _withResolvedPlaylistProvider(PlaylistInfo playlist) {
+    final provider = mediaProviderForUrl(playlist.url);
+    return playlist.copyWith(
+      providerId: playlist.providerId ?? provider.id,
+      providerName: playlist.providerName ?? provider.displayName,
+    );
   }
 }
 

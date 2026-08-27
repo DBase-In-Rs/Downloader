@@ -1,3 +1,5 @@
+import 'media_providers.dart';
+
 enum AppSection { home, queue, history, settings }
 
 enum ExtractionState { idle, loading, loaded, failed }
@@ -30,6 +32,8 @@ class MediaInfo {
     this.thumbnailUrl,
     this.duration,
     this.extractor,
+    this.providerId,
+    this.providerName,
   });
 
   final String url;
@@ -38,17 +42,38 @@ class MediaInfo {
   final String? thumbnailUrl;
   final Duration? duration;
   final String? extractor;
+  final String? providerId;
+  final String? providerName;
   final List<MediaFormat> formats;
 
   factory MediaInfo.fromMap(Map<Object?, Object?> map) {
+    final url = stringValue(map['url']) ?? '';
+    final extractor = stringValue(map['extractor']);
+    final provider = resolveMediaProvider(url: url, extractor: extractor);
     return MediaInfo(
-      url: stringValue(map['url']) ?? '',
+      url: url,
       title: stringValue(map['title']) ?? 'Untitled media',
       uploader: stringValue(map['uploader']),
       thumbnailUrl: stringValue(map['thumbnailUrl']),
       duration: durationFromSeconds(map['durationSeconds']),
-      extractor: stringValue(map['extractor']),
+      extractor: extractor,
+      providerId: stringValue(map['providerId']) ?? provider.id,
+      providerName: stringValue(map['providerName']) ?? provider.displayName,
       formats: listOfMaps(map['formats']).map(MediaFormat.fromMap).toList(),
+    );
+  }
+
+  MediaInfo copyWith({String? providerId, String? providerName}) {
+    return MediaInfo(
+      url: url,
+      title: title,
+      formats: formats,
+      uploader: uploader,
+      thumbnailUrl: thumbnailUrl,
+      duration: duration,
+      extractor: extractor,
+      providerId: providerId ?? this.providerId,
+      providerName: providerName ?? this.providerName,
     );
   }
 
@@ -60,6 +85,8 @@ class MediaInfo {
       'thumbnailUrl': thumbnailUrl,
       'durationSeconds': duration?.inSeconds,
       'extractor': extractor,
+      'providerId': providerId,
+      'providerName': providerName,
       'formats': formats.map((format) => format.toMap()).toList(),
     };
   }
@@ -157,19 +184,38 @@ class PlaylistInfo {
     required this.url,
     required this.title,
     required this.entries,
+    this.providerId,
+    this.providerName,
   });
 
   final String url;
   final String title;
   final List<PlaylistEntry> entries;
+  final String? providerId;
+  final String? providerName;
 
   factory PlaylistInfo.fromMap(Map<Object?, Object?> map) {
+    final url = stringValue(map['url']) ?? '';
+    final provider = mediaProviderForUrl(url);
     return PlaylistInfo(
-      url: stringValue(map['url']) ?? '',
+      url: url,
       title: stringValue(map['title']) ?? 'Playlist',
-      entries: listOfMaps(
-        map['entries'],
-      ).map(PlaylistEntry.fromMap).where((e) => e.url.isNotEmpty).toList(),
+      entries: listOfMaps(map['entries'])
+          .map(PlaylistEntry.fromMap)
+          .where((e) => e.url.isNotEmpty)
+          .toList(),
+      providerId: stringValue(map['providerId']) ?? provider.id,
+      providerName: stringValue(map['providerName']) ?? provider.displayName,
+    );
+  }
+
+  PlaylistInfo copyWith({String? providerId, String? providerName}) {
+    return PlaylistInfo(
+      url: url,
+      title: title,
+      entries: entries,
+      providerId: providerId ?? this.providerId,
+      providerName: providerName ?? this.providerName,
     );
   }
 }
@@ -252,6 +298,8 @@ class DownloadQueueItem {
     required this.format,
     required this.outputKind,
     required this.status,
+    this.providerId,
+    this.providerName,
     this.progress,
     this.outputLocation,
     this.errorMessage,
@@ -264,6 +312,8 @@ class DownloadQueueItem {
   final MediaFormat format;
   final OutputKind outputKind;
   final DownloadStatus status;
+  final String? providerId;
+  final String? providerName;
   final DownloadProgress? progress;
   final String? outputLocation;
   final String? errorMessage;
@@ -271,6 +321,8 @@ class DownloadQueueItem {
 
   DownloadQueueItem copyWith({
     DownloadStatus? status,
+    String? providerId,
+    String? providerName,
     DownloadProgress? progress,
     String? outputLocation,
     String? errorMessage,
@@ -283,6 +335,8 @@ class DownloadQueueItem {
       format: format,
       outputKind: outputKind,
       status: status ?? this.status,
+      providerId: providerId ?? this.providerId,
+      providerName: providerName ?? this.providerName,
       progress: progress ?? this.progress,
       outputLocation: outputLocation ?? this.outputLocation,
       errorMessage: errorMessage ?? this.errorMessage,
@@ -292,13 +346,17 @@ class DownloadQueueItem {
 
   factory DownloadQueueItem.fromMap(Map<Object?, Object?> map) {
     final finishedAtMillis = intValue(map['finishedAtMillis']);
+    final url = stringValue(map['url']) ?? '';
+    final provider = mediaProviderForUrl(url);
     return DownloadQueueItem(
       id: stringValue(map['id']) ?? '',
-      url: stringValue(map['url']) ?? '',
+      url: url,
       title: stringValue(map['title']) ?? 'Untitled media',
       format: MediaFormat.fromMap(mapValue(map['format'])),
       outputKind: outputKindFromString(stringValue(map['outputKind'])),
       status: downloadStatusFromString(stringValue(map['status'])),
+      providerId: stringValue(map['providerId']) ?? provider.id,
+      providerName: stringValue(map['providerName']) ?? provider.displayName,
       outputLocation: stringValue(map['outputLocation']),
       errorMessage: stringValue(map['errorMessage']),
       finishedAt: finishedAtMillis == null
@@ -315,6 +373,8 @@ class DownloadQueueItem {
       'format': format.toMap(),
       'outputKind': outputKind.name,
       'status': status.name,
+      'providerId': providerId,
+      'providerName': providerName,
       'outputLocation': outputLocation,
       'errorMessage': errorMessage,
       'finishedAtMillis': finishedAt?.millisecondsSinceEpoch,

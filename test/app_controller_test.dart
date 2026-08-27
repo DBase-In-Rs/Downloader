@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:dbase_downloader/src/models/download_models.dart';
+import 'package:dbase_downloader/src/models/media_providers.dart';
 import 'package:dbase_downloader/src/services/app_controller.dart';
 import 'package:dbase_downloader/src/services/fake_media_backend.dart';
 import 'package:dbase_downloader/src/services/media_backend.dart';
@@ -215,6 +216,43 @@ void main() {
     expect(isLikelyPlaylistUrl('https://youtu.be/abc123'), isFalse);
   });
 
+  test('detects media providers from URL and extractor names', () {
+    expect(
+      mediaProviderForUrl('https://www.dailymotion.com/video/x123').id,
+      'dailymotion',
+    );
+    expect(mediaProviderForUrl('https://vimeo.com/123456').id, 'vimeo');
+    expect(
+      mediaProviderForUrl('https://soundcloud.com/artist/track').id,
+      'soundcloud',
+    );
+    expect(mediaProviderForUrl('https://vm.tiktok.com/abc').id, 'tiktok');
+    expect(mediaProviderForExtractor('dailymotion:playlist').id, 'dailymotion');
+    expect(mediaProviderForExtractor('Soundcloud').id, 'soundcloud');
+    expect(mediaProviderForUrl('https://example.com/media').id, 'generic');
+  });
+
+  test('analyzed media and queue items carry provider metadata', () async {
+    final backend = ManualMediaBackend();
+    final controller = AppController(
+      backend: backend,
+      sharedUrlService: const FakeSharedUrlService(),
+    );
+    addTearDown(controller.dispose);
+    await controller.initialize();
+
+    controller.setUrlText('https://vimeo.com/123456');
+    await controller.analyzeUrl();
+
+    expect(controller.mediaInfo?.providerId, 'vimeo');
+    expect(controller.mediaInfo?.providerName, 'Vimeo');
+
+    await controller.startDownload(controller.visibleFormats.single);
+
+    expect(controller.queue.single.providerId, 'vimeo');
+    expect(controller.queue.single.providerName, 'Vimeo');
+  });
+
   test('playlist analysis selects all entries and enqueues them', () async {
     final backend = ManualMediaBackend()
       ..playlistResponse = const PlaylistInfo(
@@ -308,6 +346,43 @@ void main() {
 
     restarted.deleteHistoryItem(restarted.history.single.id);
     expect(restarted.history, isEmpty);
+  });
+
+  test('history can be filtered by provider', () async {
+    final backend = ManualMediaBackend();
+    final controller = AppController(
+      backend: backend,
+      sharedUrlService: const FakeSharedUrlService(),
+    );
+    addTearDown(controller.dispose);
+    await controller.initialize();
+
+    controller.setUrlText('https://www.dailymotion.com/video/x123');
+    await controller.analyzeUrl();
+    await controller.startDownload(controller.visibleFormats.single);
+    backend.emitCompleted(backend.started.last.id);
+    await pumpEventQueue();
+
+    controller.setUrlText('https://soundcloud.com/artist/track');
+    await controller.analyzeUrl();
+    await controller.startDownload(controller.visibleFormats.single);
+    backend.emitCompleted(backend.started.last.id);
+    await pumpEventQueue();
+
+    expect(
+      controller.historyProviderOptions.map((p) => p.id),
+      containsAll(['dailymotion', 'soundcloud']),
+    );
+
+    controller.setHistoryProviderFilter('dailymotion');
+    expect(controller.filteredHistory, hasLength(1));
+    expect(controller.filteredHistory.single.providerId, 'dailymotion');
+
+    controller.setHistoryQuery('soundcloud');
+    expect(controller.filteredHistory, isEmpty);
+
+    controller.setHistoryProviderFilter(null);
+    expect(controller.filteredHistory.single.providerId, 'soundcloud');
   });
 
   test('queue item serialization round-trips', () {

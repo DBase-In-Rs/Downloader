@@ -67,6 +67,16 @@ or emulator is still pending. See [PLAN.md](PLAN.md) for the sprint roadmap.
 - Keep local download history.
 - Optional user-managed cookies for media that requires account access.
 
+## Supported Websites
+
+DBase uses yt-dlp as the extraction engine, so many sites can work through
+existing yt-dlp extractors. The full upstream extractor list is mirrored in
+[docs/SUPPORTED_WEBSITES.md](docs/SUPPORTED_WEBSITES.md).
+
+Provider support is advertised by DBase only after Android and Windows smoke
+tests pass. The next verification batch is Dailymotion, Vimeo, and SoundCloud,
+followed by TikTok, Instagram, Facebook, and Twitter/X.
+
 ## Current Implementation
 
 Implemented:
@@ -85,6 +95,7 @@ Implemented:
 - Android foreground service for active downloads.
 - Android MediaStore save for audio/video on Android 10+.
 - Documented channel schema in [docs/PLATFORM_CHANNELS.md](docs/PLATFORM_CHANNELS.md).
+- Provider catalog and detected-provider labels for the multi-site roadmap.
 - Sequential download queue with pause/resume, retry for failed items, and
   queue persistence across app restarts.
 - yt-dlp engine self-update on startup plus a manual update action in

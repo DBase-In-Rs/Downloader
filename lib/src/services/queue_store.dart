@@ -28,9 +28,9 @@ class QueueSnapshot {
     return QueueSnapshot(
       items: listOfMaps(map['items']).map(DownloadQueueItem.fromMap).toList(),
       paused: boolValue(map['paused']),
-      history: listOfMaps(
-        map['history'],
-      ).map(DownloadQueueItem.fromMap).toList(),
+      history: listOfMaps(map['history'])
+          .map(DownloadQueueItem.fromMap)
+          .toList(),
     );
   }
 }

@@ -89,10 +89,7 @@ void main() {
 
     expect(playlist.title, 'My playlist');
     expect(playlist.entries, hasLength(2));
-    expect(
-      playlist.entries[1].url,
-      'https://www.youtube.com/watch?v=abc123',
-    );
+    expect(playlist.entries[1].url, 'https://www.youtube.com/watch?v=abc123');
   });
 
   test('parses yt-dlp progress lines', () {

@@ -38,6 +38,8 @@ class HistoryPage extends StatelessWidget {
                 isDense: true,
               ),
             ),
+            const SizedBox(height: 10),
+            _ProviderFilter(controller: controller),
           ],
           const SizedBox(height: 16),
           Expanded(
@@ -65,6 +67,49 @@ class HistoryPage extends StatelessWidget {
                       );
                     },
                   ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ProviderFilter extends StatelessWidget {
+  const _ProviderFilter({required this.controller});
+
+  final AppController controller;
+
+  @override
+  Widget build(BuildContext context) {
+    final providers = controller.historyProviderOptions;
+    if (providers.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    final selected = controller.historyProviderFilter;
+
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Row(
+        children: [
+          Padding(
+            padding: const EdgeInsets.only(right: 8),
+            child: ChoiceChip(
+              label: const Text('All providers'),
+              selected: selected == null,
+              onSelected: (_) => controller.setHistoryProviderFilter(null),
+            ),
+          ),
+          ...providers.map(
+            (provider) => Padding(
+              padding: const EdgeInsets.only(right: 8),
+              child: ChoiceChip(
+                label: Text(provider.displayName),
+                selected: selected == provider.id,
+                onSelected: (_) =>
+                    controller.setHistoryProviderFilter(provider.id),
+              ),
+            ),
           ),
         ],
       ),

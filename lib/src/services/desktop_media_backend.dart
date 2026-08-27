@@ -112,7 +112,13 @@ class DesktopMediaBackend implements MediaBackend {
       '-o',
       '${workingDir.path}${Platform.pathSeparator}%(title)s.%(ext)s',
       ...switch (request.outputKind) {
-        OutputKind.mp3 => ['-x', '--audio-format', 'mp3', '--audio-quality', '0'],
+        OutputKind.mp3 => [
+          '-x',
+          '--audio-format',
+          'mp3',
+          '--audio-quality',
+          '0',
+        ],
         OutputKind.m4a => ['-x', '--audio-format', 'm4a'],
         OutputKind.mp4 => ['--merge-output-format', 'mp4'],
         OutputKind.original => const <String>[],
@@ -218,10 +224,9 @@ class DesktopMediaBackend implements MediaBackend {
   Future<EngineUpdateResult> updateEngine() async {
     final config = await configProvider();
     final ytDlp = await _requireYtDlp(config);
-    final update = await Process.run(
-      ytDlp,
-      ['--update'],
-    ).timeout(const Duration(minutes: 3));
+    final update = await Process.run(ytDlp, [
+      '--update',
+    ]).timeout(const Duration(minutes: 3));
     final version = await Process.run(ytDlp, ['--version']);
 
     return EngineUpdateResult(
@@ -289,8 +294,7 @@ class DesktopMediaBackend implements MediaBackend {
     }
   }
 
-  File _cookieFile() =>
-      File('$_configDir${Platform.pathSeparator}cookies.txt');
+  File _cookieFile() => File('$_configDir${Platform.pathSeparator}cookies.txt');
 
   File _cookieExpiredMarker() =>
       File('$_configDir${Platform.pathSeparator}cookies.expired');
@@ -486,10 +490,12 @@ MediaFormat? _formatFromYtDlpJson(Map<String, dynamic> json) {
     videoBitrateKbps: hasVideo ? tbr : null,
     filesizeBytes:
         intValue(json['filesize']) ?? intValue(json['filesize_approx']),
-    codec: [
-      if (hasVideo) vcodec,
-      if (hasAudio) acodec,
-    ].join(' + ').replaceAll(RegExp(r'^\s*\+\s*|\s*\+\s*$'), '').trim().isEmpty
+    codec:
+        [if (hasVideo) vcodec, if (hasAudio) acodec]
+            .join(' + ')
+            .replaceAll(RegExp(r'^\s*\+\s*|\s*\+\s*$'), '')
+            .trim()
+            .isEmpty
         ? null
         : [if (hasVideo) vcodec, if (hasAudio) acodec].join(' + '),
     note: note,

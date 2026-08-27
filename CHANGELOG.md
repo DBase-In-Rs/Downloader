@@ -8,6 +8,18 @@ versioning once releases begin.
 
 ## [Unreleased]
 
+### Added
+
+- Multi-site provider catalog for Dailymotion, Vimeo, SoundCloud, TikTok,
+  Instagram, Facebook, Twitter/X, Pinterest, Reddit, Twitch, Rumble, and
+  secondary providers.
+- Detected-provider labels in Home, Queue, and History, plus provider filtering
+  in History.
+- Full upstream yt-dlp extractor list mirrored in
+  `docs/SUPPORTED_WEBSITES.md`.
+- Provider QA notes and a private-matrix desktop smoke tool
+  (`tool/provider_smoke.dart`).
+
 ## [1.0.0-beta.3] - 2026-08-26
 
 ### Added

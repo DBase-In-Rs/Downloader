@@ -33,6 +33,7 @@ Core user flows:
 
 - paste or type URL;
 - receive shared URLs from the OS share sheet where supported;
+- detect the provider/site from the URL where possible;
 - inspect available formats and metadata;
 - choose MP3, M4A, MP4, or original format;
 - choose quality;
@@ -133,6 +134,11 @@ directory, reports progress through the EventChannel, uses FFmpeg options for
 MP3/M4A extraction and MP4 merge, saves completed files through MediaStore on
 Android 10+, and deletes temporary files in the worker cleanup path.
 
+Provider support is tracked in `lib/src/models/media_providers.dart`,
+`docs/SUPPORTED_WEBSITES.md`, and `docs/PROVIDER_QA.md`. yt-dlp may list an
+extractor before DBase has verified it. Do not advertise a provider as DBase
+supported until Android and Windows smoke tests pass.
+
 ## Platform Identity
 
 The project identity is `rs.in.dbase.downloader`. Keep these aligned when
@@ -213,6 +219,9 @@ Keep these files updated as implementation decisions become real:
 
 - `README.md` for user/developer overview;
 - `PLAN.md` for sprint status and task breakdown;
+- `docs/SUPPORTED_WEBSITES.md` for the upstream yt-dlp extractor mirror and
+  DBase verification queue;
+- `docs/PROVIDER_QA.md` for provider smoke-test procedure;
 - `THIRD_PARTY_NOTICES.md` for dependency and license state;
 - `PRIVACY.md` for cookie/data behavior;
 - `SECURITY.md` for vulnerability reporting.

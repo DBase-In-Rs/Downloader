@@ -53,6 +53,7 @@ class SettingsPage extends StatelessWidget {
               ),
             ),
           ),
+          const SizedBox(height: 10),
           Card(
             child: Padding(
               padding: const EdgeInsets.all(14),
@@ -373,7 +374,8 @@ class _EngineCard extends StatelessWidget {
     final statusText = switch (state) {
       EngineUpdateState.idle => 'Not checked yet',
       EngineUpdateState.checking => 'Checking for updates...',
-      EngineUpdateState.updated => 'Updated${version != null ? ' to $version' : ''}',
+      EngineUpdateState.updated =>
+        'Updated${version != null ? ' to $version' : ''}',
       EngineUpdateState.upToDate =>
         'Up to date${version != null ? ' ($version)' : ''}',
       EngineUpdateState.failed =>

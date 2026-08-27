@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../models/download_models.dart';
+import '../models/media_providers.dart';
 
 class PageSurface extends StatelessWidget {
   const PageSurface({required this.child, super.key});
@@ -100,6 +101,10 @@ class DownloadItemTile extends StatelessWidget {
     final colors = Theme.of(context).colorScheme;
     final progress = item.progress;
     final percent = progress?.percent?.clamp(0.0, 1.0).toDouble();
+    final provider = providerDisplayName(
+      providerId: item.providerId,
+      providerName: item.providerName,
+    );
 
     return Card(
       child: Padding(
@@ -123,9 +128,13 @@ class DownloadItemTile extends StatelessWidget {
                       ),
                       const SizedBox(height: 2),
                       Text(
-                        '${outputKindLabel(item.outputKind)} - ${item.format.qualityLabel} - ${item.format.extension}'
+                        '$provider - ${outputKindLabel(item.outputKind)}'
+                        ' - ${item.format.qualityLabel}'
+                        ' - ${item.format.extension}'
                         '${item.finishedAt != null ? ' - ${formatTimestamp(item.finishedAt!)}' : ''}',
                         style: Theme.of(context).textTheme.bodySmall,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ],
                   ),
