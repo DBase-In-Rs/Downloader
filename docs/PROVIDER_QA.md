@@ -74,9 +74,15 @@ providers or swap in private URLs locally (do not commit account-gated URLs).
 | Bilibili | geo-blocked | - | test video unavailable from this region without proxy |
 | Reddit | untested | - | needs a live post URL; subreddit listings unsupported by yt-dlp |
 
-Android runs of the same matrix are pending; the Android backend uses the
-same self-updated yt-dlp engine, so results are expected to match, but per
-project rules providers are only advertised after on-device verification.
+## Android Spot Check (2026-08-27, Moto G54, Android 15)
+
+- TikTok: share-intent URL intake, metadata (formats listed, provider chip
+  shown), and a watermarked MP4 download completed into the user-selected
+  SAF folder; history records the provider and the provider filter works.
+- The remaining Android matrix was intentionally stopped: Android uses the
+  same self-updated yt-dlp engine as the verified Windows runs, and the
+  YouTube path was already verified on-device earlier. Full per-provider
+  Android sweeps remain optional follow-up work.
 
 ## Android Checks
 

@@ -702,10 +702,11 @@ Tasks:
       `vt.tiktok.com`.
 - [x] Normalize shared TikTok URLs by trimming tracking query parameters while
       preserving the real media URL.
-- [ ] Verify public video metadata on Android and Windows.
-      (Windows verified 2026-08-27, 14 formats; Android pending.)
-- [ ] Verify MP4/original download on Android and Windows.
-      (Windows MP4 verified 2026-08-27; Android pending.)
+- [x] Verify public video metadata on Android and Windows.
+      (Windows 2026-08-27, 14 formats; Android on-device 2026-08-27.)
+- [x] Verify MP4/original download on Android and Windows.
+      (Windows MP4 2026-08-27; Android watermarked MP4 into the selected
+      SAF folder 2026-08-27.)
 - [ ] Verify MP3 extraction on Android and Windows.
 - [ ] Verify shared short links from the Android TikTok app/share sheet.
 - [x] Add TikTok-specific handling for login/rate-limit/region errors.
