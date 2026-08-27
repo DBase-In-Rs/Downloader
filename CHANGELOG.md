@@ -10,10 +10,10 @@ versioning once releases begin.
 
 ### Added
 
-- Supporter licenses through Polar (merchant of record): a Support card in
-  Settings opens the checkout page and accepts the license key from the
-  purchase email; validation happens once at activation (no telemetry, no
-  startup phone-home), and supporters get a heart in the app bar.
+- Support the developer through Polar (merchant of record): a Support card
+  in Settings opens the Supporter or Supporter Pro checkout in the browser,
+  and supporters get a heart in the app bar (honor-based - no license keys,
+  no validation, and no network calls from the app).
 
 ## [1.0.0] - 2026-08-27
 

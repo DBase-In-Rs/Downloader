@@ -1,141 +1,61 @@
-import 'dart:convert';
-import 'dart:io';
-
 import 'package:shared_preferences/shared_preferences.dart';
 
-/// Outcome of a supporter license key check.
-enum SupporterValidation { valid, invalid, unreachable }
-
-/// Persists the supporter license key across restarts.
+/// Persists the supporter flag across restarts.
 abstract class SupporterStore {
-  Future<String?> readKey();
+  Future<bool> readSupporter();
 
-  Future<void> writeKey(String? key);
+  Future<void> writeSupporter(bool value);
 }
 
 class MemorySupporterStore implements SupporterStore {
-  String? _key;
+  bool _supporter = false;
 
   @override
-  Future<String?> readKey() async => _key;
+  Future<bool> readSupporter() async => _supporter;
 
   @override
-  Future<void> writeKey(String? key) async => _key = key;
+  Future<void> writeSupporter(bool value) async => _supporter = value;
 }
 
 class SharedPreferencesSupporterStore implements SupporterStore {
-  static const _prefsKey = 'supporterLicenseKey';
+  static const _prefsKey = 'supporter';
 
   @override
-  Future<String?> readKey() async {
+  Future<bool> readSupporter() async {
     final prefs = await SharedPreferences.getInstance();
-    return prefs.getString(_prefsKey);
+    return prefs.getBool(_prefsKey) ?? false;
   }
 
   @override
-  Future<void> writeKey(String? key) async {
+  Future<void> writeSupporter(bool value) async {
     final prefs = await SharedPreferences.getInstance();
-    if (key == null || key.isEmpty) {
-      await prefs.remove(_prefsKey);
+    if (value) {
+      await prefs.setBool(_prefsKey, true);
     } else {
-      await prefs.setString(_prefsKey, key);
+      await prefs.remove(_prefsKey);
     }
   }
 }
 
-/// Activates supporter license keys against Polar (the merchant of record).
+/// Supporter status for the heart in the app bar.
 ///
-/// The validation endpoint is public and scoped by the organization id, so
-/// no secret ships with the app. A key is validated once, when the user
-/// enters it; afterwards the stored key is trusted so supporters are never
-/// blocked offline and the app never phones home on startup.
+/// Support is honor-based: the purchase happens on Polar in the browser
+/// (Polar is the merchant of record and handles payment, receipts, and
+/// taxes), and the user turns the heart on afterwards. No license keys, no
+/// validation, and no network calls from the app.
 class SupporterService {
-  SupporterService({
-    SupporterStore? store,
-    this.organizationId = polarOrganizationId,
-    this.validator,
-  }) : store = store ?? MemorySupporterStore();
+  SupporterService({SupporterStore? store})
+    : store = store ?? MemorySupporterStore();
 
-  /// Polar organization the license keys belong to.
-  static const polarOrganizationId = 'eaa3d2c8-122d-4d8b-97e9-0aee2b476c95';
-
-  /// Checkout pages for the supporter licenses (Polar is the merchant of
-  /// record and handles payment, receipts, and taxes). Any license key from
-  /// the organization activates, whichever product it was bought through.
+  /// Checkout pages for the two support tiers.
   static const checkoutUrl =
       'https://buy.polar.sh/polar_cl_zPF9CaYg2iyuHxQ3hA3mdXVvomRJb8gEzC5d93f8xfV';
   static const checkoutProUrl =
       'https://buy.polar.sh/polar_cl_G3W6En67QTEVoBC1oVln4HQqcpqK8w7vujkJD4WjGOj';
 
   final SupporterStore store;
-  final String organizationId;
 
-  /// Overrides the remote Polar call, for tests.
-  final Future<SupporterValidation> Function(String key)? validator;
+  Future<bool> isSupporter() => store.readSupporter();
 
-  Future<bool> hasStoredKey() async =>
-      ((await store.readKey()) ?? '').isNotEmpty;
-
-  /// Validates [key] with Polar and stores it when granted.
-  Future<SupporterValidation> activate(String key) async {
-    final trimmed = key.trim();
-    if (trimmed.isEmpty) {
-      return SupporterValidation.invalid;
-    }
-
-    final result = await (validator ?? _validateRemote)(trimmed);
-    if (result == SupporterValidation.valid) {
-      await store.writeKey(trimmed);
-    }
-    return result;
-  }
-
-  Future<void> clear() => store.writeKey(null);
-
-  Future<SupporterValidation> _validateRemote(String key) async {
-    final client = HttpClient();
-    try {
-      final request = await client.postUrl(
-        Uri.parse(
-          'https://api.polar.sh/v1/customer-portal/license-keys/validate',
-        ),
-      );
-      request.headers.contentType = ContentType.json;
-      request.write(jsonEncode({'key': key, 'organization_id': organizationId}));
-      final response = await request.close().timeout(
-        const Duration(seconds: 15),
-      );
-      final body = await response.transform(utf8.decoder).join();
-      Object? decoded;
-      try {
-        decoded = jsonDecode(body);
-      } catch (_) {
-        decoded = null;
-      }
-      return validationFromResponse(response.statusCode, decoded);
-    } catch (_) {
-      return SupporterValidation.unreachable;
-    } finally {
-      client.close(force: true);
-    }
-  }
-}
-
-/// Pure mapping from the Polar validate response, separated for testing.
-///
-/// A 2xx response counts as valid only when the key status is `granted`
-/// (revoked and disabled keys are rejected). Any 4xx means the key itself is
-/// bad; everything else is a transient failure so network problems are never
-/// reported as an invalid key.
-SupporterValidation validationFromResponse(int statusCode, Object? body) {
-  if (statusCode >= 200 && statusCode < 300) {
-    final status = body is Map ? body['status'] : null;
-    return status == 'granted'
-        ? SupporterValidation.valid
-        : SupporterValidation.invalid;
-  }
-  if (statusCode >= 400 && statusCode < 500) {
-    return SupporterValidation.invalid;
-  }
-  return SupporterValidation.unreachable;
+  Future<void> setSupporter(bool value) => store.writeSupporter(value);
 }

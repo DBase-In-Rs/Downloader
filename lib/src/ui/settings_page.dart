@@ -514,9 +514,8 @@ class _SupportCard extends StatelessWidget {
                         ? 'Your heart shows in the app bar. The app stays '
                               'free and open source for everyone.'
                         : 'DBase Downloader is free and open source. If it '
-                              'saves you time, a supporter license keeps '
-                              'development going - and gets you a heart in '
-                              'the app.',
+                              'saves you time, supporting keeps development '
+                              'going - and gets you a heart in the app.',
                     style: Theme.of(context).textTheme.bodySmall,
                   ),
                   if (!supporter) ...[
@@ -545,9 +544,9 @@ class _SupportCard extends StatelessWidget {
                           label: const Text('Supporter Pro'),
                         ),
                         OutlinedButton.icon(
-                          onPressed: () => _enterLicenseKey(context),
-                          icon: const Icon(Icons.vpn_key, size: 18),
-                          label: const Text('I have a license key'),
+                          onPressed: () => _markSupported(context),
+                          icon: const Icon(Icons.check, size: 18),
+                          label: const Text('I already supported'),
                         ),
                       ],
                     ),
@@ -561,107 +560,13 @@ class _SupportCard extends StatelessWidget {
     );
   }
 
-  Future<void> _enterLicenseKey(BuildContext context) async {
-    final activated = await showDialog<bool>(
-      context: context,
-      builder: (context) => _LicenseKeyDialog(controller: controller),
-    );
-    if (activated == true && context.mounted) {
+  Future<void> _markSupported(BuildContext context) async {
+    await controller.setSupporter(true);
+    if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Supporter activated - thank you!')),
+        const SnackBar(content: Text('Thank you for your support!')),
       );
     }
-  }
-}
-
-class _LicenseKeyDialog extends StatefulWidget {
-  const _LicenseKeyDialog({required this.controller});
-
-  final AppController controller;
-
-  @override
-  State<_LicenseKeyDialog> createState() => _LicenseKeyDialogState();
-}
-
-class _LicenseKeyDialogState extends State<_LicenseKeyDialog> {
-  final _keyController = TextEditingController();
-  var _checking = false;
-  String? _error;
-
-  @override
-  void dispose() {
-    _keyController.dispose();
-    super.dispose();
-  }
-
-  Future<void> _activate() async {
-    setState(() {
-      _checking = true;
-      _error = null;
-    });
-
-    final result = await widget.controller.activateSupporterKey(
-      _keyController.text,
-    );
-    if (!mounted) {
-      return;
-    }
-    if (result == SupporterValidation.valid) {
-      Navigator.of(context).pop(true);
-      return;
-    }
-
-    setState(() {
-      _checking = false;
-      _error = result == SupporterValidation.invalid
-          ? 'This key is not valid. Check for typos or contact support.'
-          : 'Could not reach the license server. Check your connection '
-                'and try again.';
-    });
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return AlertDialog(
-      title: const Text('Enter license key'),
-      content: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'The license key from your purchase confirmation email.',
-          ),
-          const SizedBox(height: 12),
-          TextField(
-            controller: _keyController,
-            autofocus: true,
-            enabled: !_checking,
-            decoration: InputDecoration(
-              hintText: 'XXXX-XXXX-XXXX-XXXX',
-              errorText: _error,
-              errorMaxLines: 3,
-            ),
-            onSubmitted: (_) => _checking ? null : _activate(),
-          ),
-        ],
-      ),
-      actions: [
-        TextButton(
-          onPressed: _checking ? null : () => Navigator.of(context).pop(false),
-          child: const Text('Cancel'),
-        ),
-        FilledButton(
-          onPressed: _checking ? null : _activate,
-          child: _checking
-              ? const SizedBox(
-                  width: 16,
-                  height: 16,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                )
-              : const Text('Activate'),
-        ),
-      ],
-    );
   }
 }
 

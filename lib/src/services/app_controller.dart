@@ -203,7 +203,7 @@ class AppController extends ChangeNotifier {
 
   Future<void> _loadSupporterStatus() async {
     try {
-      if (await supporterService.hasStoredKey()) {
+      if (await supporterService.isSupporter()) {
         _isSupporter = true;
         notifyListeners();
       }
@@ -212,14 +212,13 @@ class AppController extends ChangeNotifier {
     }
   }
 
-  /// Validates and stores a supporter license key entered by the user.
-  Future<SupporterValidation> activateSupporterKey(String key) async {
-    final result = await supporterService.activate(key);
-    if (result == SupporterValidation.valid && !_isSupporter) {
-      _isSupporter = true;
+  /// Turns the supporter heart on or off (honor-based, stored locally).
+  Future<void> setSupporter(bool value) async {
+    await supporterService.setSupporter(value);
+    if (_isSupporter != value) {
+      _isSupporter = value;
       notifyListeners();
     }
-    return result;
   }
 
   Future<void> _checkForAppUpdate() async {

@@ -147,18 +147,16 @@ settings, temporary download files, and (optionally) imported cookies.
 Cookies are encrypted at rest on Android, passed only to yt-dlp requests,
 never logged, never uploaded anywhere, and deletable from Settings at any
 time. Network requests go only to the media providers you download from
-(plus GitHub for update checks and yt-dlp engine updates, and a one-time
-Polar request if you activate a supporter license key).
+(plus GitHub for update checks and yt-dlp engine updates).
 
 ## Support the Project
 
 DBase Downloader is free and open source. If it saves you time, you can
 [become a supporter](https://buy.polar.sh/polar_cl_zPF9CaYg2iyuHxQ3hA3mdXVvomRJb8gEzC5d93f8xfV)
 or go [Supporter Pro](https://buy.polar.sh/polar_cl_G3W6En67QTEVoBC1oVln4HQqcpqK8w7vujkJD4WjGOj)
-(payment is handled by [Polar](https://polar.sh), the merchant of record) and
-activate the license key from your purchase email in Settings - you get a
-heart in the app, and development keeps going. The app is never paywalled:
-every feature works without a license.
+(payment is handled by [Polar](https://polar.sh), the merchant of record) -
+you get a heart in the app, and development keeps going. The app is never
+paywalled: every feature works without supporting.
 
 ## Development
 
