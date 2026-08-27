@@ -87,6 +87,12 @@ void main() {
     await tester.tap(find.text('Settings'));
     await tester.pumpAndSettle();
 
+    // The card sits below the fold now; scroll it into view first.
+    await tester.scrollUntilVisible(
+      find.text('Supported Websites'),
+      200,
+      scrollable: find.byType(Scrollable).first,
+    );
     expect(find.text('Supported Websites'), findsOneWidget);
 
     await tester.tap(find.text('Supported Websites'));

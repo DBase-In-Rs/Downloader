@@ -4,6 +4,7 @@
 [![Latest release](https://img.shields.io/github/v/release/DBase-In-Rs/Downloader?include_prereleases&label=release)](https://github.com/DBase-In-Rs/Downloader/releases)
 [![Downloads](https://img.shields.io/github/downloads/DBase-In-Rs/Downloader/total)](https://github.com/DBase-In-Rs/Downloader/releases)
 [![License: GPL-3.0-only](https://img.shields.io/badge/license-GPL--3.0--only-blue.svg)](LICENSE)
+[![Support](https://img.shields.io/badge/%E2%9D%A4-support%20the%20project-D01010)](https://buy.polar.sh/polar_cl_zPF9CaYg2iyuHxQ3hA3mdXVvomRJb8gEzC5d93f8xfV)
 [![Platforms](https://img.shields.io/badge/platforms-Android%20%7C%20Windows%20%7C%20Linux-3DDC84?logo=android&logoColor=white)](#)
 [![Made with Flutter](https://img.shields.io/badge/made%20with-Flutter-02569B?logo=flutter&logoColor=white)](https://flutter.dev)
 [![Powered by yt-dlp](https://img.shields.io/badge/powered%20by-yt--dlp-red)](https://github.com/yt-dlp/yt-dlp)
@@ -73,7 +74,9 @@ second.
 
 Requires [yt-dlp](https://github.com/yt-dlp/yt-dlp) and
 [FFmpeg](https://ffmpeg.org) (for conversions):
-`winget install yt-dlp ffmpeg`. Custom paths can be set in Settings.
+`winget install yt-dlp.yt-dlp Gyan.FFmpeg`. The Engine Check card in
+Settings detects both and shows this command with a copy button when
+something is missing; custom paths can also be set there.
 
 ### Linux
 
@@ -97,6 +100,8 @@ extract, and run `./dbase_downloader`.
 Requires `ffmpeg` (`sudo apt install ffmpeg`) and a recent
 [yt-dlp](https://github.com/yt-dlp/yt-dlp/releases/latest) (the distro
 package is often too old for YouTube; the standalone binary is recommended).
+The Engine Check card in Settings detects both and shows the install
+command for your distribution (apt/dnf/pacman/zypper).
 
 ## Features
 
@@ -118,6 +123,11 @@ package is often too old for YouTube; the standalone binary is recommended).
   export guide, expired-cookie detection, and one-tap delete.
 - yt-dlp engine self-update on startup plus a manual update in Settings.
 - In-app update notifications with a direct download for your platform.
+- Engine Check on desktop: detects yt-dlp/FFmpeg and shows per-platform
+  install help (winget on Windows; apt/dnf/pacman/zypper or the software
+  center on Linux). Android bundles both tools, so no setup is needed.
+- Theme matched to the logo: royal blue app bar and controls with red
+  accents.
 
 ## Supported Websites
 

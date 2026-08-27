@@ -16,8 +16,10 @@ versioning once releases begin.
 - Supported Websites now opens with a summary of the yt-dlp/FFmpeg pipeline
   (1,750+ audio & video sites) and every site gets a colored monogram icon,
   with a music note for audio-first providers.
-- The desktop Engine Check card moved next to the About card, just before
-  Open Source Licenses.
+- Settings reordered: engine update, download folder, cookies, support,
+  supported websites, engine check, licenses, and the version card last.
+- README refreshed (support badge and links, Engine Check, install
+  commands) and a GitHub Sponsor button added via .github/FUNDING.yml.
 
 ### Added
 

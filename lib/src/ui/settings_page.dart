@@ -34,9 +34,9 @@ class SettingsPage extends StatelessWidget {
         children: [
           const SectionHeader(title: 'Settings', icon: Icons.settings),
           const SizedBox(height: 16),
+          // Order per maintainer: engine update, download folder, cookies,
+          // support, websites, engine check, licenses, version.
           _EngineCard(controller: controller),
-          const SizedBox(height: 10),
-          const _SupportedWebsitesCard(),
           const SizedBox(height: 10),
           if (_isDesktopPlatform) ...[
             const _DesktopPathsCard(),
@@ -46,30 +46,6 @@ class SettingsPage extends StatelessWidget {
             const _AndroidFolderCard(),
             const SizedBox(height: 10),
           ],
-          _AboutCard(controller: controller),
-          const SizedBox(height: 10),
-          const _SupportCard(),
-          const SizedBox(height: 10),
-          if (_isDesktopPlatform) ...[
-            const _EngineBinariesCard(),
-            const SizedBox(height: 10),
-          ],
-          Card(
-            child: ListTile(
-              leading: const Icon(Icons.description_outlined),
-              title: const Text('Open Source Licenses'),
-              subtitle: const Text(
-                'GPL-3.0-only app; bundled third-party components',
-              ),
-              onTap: () => showLicensePage(
-                context: context,
-                applicationName: 'DBase Downloader',
-                applicationLegalese:
-                    'GPL-3.0-only. Source: github.com/DBase-In-Rs/Downloader',
-              ),
-            ),
-          ),
-          const SizedBox(height: 10),
           Card(
             child: Padding(
               padding: const EdgeInsets.all(14),
@@ -131,6 +107,32 @@ class SettingsPage extends StatelessWidget {
               ),
             ),
           ),
+          const SizedBox(height: 10),
+          const _SupportCard(),
+          const SizedBox(height: 10),
+          const _SupportedWebsitesCard(),
+          const SizedBox(height: 10),
+          if (_isDesktopPlatform) ...[
+            const _EngineBinariesCard(),
+            const SizedBox(height: 10),
+          ],
+          Card(
+            child: ListTile(
+              leading: const Icon(Icons.description_outlined),
+              title: const Text('Open Source Licenses'),
+              subtitle: const Text(
+                'GPL-3.0-only app; bundled third-party components',
+              ),
+              onTap: () => showLicensePage(
+                context: context,
+                applicationName: 'DBase Downloader',
+                applicationLegalese:
+                    'GPL-3.0-only. Source: github.com/DBase-In-Rs/Downloader',
+              ),
+            ),
+          ),
+          const SizedBox(height: 10),
+          _AboutCard(controller: controller),
         ],
       ),
     );
