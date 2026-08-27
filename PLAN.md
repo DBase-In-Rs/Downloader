@@ -1,7 +1,7 @@
 # DBase Video & Music Downloader Plan
 
-Status: Android and Windows beta implemented; next planned track is multi-site
-provider validation beyond YouTube
+Status: 1.0.0 release candidates shipping for Android, Windows, and Linux
+with CI-built releases; remaining work is tracked in Milestones 10-11
 
 Canonical app/package id: `rs.in.dbase.downloader`
 
@@ -515,7 +515,7 @@ Verification on 2026-08-26:
   `name (1).ext` collision handling; cancel kills the yt-dlp process; engine
   update runs `yt-dlp --update`.
 - Desktop cookies are now supported through the per-user app-data cookie file;
-  see `PRIVACY.md` for the storage caveat.
+  see the README privacy section for the storage caveat.
 - End-to-end verification on Windows with PATH binaries
   (`tool/desktop_smoke.dart`): metadata extraction returned real formats,
   and an MP3 download completed with live progress into a chosen output
@@ -636,16 +636,16 @@ Implementation notes on 2026-08-27:
   older saved records.
 - History can filter by provider.
 - Settings includes a Supported Websites dialog grouped by provider tier.
-- `docs/SUPPORTED_WEBSITES.md` mirrors the upstream yt-dlp extractor list.
-- `docs/PROVIDER_QA.md` documents the private `secrets/provider_smoke.json`
-  format.
+- The upstream yt-dlp extractor list is not mirrored; Settings shows the
+  recognized providers and the Provider QA section above tracks verification.
+- the Provider QA section in this file.
 - `tool/provider_smoke.dart` runs Windows/desktop metadata and download smoke
   tests from that private matrix.
 - Provider-aware errors now convert common yt-dlp failures into short guidance
   for cookies/login, private or unavailable media, geo blocks, rate limits,
   unsupported URLs, and protected/DRM media.
 - Android and Windows provider QA checklists are documented in
-  `docs/PROVIDER_QA.md`.
+  the Provider QA section in this file.
 
 ### Sprint 6.2 - Dailymotion, Vimeo, And SoundCloud
 
@@ -950,6 +950,33 @@ Acceptance criteria:
 
 - Linux build launches and can run metadata/download smoke tests on Linux.
 - Linux is not advertised until tested on Linux.
+
+## Provider QA
+
+Provider support is yt-dlp-first; a provider is advertised as verified only
+after metadata plus at least one download path pass. Run the desktop matrix
+with `dart run tool/provider_smoke.dart` (`--download` adds sample MP4/MP3
+downloads); the case list lives in the tool - never commit account-gated
+URLs.
+
+Windows smoke results (2026-08-27, yt-dlp 2026.08.19): PASS - YouTube
+(42 formats; MP3), TikTok (14 formats; MP4 merge - use direct video URLs,
+profile listings can hit HTTP 429), Dailymotion (channel expanded to 1000
+flat entries), SoundCloud (MP3), Bandcamp (MP3), Internet Archive, Twitch
+(VOD listing expanded to 1044 entries), 9GAG, Jamendo. Vimeo requires
+cookies upstream even for public videos; TED extractor is broken upstream;
+Bilibili is geo-blocked from this region; Reddit needs a live post URL.
+
+Android spot check (2026-08-27, Moto G54, Android 15): TikTok share-intent
+intake, metadata with provider chip, watermarked MP4 into the selected SAF
+folder, provider history filter working. Android shares the same
+self-updated yt-dlp engine as the Windows runs; full per-provider Android
+sweeps are optional follow-up work.
+
+Per-provider failure handling to keep honest: login/cookies required,
+private/removed media, geo blocks, rate limits, broken extractors, DRM
+rejection - the UI must show short messages without signed URLs, cookies,
+or tokens.
 
 ## Milestone 11 - Distribution And Updates
 

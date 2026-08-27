@@ -6,225 +6,155 @@ Project name: DBase Video & Music Downloader
 
 Canonical app/package id: `rs.in.dbase.downloader`
 
-Primary implementation language: Dart/Flutter UI with native platform backends.
+Primary implementation language: Dart/Flutter UI with native platform
+backends.
 
-Initial production target: Android.
+Shipping targets: Android, Windows, and Linux. macOS and iPhone/iOS are out
+of scope until a macOS development machine is available (see PLAN.md).
 
-Additional planned targets: Windows, macOS, and iPhone/iOS.
-
-License target: `GPL-3.0-only`
+License: `GPL-3.0-only`
 
 ## What The App Does
 
 DBase Video & Music Downloader accepts media URLs, reads available formats,
-downloads video or audio, optionally converts audio to MP3, shows live progress,
-and saves finished files through the platform's normal storage mechanisms.
+downloads video or audio through yt-dlp, optionally converts audio to MP3
+with FFmpeg, shows live progress, and saves finished files through the
+platform's normal storage mechanisms.
 
-```mermaid
-flowchart TD
-    A["Flutter interface"] --> B["Platform Channel"]
-    B --> C["Native platform backend"]
-    C --> D["yt-dlp"]
-    D --> E["FFmpeg"]
-    E --> F["MP3, M4A, MP4, or original file"]
-```
-
-Core user flows:
-
-- paste or type URL;
-- receive shared URLs from the OS share sheet where supported;
-- detect the provider/site from the URL where possible;
-- normalize shared/pasted URLs by removing common tracking query parameters;
-- inspect available formats and metadata;
-- choose MP3, M4A, MP4, or original format;
-- choose quality;
-- download one item or playlist;
-- show progress, speed, ETA, and active stage;
-- convert audio to MP3;
-- save through platform storage APIs;
-- keep local download history.
+Core user flows: paste/type/share a URL; provider detection and tracking-
+parameter cleanup; metadata and format inspection; MP3/M4A/MP4/original
+output; single items and playlists; sequential queue with pause/retry;
+progress with speed/ETA/stage; persistent history with open/share actions;
+optional encrypted cookies for login-required media; self-updating yt-dlp
+engine; in-app update notifications.
 
 ## Platform Strategy
 
-Keep one shared Flutter UI and isolate platform behavior behind a stable Dart
-repository/service interface.
+Keep one shared Flutter UI and isolate platform behavior behind the shared
+Dart `MediaBackend` contract (`lib/src/services/media_backend.dart`).
 
-Android backend:
+- Android: Kotlin Platform Channels; youtubedl-android with self-updated
+  yt-dlp; GPL FFmpeg artifact; foreground service; share intent; MediaStore
+  or a user-selected SAF folder; Keystore-encrypted cookies. 16 KB page-size
+  devices need the bundled realigned libwebp libraries (see
+  THIRD_PARTY_NOTICES.md).
+- Windows and Linux: `DesktopMediaBackend` runs user-provided yt-dlp/FFmpeg
+  binaries (PATH or Settings paths); output to Downloads or a chosen folder;
+  cookies in the per-user app-data directory.
 
-- Kotlin Platform Channels;
-- youtubedl-android 0.18.1 and bundled yt-dlp;
-- youtubedl-android FFmpeg artifact 0.18.1;
-- foreground service and progress notification;
-- Android Share intent handling;
-- MediaStore, with Storage Access Framework still planned;
-- Android Keystore-backed encrypted cookie storage.
+## Android Channel Schema
 
-Windows backend:
+MethodChannel `rs.in.dbase.downloader/downloader`. Payloads are
+JSON-serializable maps; add fields, never repurpose existing ones. Update
+this section whenever a method, event, or payload field changes.
 
-- Flutter desktop shell;
-- local process runner for yt-dlp and FFmpeg;
-- bundled binaries or user-selected binary paths after license review;
-- save to Downloads or user-selected folder;
-- Windows notification/progress integration later.
+- `getInfo {url, useCookies}` -> media map: `url, title, uploader,
+  thumbnailUrl, durationSeconds, extractor, formats[]` where each format is
+  `{id, extension, kind: muxed|video|audio|unknown, qualityLabel, width,
+  height, audioBitrateKbps, videoBitrateKbps, filesizeBytes, codec, note}`.
+  Runs yt-dlp `--dump-json` with a 60 s timeout; attaches cookies only when
+  `useCookies` is true. Errors: `invalid_url`, `metadata_failed`.
+- `getPlaylistInfo {url, useCookies}` -> `{url, title, entries[]}` with
+  entries `{url, title, durationSeconds, uploader}`. Flat playlist, 120 s
+  timeout; entries without a resolvable URL are dropped; flat YouTube ids
+  become watch URLs.
+- `startDownload {id, url, formatId, outputKind, title}` -> null. yt-dlp in
+  a per-download cache dir; `-x --audio-format mp3|m4a` for audio,
+  `--merge-output-format mp4` for MP4; cookies attached whenever configured
+  (the plain cookie copy lives OUTSIDE the working dir so it can never be
+  picked up as output); saves into the selected SAF tree, else MediaStore
+  (Android 10+), else app external files; temp files always cleaned.
+- `cancelDownload {id}` -> null; destroys the yt-dlp process by id.
+- `updateEngine` -> `{updated, version}`. Updates yt-dlp to latest stable on
+  the same single-thread executor as downloads (never overlaps). Errors:
+  `engine_update_failed`.
+- `getCookieStatus` -> `{configured, expired, message}`.
+- `importCookies {content}` -> null. Content is validated in Dart (Netscape
+  format) and stored AES/GCM-encrypted (Keystore) in the no-backup dir;
+  auth-failure markers in later yt-dlp errors set the expired flag. Errors:
+  `invalid_cookie_file`, `cookie_import_failed`.
+- `clearCookies` -> null; deletes the encrypted store.
+- `openOutput {location}` / `shareOutput {location}` -> null. ACTION_VIEW /
+  ACTION_SEND for `content://` URIs only. Errors: `invalid_location`,
+  `open_failed`, `share_failed`.
+- `pickOutputFolder` -> folder label or null (ACTION_OPEN_DOCUMENT_TREE with
+  persisted write permission); `getOutputFolder` -> label or null (revoked
+  permissions are cleared); `clearOutputFolder` -> null.
 
-macOS backend:
+EventChannel `rs.in.dbase.downloader/events`, all events carry `type` + `id`:
 
-- Flutter desktop shell;
-- local process runner for yt-dlp and FFmpeg;
-- bundled binaries or user-selected binary paths after license review;
-- sandbox-aware file picker and user-selected output folder;
-- macOS notification/progress integration later.
+- `progress`: `stage, percent (0..1), downloadedBytes, totalBytes,
+  speedBytesPerSecond, etaSeconds, message (redacted)`.
+- `completed`: `outputLocation` (SAF/MediaStore URI, or a file path on older
+  Android).
+- `failed`: `message` (only yt-dlp ERROR lines, redacted).
+- `canceled`.
 
-iPhone/iOS backend:
+Share intake: MethodChannel `rs.in.dbase.downloader/share` with
+`getInitialSharedText` (consumed once) and EventChannel
+`rs.in.dbase.downloader/share_events` for ACTION_SEND text while running.
 
-- separate feasibility track before promising full parity;
-- Swift Platform Channels if feasible;
-- no access to Safari, YouTube app, or other app cookies;
-- file import/export through system pickers;
-- background execution and packaging constraints must be tested on device;
-- distribution policy must be reviewed before release.
+Never pass direct media URLs, HTTP headers, cookies, or raw extractor output
+through the UI channel; redact cookies/tokens/URLs in every log and error.
 
-## Architecture Rules
+## Provider Rules
 
-Use Flutter for all visible UI and user-facing state. Use native integrations
-only for platform-specific media, storage, background, security, and OS features.
-
-Preferred Dart-facing API:
-
-- `MediaInfoService.getInfo(url, options)`
-- `DownloadService.start(request)`
-- `DownloadService.cancel(id)`
-- `DownloadQueue.pause()`
-- `DownloadQueue.resume()`
-- `CookieStore.importCookies(file)`
-- `CookieStore.clear()`
-
-Preferred Android channel layout:
-
-- MethodChannel `rs.in.dbase.downloader/downloader`
-  - `getInfo`
-  - `startDownload`
-  - `cancelDownload`
-  - `pauseQueue`
-  - `resumeQueue`
-  - `clearCookies`
-  - `importCookies`
-- EventChannel `rs.in.dbase.downloader/events`
-  - info extraction events;
-  - queue state;
-  - progress updates;
-  - speed and ETA;
-  - conversion stage;
-  - terminal success/failure.
-
-Keep channel payloads explicit, versioned, and JSON-serializable. Avoid loosely
-typed maps without a documented schema.
-
-The current channel schema is documented in `docs/PLATFORM_CHANNELS.md`. Update
-that file whenever a channel name, method, event, or payload field changes.
-
-Android `getInfo` currently runs `YoutubeDL.execute` with `--dump-json`, a
-dedicated process id, and a native timeout, then parses the response with
-Jackson 2.11.1 into youtubedl-android's `VideoInfo` model. It maps only safe
-metadata/format fields to Dart. Do not pass direct media URLs, HTTP headers,
-cookies, or raw extractor output through the UI channel unless a specific
-privacy/security review approves it.
-
-Android `startDownload` currently runs yt-dlp from Kotlin with a cache working
-directory, reports progress through the EventChannel, uses FFmpeg options for
-MP3/M4A extraction and MP4 merge, saves completed files through MediaStore on
-Android 10+, and deletes temporary files in the worker cleanup path.
-
-Provider support is tracked in `lib/src/models/media_providers.dart`,
-`docs/SUPPORTED_WEBSITES.md`, and `docs/PROVIDER_QA.md`. yt-dlp may list an
-extractor before DBase has verified it. Do not advertise a provider as DBase
-supported until Android and Windows smoke tests pass. The Dart catalog has
-separate tiers for verified, priority, planned/experimental, and research
-providers; keep those tiers honest when adding sites.
+Provider support is yt-dlp-first: `lib/src/models/media_providers.dart`
+holds the curated catalog (names, tiers, audio defaults, cookie hints), and
+every uncataloged site gets a dynamic identity from its extractor or host.
+Only audio/video sites belong in the catalog. Do not advertise a provider as
+verified until smoke tests pass; results and procedure live in PLAN.md
+(provider QA section). The upstream extractor list is at
+https://github.com/yt-dlp/yt-dlp/blob/master/supportedsites.md - never
+mirror it into the repository.
 
 ## Platform Identity
 
-The project identity is `rs.in.dbase.downloader`. Keep these aligned when
-platform files are regenerated or packaging is added:
-
-- Android `namespace`;
-- Android `applicationId`;
-- Kotlin package declaration and folder path;
-- Android label/app name;
-- iOS/macOS bundle identifiers when those platforms are generated;
-- Windows app identity when packaging is configured.
-
-The Dart package name may remain `dbase_downloader`; that is the internal
-Flutter package name, not the public app name.
-
-For Kotlin, `in` is a reserved keyword, so package declarations using
-`rs.in...` need escaping:
-
-```kotlin
-package rs.`in`.dbase.downloader
-```
+Keep `rs.in.dbase.downloader` aligned across: Android namespace,
+applicationId, and Kotlin package path (Kotlin needs `rs.`in`.dbase`
+escaping); the Linux CMake APPLICATION_ID; Windows app identity when
+packaging changes. The Dart package name stays `dbase_downloader`.
 
 ## Cookie Handling Rules
 
 Cookies are sensitive credentials.
 
-- Ask for explicit user action before importing or capturing cookies.
-- Explain that cookies stay local and are used only for yt-dlp requests.
-- Store cookies only in encrypted local storage where supported.
-- Never print cookies, auth headers, or full cookie files in logs.
-- Redact sensitive URL query parameters in logs.
-- Provide a clear delete/wipe action.
-- Prefer `cookies.txt` import as the reliable baseline.
-- Treat in-app login capture as an investigation item, not a guaranteed feature.
-- Do not read browser, Safari, YouTube app, or other app cookies.
+- Import only through explicit user action (`cookies.txt` via the system
+  picker); the app ships a step-by-step export guide.
+- Store encrypted where the platform supports it; per-user app data
+  elsewhere; always deletable from Settings.
+- Pass cookies only to yt-dlp requests; never log or upload them.
+- In-app/WebView login capture was investigated and rejected (providers
+  block embedded logins); do not reintroduce it without a policy review.
+- Never read browser or other-app cookies.
 
 ## Legal And Compliance Rules
 
-This project is intended to be GPL-3.0-only because youtubedl-android is
-GPL-3.0. Before any public binary release:
-
-- keep complete corresponding source code available;
-- document exact youtubedl-android, yt-dlp, FFmpeg, Flutter, and platform
-  dependency versions;
-- document FFmpeg build flavor and whether LGPL or GPL applies;
-- include third-party notices;
-- review store/distribution policy risk for downloader functionality;
-- do not advertise unauthorized downloading or DRM bypass.
-
-This repository must not contain signing keys, account cookies, tokens, private
-test links, or proprietary media samples.
+GPL-3.0-only because youtubedl-android and the FFmpeg artifact are GPL. For
+every public binary release: complete corresponding source stays available
+(GitHub tag archives), exact dependency versions and licenses are recorded
+in THIRD_PARTY_NOTICES.md, and nothing advertises unauthorized downloading
+or DRM bypass. This repository must never contain signing keys, account
+cookies, tokens, private test links, proprietary media samples, or private
+server infrastructure details.
 
 ## Quality Bar
 
-Before finishing code changes, run the relevant checks:
-
-```bash
-flutter analyze
-flutter test
-```
-
-For Android integration changes, also verify on a real device or emulator:
-
-- share target opens the app with the URL;
-- format extraction works;
-- single-item MP3, M4A, MP4, and original downloads work;
-- foreground service continues during backgrounding;
-- progress events continue and recover after rotation;
-- MediaStore output appears in the expected collection;
-- cookies can be imported, used, and deleted without leaking into logs.
-
-For Windows/macOS/iOS changes, verify on the target OS. Do not claim those
-targets work from a Windows-only Android test.
+Before finishing code changes run `flutter analyze` and `flutter test`.
+Builds are made only when all code for the task is written (per maintainer
+workflow), and releases are produced exclusively by CI from version tags.
+Do not claim a platform or provider works without verification on that
+platform; native-path changes need at least one real end-to-end check
+before a stable release.
 
 ## Documentation Rules
 
-Keep these files updated as implementation decisions become real:
+Keep these updated as implementation decisions become real:
 
-- `README.md` for user/developer overview;
-- `PLAN.md` for sprint status and task breakdown;
-- `docs/SUPPORTED_WEBSITES.md` for the upstream yt-dlp extractor mirror and
-  DBase verification queue;
-- `docs/PROVIDER_QA.md` for provider smoke-test procedure;
-- `THIRD_PARTY_NOTICES.md` for dependency and license state;
-- `PRIVACY.md` for cookie/data behavior;
-- `SECURITY.md` for vulnerability reporting.
+- `README.md` - user-facing overview, install instructions, features;
+- `PLAN.md` - roadmap, sprint status, provider QA results;
+- `AGENTS.md` (this file) - architecture rules and the channel schema;
+- `CHANGELOG.md` - keep-a-changelog format, cut a section per release;
+- `THIRD_PARTY_NOTICES.md` - dependency and license state;
+- `SECURITY.md` - vulnerability reporting; the privacy statement lives in
+  the README.

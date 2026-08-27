@@ -32,7 +32,7 @@ Before opening a PR:
 - test platform-specific changes on the target OS when possible;
 - update `PLAN.md` when a task is completed or changed;
 - update `THIRD_PARTY_NOTICES.md` when dependencies change;
-- update `PRIVACY.md` when data handling changes.
+- update the README privacy section when data handling changes.
 
 ## Commit Style
 

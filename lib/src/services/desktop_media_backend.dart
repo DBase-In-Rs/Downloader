@@ -401,7 +401,7 @@ class DesktopMediaBackend implements MediaBackend {
 
 /// Per-user private app data directory used for the desktop cookie store.
 /// Desktop has no app-sandbox keystore, so the file relies on OS user-profile
-/// permissions; this is documented in PRIVACY.md.
+/// permissions; this is documented in the README privacy section.
 String desktopConfigDir() {
   final base = Platform.isWindows
       ? Platform.environment['APPDATA']

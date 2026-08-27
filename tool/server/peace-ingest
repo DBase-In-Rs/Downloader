@@ -41,10 +41,13 @@ chmod 644 "$DEST"
 echo "Ingested $DEST"
 
 echo "Regenerating package indexes..."
+# Run from the repo root so Filename entries are RELATIVE (pool/main/...);
+# absolute paths break apt clients with 404s.
+cd "$REPO_ROOT"
 for A in "${ARCHS[@]}"; do
-  DIR="$REPO_ROOT/dists/$DIST/$COMPONENT/binary-$A"
+  DIR="dists/$DIST/$COMPONENT/binary-$A"
   mkdir -p "$DIR"
-  apt-ftparchive --arch "$A" packages "$POOL_DIR" > "$DIR/Packages"
+  apt-ftparchive --arch "$A" packages pool > "$DIR/Packages"
   gzip -kf "$DIR/Packages"
 done
 

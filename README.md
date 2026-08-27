@@ -97,109 +97,56 @@ Requires `ffmpeg` (`sudo apt install ffmpeg`) and a recent
 [yt-dlp](https://github.com/yt-dlp/yt-dlp/releases/latest) (the distro
 package is often too old for YouTube; the standalone binary is recommended).
 
-## Status
+## Features
 
-This repository is in early implementation. Platform folders for Android, iOS,
-macOS, and Windows exist, and the Flutter app shell now includes URL intake,
-format selection UI, queue/history/settings screens, typed models, and a fake
-backend for development.
-
-Android now has a native Kotlin bridge for URL sharing, yt-dlp metadata
-extraction, single-item downloads, FFmpeg conversion/remux options, foreground
-service support, and MediaStore saves. Runtime testing on a real Android device
-or emulator is still pending. See [PLAN.md](PLAN.md) for the sprint roadmap.
-
-## Planned Features
-
-- Paste or type a media URL.
-- Receive URLs from Android/iOS share sheets where supported.
-- Retrieve thumbnail, title, duration, uploader, and available media formats.
-- Choose MP3, M4A, MP4, or the original source format.
-- Choose video/audio quality before download.
-- Download playlists with queue controls.
-- Show progress, speed, ETA, current stage, and errors.
-- Convert audio to MP3 through FFmpeg.
-- Save output files through Android MediaStore on Android.
-- Save output files through user-selected folders on desktop.
-- Continue active Android downloads in the background through a foreground
-  service.
-- Keep local download history.
-- Optional user-managed cookies for media that requires account access.
+- Paste, type, or share a media URL from other apps (Android share sheet).
+- Metadata preview: title, uploader, duration, and all available formats.
+- Output as MP3, M4A, MP4, or the original source format; video-only picks
+  automatically merge the best audio track.
+- Playlists, albums, channels, and profiles: select items and add them to
+  the queue in bulk.
+- Sequential download queue with pause/resume, retry, cancel, and
+  persistence across restarts.
+- Live progress with speed, ETA, and stage; Android downloads continue in
+  the background through a foreground service.
+- Download history with search, provider filter, open/share/show-in-folder
+  actions, and per-item delete.
+- Saves through Android MediaStore or a user-selected folder (SAF); desktop
+  saves to Downloads or a configured folder.
+- Encrypted `cookies.txt` import for login-required media, with an in-app
+  export guide, expired-cookie detection, and one-tap delete.
+- yt-dlp engine self-update on startup plus a manual update in Settings.
+- In-app update notifications with a direct download for your platform.
 
 ## Supported Websites
 
-DBase uses yt-dlp as the extraction engine, so many sites can work through
-existing yt-dlp extractors. The full upstream extractor list is mirrored in
-[docs/SUPPORTED_WEBSITES.md](docs/SUPPORTED_WEBSITES.md).
+The extraction engine is yt-dlp, so the app works with any of its ~1750
+supported sites - see the
+[upstream list](https://github.com/yt-dlp/yt-dlp/blob/master/supportedsites.md).
+Recognized providers (curated names, audio defaults, cookie hints) are shown
+in Settings; everything else still works and is named after its extractor or
+domain. Per-provider verification status is tracked in the
+Provider QA section of [PLAN.md](PLAN.md).
 
-Provider support is advertised by DBase only after Android and Windows smoke
-tests pass. The next verification batch is Dailymotion, Vimeo, and SoundCloud,
-followed by TikTok, Instagram, Facebook, and Twitter/X.
+## Cookies
 
-The app currently recognizes provider URLs for YouTube/Shorts, Dailymotion,
-Vimeo, SoundCloud, TikTok, Instagram, Facebook, Twitter/X, Pinterest, Reddit,
-Twitch, Rumble, Bandcamp, Audiomack, Mixcloud, Audius, Internet Archive,
-LinkedIn, Tumblr, VK/VK Play, Odysee/LBRY, Streamable, Imgur, Flickr,
-BitChute, PeerTube, TED, Bilibili, Niconico, Coub, Vocaroo, HearThis.at,
-Apple Podcasts, Podbay, Podchaser, Acast, BBC, CNN, PBS, ESPN, Substack,
-Bluesky, Truth Social, Rutube, Youku, Cloudflare Stream, JW Platform,
-Kaltura, Wistia, and Brightcove. These recognized providers remain
-experimental until they pass the documented smoke matrix.
+Some media requires a signed-in session. The approach is user-controlled and
+local-only: import a `cookies.txt` file exported from your own browser (the
+app contains a step-by-step guide with extension links). Cookies are stored
+encrypted on Android (Keystore), passed only to yt-dlp requests, flagged when
+they expire, and deletable from Settings. The app never reads cookies from
+Chrome, Safari, or other apps, and never uploads them anywhere. Details in the Privacy
+section below.
 
-## Current Implementation
+## Privacy
 
-Implemented:
-
-- shared Flutter navigation for Home, Queue, History, and Settings;
-- URL input with validation and paste support;
-- media metadata and format list through the shared backend contract;
-- output selector for MP3, M4A, MP4, and original;
-- fake queue/progress/history flow;
-- Dart service contracts for media info, downloads, cookies, and shared URLs.
-- Android Platform Channels for metadata, downloads, progress events, and shared
-  text.
-- Android metadata extraction through `youtubedl-android` 0.18.1.
-- Android single-item yt-dlp download worker with cancel support.
-- Android FFmpeg MP3/M4A extraction and MP4 merge options.
-- Android foreground service for active downloads.
-- Android MediaStore save for audio/video on Android 10+.
-- Documented channel schema in [docs/PLATFORM_CHANNELS.md](docs/PLATFORM_CHANNELS.md).
-- Provider catalog, shared/pasted URL cleanup, detected-provider labels, and
-  provider-aware error messages for the multi-site roadmap.
-- In-app Supported Websites dialog grouped by verified, priority,
-  experimental, and research status.
-- Sequential download queue with pause/resume, retry for failed items, and
-  queue persistence across app restarts.
-- yt-dlp engine self-update on startup plus a manual update action in
-  Settings.
-- Encrypted `cookies.txt` import for login-required media, with in-app delete.
-- Playlist analysis with item selection and bulk add-to-queue.
-- Persistent download history with search and delete.
-- Windows/desktop backend that runs local yt-dlp and FFmpeg processes with
-  configurable binary paths and output folder.
-- Android download folder selection through the system folder picker.
-- Expired-cookie detection with a re-import hint in Settings.
-- Desktop cookie support (per-user app-data file; see PRIVACY.md).
-
-Still pending:
-
-- large-file, slow-network, and low-storage hardening tests;
-- Windows installer/package identity.
-
-## YouTube Cookies
-
-Some media requires a signed-in session. The planned approach is user-controlled
-and local-only:
-
-- import a `cookies.txt` file through the system file picker;
-- optionally investigate an in-app login helper if it is reliable and compliant;
-- store cookies encrypted where the platform supports secure local storage;
-- pass cookies only to yt-dlp for the selected download;
-- provide a visible "clear cookies" action;
-- never read cookies from Chrome, Safari, YouTube, or another app sandbox.
-
-Cookies are sensitive credentials. This feature must pass a privacy/security
-review before release.
+The app is fully local - no accounts, no analytics, no tracking or ad SDKs,
+and no project-operated backend. It stores only your download history,
+settings, temporary download files, and (optionally) imported cookies.
+Cookies are encrypted at rest on Android, passed only to yt-dlp requests,
+never logged, never uploaded anywhere, and deletable from Settings at any
+time. Network requests go only to the media providers you download from
+(plus GitHub for update checks and yt-dlp engine updates).
 
 ## Development
 
@@ -229,16 +176,12 @@ flutter build apk --debug
 ### Release builds
 
 Releases are built by GitHub Actions: pushing a `v*` tag builds signed
-Android APKs and the Windows zip and attaches them to the GitHub release
-(pre-release when the tag contains a suffix like `-beta.5`). The signing
-keystore lives only in repository secrets; local release builds fall back to
-debug signing unless `android/key.properties` exists.
-
-Platform folders were generated with:
-
-```bash
-flutter create --platforms=android,ios,macos,windows --org rs.in.dbase .
-```
+Android APKs (all ABIs), the Windows portable zip and Inno Setup installer,
+and the Linux tarball and Debian package, attaches everything to the GitHub
+release (pre-release when the tag has a suffix like `-rc.1`), and publishes
+the .deb to the apt repository. The signing keystore lives only in
+repository secrets; local release builds fall back to debug signing unless
+`android/key.properties` exists.
 
 ## License
 
