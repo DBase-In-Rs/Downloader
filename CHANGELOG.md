@@ -8,6 +8,12 @@ versioning once releases begin.
 
 ## [Unreleased]
 
+### Changed
+
+- App colors now match the logo: the theme seed and app bar use the logo's
+  royal blue and the Support accents use the logo's red, replacing the old
+  teal palette.
+
 ### Added
 
 - Support the developer through Polar (merchant of record): a Support card

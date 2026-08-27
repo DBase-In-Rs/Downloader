@@ -476,7 +476,8 @@ class _AboutCard extends StatelessWidget {
   }
 }
 
-const _heartColor = Color(0xFFE0435C);
+// The red half of the logo "D" (sampled from assets/branding/logo.png).
+const _heartColor = Color(0xFFD01010);
 
 class _SupportCard extends StatelessWidget {
   const _SupportCard();

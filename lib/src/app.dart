@@ -10,6 +10,10 @@ import 'ui/home_page.dart';
 import 'ui/queue_page.dart';
 import 'ui/settings_page.dart';
 
+/// The royal blue of the logo's "D" and arrow
+/// (sampled from assets/branding/logo.png).
+const _brandBlue = Color(0xFF15347A);
+
 class DBaseDownloaderApp extends StatelessWidget {
   const DBaseDownloaderApp({
     required this.backend,
@@ -29,9 +33,18 @@ class DBaseDownloaderApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         useMaterial3: true,
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFF0F766E),
-          brightness: Brightness.light,
+        colorScheme:
+            ColorScheme.fromSeed(
+              seedColor: _brandBlue,
+              brightness: Brightness.light,
+            ).copyWith(
+              // Keep the exact logo blue on buttons and controls instead of
+              // the lighter tonal blue Material derives from the seed.
+              primary: _brandBlue,
+            ),
+        appBarTheme: const AppBarTheme(
+          backgroundColor: _brandBlue,
+          foregroundColor: Colors.white,
         ),
         cardTheme: CardThemeData(
           margin: EdgeInsets.zero,
@@ -170,7 +183,7 @@ class _SplashScreen extends StatelessWidget {
               height: 28,
               child: CircularProgressIndicator(
                 strokeWidth: 3,
-                color: Color(0xFF15347A),
+                color: _brandBlue,
               ),
             ),
             const SizedBox(height: 16),
