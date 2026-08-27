@@ -4,7 +4,8 @@
 [![Latest release](https://img.shields.io/github/v/release/DBase-In-Rs/Downloader?include_prereleases&label=release)](https://github.com/DBase-In-Rs/Downloader/releases)
 [![Downloads](https://img.shields.io/github/downloads/DBase-In-Rs/Downloader/total)](https://github.com/DBase-In-Rs/Downloader/releases)
 [![License: GPL-3.0-only](https://img.shields.io/badge/license-GPL--3.0--only-blue.svg)](LICENSE)
-[![Support](https://img.shields.io/badge/%E2%9D%A4-support%20the%20project-D01010)](https://buy.polar.sh/polar_cl_zPF9CaYg2iyuHxQ3hA3mdXVvomRJb8gEzC5d93f8xfV)
+[![Supporter](https://img.shields.io/badge/%E2%9D%A4-become%20a%20supporter-D01010)](https://buy.polar.sh/polar_cl_zPF9CaYg2iyuHxQ3hA3mdXVvomRJb8gEzC5d93f8xfV)
+[![Supporter Pro](https://img.shields.io/badge/%F0%9F%8F%85-supporter%20pro-15347A)](https://buy.polar.sh/polar_cl_G3W6En67QTEVoBC1oVln4HQqcpqK8w7vujkJD4WjGOj)
 [![Platforms](https://img.shields.io/badge/platforms-Android%20%7C%20Windows%20%7C%20Linux-3DDC84?logo=android&logoColor=white)](#)
 [![Made with Flutter](https://img.shields.io/badge/made%20with-Flutter-02569B?logo=flutter&logoColor=white)](https://flutter.dev)
 [![Powered by yt-dlp](https://img.shields.io/badge/powered%20by-yt--dlp-red)](https://github.com/yt-dlp/yt-dlp)
@@ -39,7 +40,7 @@ flowchart TD
     E --> F["MP3, M4A, MP4, or original file"]
 ```
 
-## Install
+## 📥 Install
 
 All builds are produced and signed automatically by CI for every release:
 **[latest release](https://github.com/DBase-In-Rs/Downloader/releases/latest)**
@@ -47,7 +48,7 @@ All builds are produced and signed automatically by CI for every release:
 The app checks for new versions on startup and offers the right download in
 Settings.
 
-### Android
+### 🤖 Android
 
 Download and open the APK (allow "install from unknown sources"; updates
 install over the existing app):
@@ -61,7 +62,7 @@ install over the existing app):
 Not sure which one? Take the first; if it refuses to install, take the
 second.
 
-### Windows
+### 🪟 Windows
 
 - **Installer** (recommended): download
   `dbase-downloader-vX.Y.Z-windows-x64-setup.exe` from the
@@ -78,7 +79,7 @@ Requires [yt-dlp](https://github.com/yt-dlp/yt-dlp) and
 Settings detects both and shows this command with a copy button when
 something is missing; custom paths can also be set there.
 
-### Linux
+### 🐧 Linux
 
 **Debian/Ubuntu via apt** (recommended - updates arrive with
 `apt upgrade`):
@@ -103,7 +104,7 @@ package is often too old for YouTube; the standalone binary is recommended).
 The Engine Check card in Settings detects both and shows the install
 command for your distribution (apt/dnf/pacman/zypper).
 
-## Features
+## ✨ Features
 
 - Paste, type, or share a media URL from other apps (Android share sheet).
 - Metadata preview: title, uploader, duration, and all available formats.
@@ -129,17 +130,17 @@ command for your distribution (apt/dnf/pacman/zypper).
 - Theme matched to the logo: royal blue app bar and controls with red
   accents.
 
-## Supported Websites
+## 🌐 Supported Websites
 
-The extraction engine is yt-dlp, so the app works with any of its ~1750
-supported sites - see the
-[upstream list](https://github.com/yt-dlp/yt-dlp/blob/master/supportedsites.md).
-Recognized providers (curated names, audio defaults, cookie hints) are shown
-in Settings; everything else still works and is named after its extractor or
-domain. Per-provider verification status is tracked in the
-Provider QA section of [PLAN.md](PLAN.md).
+The extraction engine is yt-dlp, so the app downloads audio and video from
+any of its 1,750+ supported sites - see the
+[upstream list](https://github.com/yt-dlp/yt-dlp/blob/master/supportedsites.md) -
+while FFmpeg handles MP3/M4A conversion and MP4 merging. Popular providers
+get curated names, audio defaults, and cookie hints; everything else works
+too and is named after its extractor or domain. Per-provider verification
+status is tracked in the Provider QA section of [PLAN.md](PLAN.md).
 
-## Cookies
+## 🍪 Cookies
 
 Some media requires a signed-in session. The approach is user-controlled and
 local-only: import a `cookies.txt` file exported from your own browser (the
@@ -149,7 +150,7 @@ they expire, and deletable from Settings. The app never reads cookies from
 Chrome, Safari, or other apps, and never uploads them anywhere. Details in the Privacy
 section below.
 
-## Privacy
+## 🔒 Privacy
 
 The app is fully local - no accounts, no analytics, no tracking or ad SDKs,
 and no project-operated backend. It stores only your download history,
@@ -159,7 +160,7 @@ never logged, never uploaded anywhere, and deletable from Settings at any
 time. Network requests go only to the media providers you download from
 (plus GitHub for update checks and yt-dlp engine updates).
 
-## Support the Project
+## ❤️ Support the Project
 
 DBase Downloader is free and open source. If it saves you time, you can
 [become a supporter](https://buy.polar.sh/polar_cl_zPF9CaYg2iyuHxQ3hA3mdXVvomRJb8gEzC5d93f8xfV)
@@ -168,7 +169,7 @@ or go [Supporter Pro](https://buy.polar.sh/polar_cl_G3W6En67QTEVoBC1oVln4HQqcpqK
 and keep development going. The app is never paywalled: every feature works
 without supporting.
 
-## Development
+## 🛠️ Development
 
 Required tools for the current project:
 
@@ -193,7 +194,7 @@ flutter run
 flutter build apk --debug
 ```
 
-### Release builds
+### 🚀 Release builds
 
 Releases are built by GitHub Actions: pushing a `v*` tag builds signed
 Android APKs (all ABIs), the Windows portable zip and Inno Setup installer,
@@ -203,7 +204,7 @@ the .deb to the apt repository. The signing keystore lives only in
 repository secrets; local release builds fall back to debug signing unless
 `android/key.properties` exists.
 
-## License
+## 📄 License
 
 This project is licensed under GPL-3.0-only. See [LICENSE](LICENSE).
 
@@ -216,7 +217,7 @@ flags.
 See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) for the current compliance
 checklist.
 
-## Contributing
+## 🤝 Contributing
 
 Before contributing, read:
 

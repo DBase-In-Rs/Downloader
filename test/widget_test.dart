@@ -75,7 +75,7 @@ void main() {
     expect(field.controller?.text, 'https://youtu.be/test');
   });
 
-  testWidgets('shows supported websites from Settings', (tester) async {
+  testWidgets('shows support and about cards in Settings', (tester) async {
     await tester.pumpWidget(
       DBaseDownloaderApp(
         backend: FakeMediaBackend(),
@@ -87,20 +87,20 @@ void main() {
     await tester.tap(find.text('Settings'));
     await tester.pumpAndSettle();
 
-    // The card sits below the fold now; scroll it into view first.
     await tester.scrollUntilVisible(
-      find.text('Supported Websites'),
+      find.text('Support the Developer'),
       200,
       scrollable: find.byType(Scrollable).first,
     );
-    expect(find.text('Supported Websites'), findsOneWidget);
+    expect(find.text('Support the Developer'), findsOneWidget);
+    expect(find.text('Become a supporter'), findsOneWidget);
+    expect(find.text('Supporter Pro'), findsOneWidget);
 
-    await tester.tap(find.text('Supported Websites'));
-    await tester.pumpAndSettle();
-
-    expect(find.text('Verified'), findsOneWidget);
-    expect(find.text('Priority'), findsOneWidget);
-    expect(find.text('YouTube'), findsOneWidget);
-    expect(find.text('Dailymotion'), findsOneWidget);
+    await tester.scrollUntilVisible(
+      find.text('Open Source Licenses'),
+      200,
+      scrollable: find.byType(Scrollable).first,
+    );
+    expect(find.text('Open Source Licenses'), findsOneWidget);
   });
 }

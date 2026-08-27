@@ -13,13 +13,18 @@ versioning once releases begin.
 - App colors now match the logo: the theme seed and app bar use the logo's
   royal blue and the Support accents use the logo's red, replacing the old
   teal palette.
-- Supported Websites now opens with a summary of the yt-dlp/FFmpeg pipeline
-  (1,750+ audio & video sites) and every site gets a colored monogram icon,
-  with a music note for audio-first providers.
 - Settings reordered: engine update, download folder, cookies, support,
-  supported websites, engine check, licenses, and the version card last.
-- README refreshed (support badge and links, Engine Check, install
-  commands) and a GitHub Sponsor button added via .github/FUNDING.yml.
+  engine check, licenses, and the version card last.
+- The app-bar cookie status now uses a real white cookie icon instead of the
+  dark key icon that clashed with the blue app bar.
+- README refreshed (supporter badges, emoji section headers matching the
+  maintainer's other repositories, Engine Check, install commands) and a
+  GitHub Sponsor button added via .github/FUNDING.yml.
+
+### Removed
+
+- The Supported Websites card and dialog in Settings; the upstream yt-dlp
+  site list stays linked from the README.
 
 ### Added
 

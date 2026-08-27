@@ -5,7 +5,6 @@ import 'package:flutter/services.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-import '../models/media_providers.dart';
 import '../services/android_storage_service.dart';
 import '../services/app_controller.dart';
 import '../services/binary_probe.dart';
@@ -110,8 +109,6 @@ class SettingsPage extends StatelessWidget {
           const SizedBox(height: 10),
           const _SupportCard(),
           const SizedBox(height: 10),
-          const _SupportedWebsitesCard(),
-          const SizedBox(height: 10),
           if (_isDesktopPlatform) ...[
             const _EngineBinariesCard(),
             const SizedBox(height: 10),
@@ -165,149 +162,6 @@ class SettingsPage extends StatelessWidget {
 
     messenger.showSnackBar(
       SnackBar(content: Text(failure ?? 'Cookies imported.')),
-    );
-  }
-}
-
-class _SupportedWebsitesCard extends StatelessWidget {
-  const _SupportedWebsitesCard();
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      child: ListTile(
-        leading: const Icon(Icons.public),
-        title: const Text('Supported Websites'),
-        subtitle: const Text(
-          '1,750+ audio & video sites, powered by yt-dlp and FFmpeg',
-        ),
-        onTap: () => showDialog<void>(
-          context: context,
-          builder: (context) => const _SupportedWebsitesDialog(),
-        ),
-      ),
-    );
-  }
-}
-
-class _SupportedWebsitesDialog extends StatelessWidget {
-  const _SupportedWebsitesDialog();
-
-  @override
-  Widget build(BuildContext context) {
-    return AlertDialog(
-      title: const Text('Supported Websites'),
-      content: SizedBox(
-        width: 520,
-        child: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Padding(
-                padding: const EdgeInsets.only(bottom: 16),
-                child: Text(
-                  'Every site below is verified to work in DBase Downloader. '
-                  'Thanks to yt-dlp, audio and video can be downloaded from '
-                  'over 1,750 websites in total, and FFmpeg converts video '
-                  'to MP3/M4A. Sites not listed here usually work too - '
-                  'just paste the link.',
-                  style: Theme.of(context).textTheme.bodySmall,
-                ),
-              ),
-              const _ProviderTierSection(
-                title: 'Verified',
-                tier: MediaProviderTier.supported,
-              ),
-              const _ProviderTierSection(
-                title: 'Priority',
-                tier: MediaProviderTier.priority,
-              ),
-              const _ProviderTierSection(
-                title: 'Experimental',
-                tier: MediaProviderTier.planned,
-              ),
-              const _ProviderTierSection(
-                title: 'Research',
-                tier: MediaProviderTier.research,
-              ),
-            ],
-          ),
-        ),
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.of(context).pop(),
-          child: const Text('Close'),
-        ),
-      ],
-    );
-  }
-}
-
-class _ProviderTierSection extends StatelessWidget {
-  const _ProviderTierSection({required this.title, required this.tier});
-
-  final String title;
-  final MediaProviderTier tier;
-
-  @override
-  Widget build(BuildContext context) {
-    final providers = mediaProvidersByTier(tier);
-    if (providers.isEmpty) {
-      return const SizedBox.shrink();
-    }
-
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 18),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(title, style: Theme.of(context).textTheme.titleSmall),
-          const SizedBox(height: 8),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              for (final provider in providers)
-                Chip(
-                  avatar: _ProviderAvatar(provider: provider),
-                  label: Text(provider.displayName),
-                ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-/// Colored monogram icon for a provider: a stable per-site hue derived from
-/// the name (real brand logos cannot be bundled for hundreds of sites), with
-/// a music note replacing the letter for audio-first providers.
-class _ProviderAvatar extends StatelessWidget {
-  const _ProviderAvatar({required this.provider});
-
-  final MediaProviderInfo provider;
-
-  @override
-  Widget build(BuildContext context) {
-    final name = provider.displayName;
-    final hash = name.codeUnits.fold<int>(0, (acc, unit) => acc * 31 + unit);
-    final color = HSLColor.fromAHSL(1, (hash % 360).toDouble(), 0.55, 0.38)
-        .toColor();
-
-    return CircleAvatar(
-      backgroundColor: color,
-      child: provider.audioFirst
-          ? const Icon(Icons.music_note, size: 14, color: Colors.white)
-          : Text(
-              name.isEmpty ? '?' : name[0].toUpperCase(),
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 12,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
     );
   }
 }

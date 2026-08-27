@@ -221,12 +221,19 @@ class _CookieStatusButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final icon = status.configured ? Icons.key : Icons.key_off;
     final label = status.configured ? 'Cookies ready' : 'No cookies';
 
+    // A plain Icon (not a disabled IconButton) so it stays white on the
+    // blue app bar instead of picking up the disabled gray/black tint.
     return Tooltip(
       message: label,
-      child: IconButton(onPressed: null, icon: Icon(icon)),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 12),
+        child: Icon(
+          status.configured ? Icons.cookie : Icons.cookie_outlined,
+          color: status.configured ? Colors.white : Colors.white70,
+        ),
+      ),
     );
   }
 }
