@@ -39,8 +39,6 @@ class SettingsPage extends StatelessWidget {
           const _SupportedWebsitesCard(),
           const SizedBox(height: 10),
           if (_isDesktopPlatform) ...[
-            const _EngineBinariesCard(),
-            const SizedBox(height: 10),
             const _DesktopPathsCard(),
             const SizedBox(height: 10),
           ],
@@ -52,6 +50,10 @@ class SettingsPage extends StatelessWidget {
           const SizedBox(height: 10),
           const _SupportCard(),
           const SizedBox(height: 10),
+          if (_isDesktopPlatform) ...[
+            const _EngineBinariesCard(),
+            const SizedBox(height: 10),
+          ],
           Card(
             child: ListTile(
               leading: const Icon(Icons.description_outlined),
@@ -174,7 +176,9 @@ class _SupportedWebsitesCard extends StatelessWidget {
       child: ListTile(
         leading: const Icon(Icons.public),
         title: const Text('Supported Websites'),
-        subtitle: const Text('Verified, experimental, and research providers'),
+        subtitle: const Text(
+          '1,750+ audio & video sites, powered by yt-dlp and FFmpeg',
+        ),
         onTap: () => showDialog<void>(
           context: context,
           builder: (context) => const _SupportedWebsitesDialog(),
@@ -196,20 +200,31 @@ class _SupportedWebsitesDialog extends StatelessWidget {
         child: SingleChildScrollView(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
-            children: const [
-              _ProviderTierSection(
+            children: [
+              Padding(
+                padding: const EdgeInsets.only(bottom: 16),
+                child: Text(
+                  'Every site below is verified to work in DBase Downloader. '
+                  'Thanks to yt-dlp, audio and video can be downloaded from '
+                  'over 1,750 websites in total, and FFmpeg converts video '
+                  'to MP3/M4A. Sites not listed here usually work too - '
+                  'just paste the link.',
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+              ),
+              const _ProviderTierSection(
                 title: 'Verified',
                 tier: MediaProviderTier.supported,
               ),
-              _ProviderTierSection(
+              const _ProviderTierSection(
                 title: 'Priority',
                 tier: MediaProviderTier.priority,
               ),
-              _ProviderTierSection(
+              const _ProviderTierSection(
                 title: 'Experimental',
                 tier: MediaProviderTier.planned,
               ),
-              _ProviderTierSection(
+              const _ProviderTierSection(
                 title: 'Research',
                 tier: MediaProviderTier.research,
               ),
@@ -253,16 +268,44 @@ class _ProviderTierSection extends StatelessWidget {
             children: [
               for (final provider in providers)
                 Chip(
-                  avatar: Icon(
-                    provider.audioFirst ? Icons.audiotrack : Icons.public,
-                    size: 18,
-                  ),
+                  avatar: _ProviderAvatar(provider: provider),
                   label: Text(provider.displayName),
                 ),
             ],
           ),
         ],
       ),
+    );
+  }
+}
+
+/// Colored monogram icon for a provider: a stable per-site hue derived from
+/// the name (real brand logos cannot be bundled for hundreds of sites), with
+/// a music note replacing the letter for audio-first providers.
+class _ProviderAvatar extends StatelessWidget {
+  const _ProviderAvatar({required this.provider});
+
+  final MediaProviderInfo provider;
+
+  @override
+  Widget build(BuildContext context) {
+    final name = provider.displayName;
+    final hash = name.codeUnits.fold<int>(0, (acc, unit) => acc * 31 + unit);
+    final color = HSLColor.fromAHSL(1, (hash % 360).toDouble(), 0.55, 0.38)
+        .toColor();
+
+    return CircleAvatar(
+      backgroundColor: color,
+      child: provider.audioFirst
+          ? const Icon(Icons.music_note, size: 14, color: Colors.white)
+          : Text(
+              name.isEmpty ? '?' : name[0].toUpperCase(),
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
     );
   }
 }
