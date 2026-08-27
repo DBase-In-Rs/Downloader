@@ -536,6 +536,14 @@ class _SupportCard extends StatelessWidget {
                           icon: const Icon(Icons.favorite, size: 18),
                           label: const Text('Become a supporter'),
                         ),
+                        FilledButton.tonalIcon(
+                          onPressed: () => launchUrl(
+                            Uri.parse(SupporterService.checkoutProUrl),
+                            mode: LaunchMode.externalApplication,
+                          ),
+                          icon: const Icon(Icons.workspace_premium, size: 18),
+                          label: const Text('Supporter Pro'),
+                        ),
                         OutlinedButton.icon(
                           onPressed: () => _enterLicenseKey(context),
                           icon: const Icon(Icons.vpn_key, size: 18),
