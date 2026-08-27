@@ -8,35 +8,41 @@ versioning once releases begin.
 
 ## [Unreleased]
 
-### Added
+## [1.0.0] - 2026-08-27
 
-- Windows installer (Inno Setup): per-user install without admin prompt,
-  Start Menu entry, optional desktop icon, uninstaller, and silent flags,
-  built by CI alongside the portable zip.
-- Debian package built by CI alongside the Linux tarball (`/usr/bin`
-  launcher, desktop entry, icon; pre-release versions use `~` ordering).
+First stable release: download video and music from any yt-dlp-supported
+site on Android, Windows, and Linux.
 
 ### Added
 
-- New app icon (bold D mark) that stays readable in the Android launcher and
-  app lists; white launch/splash background to match.
-- About card in Settings showing the app version and build number.
-- In-app guide for exporting cookies.txt with step-by-step instructions,
-  direct Chrome Web Store and Firefox Add-ons links for the
-  "Get cookies.txt LOCALLY" extension, and expiry tips.
-- In-app update notifications: the app checks GitHub Releases on startup and
-  Settings offers a direct download of the right file for the platform
-  (arm64 APK, Windows zip, Linux tarball). Stable installs are only offered
-  stable releases.
-
+- New app icon (bold D mark) readable in the Android launcher, with a
+  matching white launch/splash screen.
+- In-app update notifications: the app checks GitHub Releases on startup
+  and Settings offers the right download for the platform; stable installs
+  are only offered stable releases.
+- About card in Settings with the app version and build number.
+- In-app cookies.txt export guide with Chrome Web Store and Firefox Add-ons
+  links for the "Get cookies.txt LOCALLY" extension.
+- Windows installer (Inno Setup): per-user install without an admin prompt,
+  Start Menu entry, optional desktop icon, uninstaller, silent flags.
+- Debian package, published automatically to the apt repository at
+  https://peace.dbase.in.rs (install once, update via `apt upgrade`).
 - Dependabot (pub, Gradle, GitHub Actions), Dependabot alerts and security
   updates, secret scanning with push protection, private vulnerability
   reporting, and CodeQL code scanning.
 
 ### Changed
 
-- Upgraded transitive dependencies (`meta`, `vector_math`); the remaining
-  outdated transitive packages are pinned by the Flutter SDK.
+- Documentation consolidated: the channel schema lives in AGENTS.md, the
+  provider QA results in PLAN.md, and the privacy statement in the README.
+- Upgraded transitive and Android build dependencies (Jackson 2.22,
+  Gradle 9.7.1, AGP 9.3.2, Kotlin 2.4.10, GitHub Actions majors).
+
+### Fixed
+
+- apt package indexes now use relative paths, so installs work from any
+  client.
+- CI workflow token limited to read-only contents (CodeQL finding).
 
 ## [1.0.0-rc.1] - 2026-08-27
 
