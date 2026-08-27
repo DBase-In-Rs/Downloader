@@ -289,8 +289,23 @@ class AppController extends ChangeNotifier {
           );
         }
       } else {
-        _mediaInfo = _withResolvedProvider(await backend.getInfo(request));
-        _applyProviderDefaults(currentProvider);
+        try {
+          _mediaInfo = _withResolvedProvider(await backend.getInfo(request));
+          _applyProviderDefaults(currentProvider);
+        } catch (error) {
+          // Pure playlist URLs (albums, channels, profiles) are not covered
+          // by the URL heuristic and fail single-item extraction on any
+          // provider; retry as a playlist before reporting the error.
+          final playlist = await _playlistFallback(request);
+          if (playlist == null || playlist.entries.isEmpty) {
+            rethrow;
+          }
+          _playlistInfo = _withResolvedPlaylistProvider(playlist);
+          _applyProviderDefaults(currentProvider);
+          _selectedPlaylistUrls.addAll(
+            playlist.entries.map((entry) => entry.url),
+          );
+        }
       }
       _extractionState = ExtractionState.loaded;
     } catch (error) {
@@ -300,6 +315,15 @@ class AppController extends ChangeNotifier {
     }
 
     notifyListeners();
+  }
+
+  Future<PlaylistInfo?> _playlistFallback(MediaInfoRequest request) async {
+    try {
+      return await backend.getPlaylistInfo(request);
+    } catch (_) {
+      // The single-item error is the more useful one to surface.
+      return null;
+    }
   }
 
   Future<void> _refreshCookieStatus() async {

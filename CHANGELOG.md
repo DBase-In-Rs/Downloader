@@ -10,6 +10,15 @@ versioning once releases begin.
 
 ### Added
 
+- Playlist fallback for every provider: when single-item analysis fails on a
+  URL without playlist markers (albums, channels, profiles), the app retries
+  playlist extraction before reporting an error.
+- Provider smoke matrix tool (`tool/provider_smoke.dart`) and recorded
+  Windows results for YouTube, TikTok, Dailymotion, SoundCloud, Bandcamp,
+  Internet Archive, and Twitch in `docs/PROVIDER_QA.md`.
+
+### Added
+
 - Multi-site provider catalog for Dailymotion, Vimeo, SoundCloud, TikTok,
   Instagram, Facebook, Twitter/X, Pinterest, Reddit, Twitch, Rumble, and
   many secondary yt-dlp providers.

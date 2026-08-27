@@ -1,153 +1,172 @@
-// Runs provider smoke tests from a private JSON matrix.
+// Provider smoke matrix against real public URLs through the desktop
+// backend, mirroring the app's analyze flow (single item with playlist
+// fallback). Uses yt-dlp/ffmpeg from PATH.
 //
-//   dart run tool/provider_smoke.dart [secrets/provider_smoke.json]
-//
-// Matrix entries:
-//   {"provider":"vimeo","url":"https://vimeo.com/...","tests":["metadata","mp4","mp3"]}
-import 'dart:async';
-import 'dart:convert';
+//   dart run tool/provider_smoke.dart            # metadata matrix
+//   dart run tool/provider_smoke.dart --download # + sample downloads
 import 'dart:io';
 
 import 'package:dbase_downloader/src/models/download_models.dart';
 import 'package:dbase_downloader/src/services/desktop_media_backend.dart';
 import 'package:dbase_downloader/src/services/media_backend.dart';
 
+class SmokeCase {
+  const SmokeCase(this.provider, this.url, {this.viaPlaylist = false});
+
+  final String provider;
+  final String url;
+
+  /// Listing URLs (profiles/channels) resolve the first playlist entry and
+  /// then analyze that entry, mirroring the app's playlist flow.
+  final bool viaPlaylist;
+}
+
+const cases = [
+  SmokeCase('youtube', 'https://youtu.be/lvtFXtQ19BU'),
+  SmokeCase(
+    'tiktok',
+    'https://www.tiktok.com/@tiktok/video/7106594312292453675',
+  ),
+  SmokeCase(
+    'dailymotion',
+    'https://www.dailymotion.com/france24',
+    viaPlaylist: true,
+  ),
+  // Vimeo currently requires account cookies even for public videos; this
+  // records the cookie-needed behavior rather than a green pass.
+  SmokeCase('vimeo', 'https://vimeo.com/76979871'),
+  SmokeCase('soundcloud', 'https://soundcloud.com/forss/flickermood'),
+  SmokeCase('bandcamp', 'https://c418.bandcamp.com/track/sweden'),
+  SmokeCase(
+    'ted',
+    'https://www.ted.com/talks/ken_robinson_do_schools_kill_creativity',
+  ),
+  SmokeCase('internet_archive', 'https://archive.org/details/BigBuckBunny_124'),
+  SmokeCase('bilibili', 'https://www.bilibili.com/video/BV1GJ411x7h7'),
+  SmokeCase(
+    'twitch',
+    'https://www.twitch.tv/twitch/videos?filter=archives',
+    viaPlaylist: true,
+  ),
+];
+
 Future<void> main(List<String> args) async {
-  final matrixPath = args.isEmpty ? 'secrets/provider_smoke.json' : args.first;
-  final matrixFile = File(matrixPath);
-  if (!matrixFile.existsSync()) {
-    stderr.writeln('Provider smoke matrix not found: $matrixPath');
-    stderr.writeln('See docs/PROVIDER_QA.md for the private matrix format.');
-    exit(2);
-  }
+  final withDownload = args.contains('--download');
+  final backend = DesktopMediaBackend(
+    configProvider: () async => const DesktopBackendConfig(),
+    configDir: Directory.systemTemp.createTempSync('smoke-config').path,
+  );
 
-  final decoded = jsonDecode(await matrixFile.readAsString());
-  if (decoded is! List) {
-    stderr.writeln('Provider smoke matrix must be a JSON list.');
-    exit(2);
-  }
-
-  var failures = 0;
-  for (var index = 0; index < decoded.length; index++) {
-    final raw = decoded[index];
-    if (raw is! Map) {
-      stderr.writeln('Skipping entry $index: expected an object.');
-      failures++;
-      continue;
-    }
-
-    final entry = Map<String, Object?>.from(raw);
-    final provider = entry['provider']?.toString() ?? 'unknown';
-    final url = entry['url']?.toString();
-    final outputDirectory = entry['outputDirectory']?.toString();
-    final tests =
-        (entry['tests'] as List?)?.map((test) => test.toString()).toSet() ??
-        {'metadata'};
-
-    if (url == null || url.isEmpty) {
-      stderr.writeln('Skipping $provider: missing url.');
-      failures++;
-      continue;
-    }
-
-    stdout.writeln('== $provider ==');
-    final backend = DesktopMediaBackend(
-      configProvider: () async =>
-          DesktopBackendConfig(outputDirectory: outputDirectory),
-    );
-
+  final results = <String, String>{};
+  for (final smokeCase in cases) {
+    stdout.writeln('== ${smokeCase.provider}: ${smokeCase.url}');
     try {
-      final info = await backend.getInfo(MediaInfoRequest(url: url));
-      stdout.writeln('metadata: OK - ${info.title} (${info.formats.length})');
-
-      for (final test in tests.where((test) => test != 'metadata')) {
-        await _runDownloadSmoke(backend, provider, url, info.title, test);
+      var target = smokeCase.url;
+      if (smokeCase.viaPlaylist) {
+        final playlist = await backend.getPlaylistInfo(
+          MediaInfoRequest(url: target),
+        );
+        if (playlist.entries.isEmpty) {
+          throw Exception('playlist returned no entries');
+        }
+        stdout.writeln(
+          '   playlist "${playlist.title}" -> ${playlist.entries.length} '
+          'entries, first: ${playlist.entries.first.url}',
+        );
+        target = playlist.entries.first.url;
       }
+
+      MediaInfo info;
+      try {
+        info = await backend.getInfo(MediaInfoRequest(url: target));
+      } catch (error) {
+        // Mirror the app's playlist fallback for album/profile URLs.
+        final playlist = await backend.getPlaylistInfo(
+          MediaInfoRequest(url: target),
+        );
+        if (playlist.entries.isEmpty) {
+          rethrow;
+        }
+        target = playlist.entries.first.url;
+        info = await backend.getInfo(MediaInfoRequest(url: target));
+      }
+
+      results[smokeCase.provider] =
+          'PASS - "${info.title}" (${info.formats.length} formats, '
+          'extractor: ${info.extractor})';
+      stdout.writeln('   ${results[smokeCase.provider]}');
     } catch (error) {
-      failures++;
-      stderr.writeln('$provider: FAILED - $error');
-    } finally {
-      backend.dispose();
+      final message = error
+          .toString()
+          .replaceAll(RegExp(r'\s+'), ' ')
+          .trim();
+      results[smokeCase.provider] =
+          'FAIL - ${message.substring(0, message.length > 220 ? 220 : message.length)}';
+      stdout.writeln('   ${results[smokeCase.provider]}');
     }
   }
 
-  if (failures > 0) {
-    stderr.writeln('Provider smoke finished with $failures failure(s).');
-    exit(1);
+  stdout.writeln('\n== SUMMARY ==');
+  results.forEach((provider, result) => stdout.writeln('$provider: $result'));
+
+  if (!withDownload) {
+    backend.dispose();
+    return;
   }
 
-  stdout.writeln('Provider smoke passed.');
-}
-
-Future<void> _runDownloadSmoke(
-  MediaBackend backend,
-  String provider,
-  String url,
-  String title,
-  String test,
-) async {
-  final outputKind = _outputKindForTest(test);
-  final formatId = switch (outputKind) {
-    OutputKind.mp3 || OutputKind.m4a => 'bestaudio/best',
-    OutputKind.mp4 => 'bestvideo*+bestaudio/best',
-    OutputKind.original => 'best',
-  };
-  final id = '$provider-$test-${DateTime.now().microsecondsSinceEpoch}'
-      .replaceAll(RegExp(r'[^a-zA-Z0-9_.-]+'), '-');
-  final done = Completer<void>();
-
-  final subscription = backend.events.listen((event) {
-    switch (event) {
-      case DownloadProgressEvent(:final progress) when progress.id == id:
-        final percent = progress.percent == null
-            ? '--'
-            : '${(progress.percent! * 100).toStringAsFixed(1)}%';
-        stdout.writeln('$provider/$test: ${progress.stage} $percent');
-      case DownloadCompletedEvent(
-            id: final eventId,
-            outputLocation: final outputLocation,
-          )
-          when eventId == id:
-        stdout.writeln('$provider/$test: OK - $outputLocation');
-        if (!done.isCompleted) {
-          done.complete();
-        }
-      case DownloadFailedEvent(id: final eventId, message: final message)
-          when eventId == id:
-        if (!done.isCompleted) {
-          done.completeError(message);
-        }
-      case DownloadCanceledEvent(id: final eventId) when eventId == id:
-        if (!done.isCompleted) {
-          done.completeError('Canceled');
-        }
-      default:
-        break;
-    }
-  });
-
-  try {
-    await backend.startDownload(
-      DownloadRequest(
-        id: id,
-        url: url,
-        formatId: formatId,
-        outputKind: outputKind,
-        title: title,
-      ),
+  stdout.writeln('\n== SAMPLE DOWNLOADS ==');
+  final outDir = Directory.systemTemp.createTempSync('smoke-out');
+  Future<void> download(String id, String url, OutputKind kind) async {
+    stdout.writeln('-- $id ($kind) $url');
+    final downloadBackend = DesktopMediaBackend(
+      configProvider: () async =>
+          DesktopBackendConfig(outputDirectory: outDir.path),
+      configDir: outDir.path,
     );
-    await done.future.timeout(const Duration(minutes: 10));
-  } finally {
-    await subscription.cancel();
+    try {
+      final innerDone = downloadBackend.events
+          .firstWhere(
+            (event) =>
+                event is DownloadCompletedEvent || event is DownloadFailedEvent,
+          )
+          .timeout(const Duration(minutes: 4));
+      await downloadBackend.startDownload(
+        DownloadRequest(
+          id: id,
+          url: url,
+          formatId: kind == OutputKind.mp3
+              ? 'bestaudio/best'
+              : 'bestvideo*+bestaudio/best',
+          outputKind: kind,
+          title: id,
+        ),
+      );
+      final event = await innerDone;
+      if (event is DownloadCompletedEvent) {
+        stdout.writeln('   COMPLETED: ${event.outputLocation}');
+      } else if (event is DownloadFailedEvent) {
+        stdout.writeln('   FAILED: ${event.message}');
+      }
+    } finally {
+      downloadBackend.dispose();
+    }
   }
-}
 
-OutputKind _outputKindForTest(String test) {
-  return switch (test.toLowerCase()) {
-    'mp3' => OutputKind.mp3,
-    'm4a' => OutputKind.m4a,
-    'mp4' => OutputKind.mp4,
-    'original' => OutputKind.original,
-    _ => throw ArgumentError('Unknown download smoke test: $test'),
-  };
+  await download(
+    'tiktok-sample',
+    'https://www.tiktok.com/@tiktok/video/7106594312292453675',
+    OutputKind.mp4,
+  );
+  await download(
+    'soundcloud-sample',
+    'https://soundcloud.com/forss/flickermood',
+    OutputKind.mp3,
+  );
+  await download(
+    'bandcamp-sample',
+    'https://c418.bandcamp.com/track/sweden',
+    OutputKind.mp3,
+  );
+
+  backend.dispose();
 }

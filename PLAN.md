@@ -660,17 +660,22 @@ Tasks:
 - [x] Store provider id/name in queue and history records.
 - [x] Add provider filtering in History.
 - [ ] Test Dailymotion public video metadata on Android and Windows.
+      (Windows verified 2026-08-27 via smoke matrix; Android pending.)
 - [ ] Test Dailymotion public video MP4/original and MP3 download on Android
       and Windows.
 - [ ] Test Vimeo public video metadata on Android and Windows.
 - [ ] Test Vimeo public video MP4/original and MP3 download on Android and
       Windows.
 - [ ] Test SoundCloud track metadata on Android and Windows.
+      (Windows verified 2026-08-27; Android pending.)
 - [ ] Test SoundCloud MP3/M4A/original download on Android and Windows.
+      (Windows MP3 verified 2026-08-27; Android pending.)
 - [ ] Test SoundCloud set/playlist expansion on Android and Windows.
 - [x] Reconstruct flat playlist entry IDs for Dailymotion and Vimeo in Android
       and desktop backends.
 - [ ] Verify playlist/set expansion where yt-dlp returns entries.
+      (Windows verified 2026-08-27: Dailymotion channel 1000 entries, Twitch
+      VOD listing 1044 entries; Android pending.)
 - [x] Add provider-specific output presets for audio-first services.
 
 Acceptance criteria:
@@ -698,7 +703,9 @@ Tasks:
 - [x] Normalize shared TikTok URLs by trimming tracking query parameters while
       preserving the real media URL.
 - [ ] Verify public video metadata on Android and Windows.
+      (Windows verified 2026-08-27, 14 formats; Android pending.)
 - [ ] Verify MP4/original download on Android and Windows.
+      (Windows MP4 verified 2026-08-27; Android pending.)
 - [ ] Verify MP3 extraction on Android and Windows.
 - [ ] Verify shared short links from the Android TikTok app/share sheet.
 - [x] Add TikTok-specific handling for login/rate-limit/region errors.

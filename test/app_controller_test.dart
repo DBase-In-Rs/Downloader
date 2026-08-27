@@ -21,6 +21,10 @@ class ManualMediaBackend implements MediaBackend {
 
   @override
   Future<MediaInfo> getInfo(MediaInfoRequest request) async {
+    final error = infoError;
+    if (error != null) {
+      throw error;
+    }
     return MediaInfo(
       url: mediaUrlOverride ?? request.url,
       title: 'Manual media',
@@ -37,6 +41,7 @@ class ManualMediaBackend implements MediaBackend {
   }
 
   PlaylistInfo? playlistResponse;
+  Object? infoError;
 
   @override
   Future<PlaylistInfo> getPlaylistInfo(MediaInfoRequest request) async {
@@ -364,6 +369,50 @@ void main() {
     // Sequential execution: only the first item starts.
     expect(backend.started, hasLength(1));
     expect(backend.started.single.formatId, 'bestaudio/best');
+  });
+
+  test('non-heuristic playlist URLs fall back to playlist extraction', () async {
+    final backend = ManualMediaBackend()
+      ..infoError = Exception('ERROR: no video found on this page')
+      ..playlistResponse = const PlaylistInfo(
+        url: 'https://artist.bandcamp.com/album/test',
+        title: 'Album',
+        entries: [
+          PlaylistEntry(url: 'https://artist.bandcamp.com/track/a', title: 'A'),
+          PlaylistEntry(url: 'https://artist.bandcamp.com/track/b', title: 'B'),
+        ],
+      );
+    final controller = AppController(
+      backend: backend,
+      sharedUrlService: const FakeSharedUrlService(),
+    );
+    addTearDown(controller.dispose);
+    await controller.initialize();
+
+    // No list=/playlist/sets marker, so the heuristic sees a single item.
+    controller.setUrlText('https://artist.bandcamp.com/album/test');
+    await controller.analyzeUrl();
+
+    expect(controller.extractionState, ExtractionState.loaded);
+    expect(controller.playlistInfo?.entries, hasLength(2));
+    expect(controller.errorMessage, isNull);
+  });
+
+  test('single-item error surfaces when playlist fallback is empty', () async {
+    final backend = ManualMediaBackend()
+      ..infoError = Exception('ERROR: not found');
+    final controller = AppController(
+      backend: backend,
+      sharedUrlService: const FakeSharedUrlService(),
+    );
+    addTearDown(controller.dispose);
+    await controller.initialize();
+
+    controller.setUrlText('https://example.com/media');
+    await controller.analyzeUrl();
+
+    expect(controller.extractionState, ExtractionState.failed);
+    expect(controller.errorMessage, contains('not found'));
   });
 
   test('one failed playlist item does not stop the rest', () async {
