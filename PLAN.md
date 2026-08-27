@@ -966,16 +966,20 @@ Goal: give users a first-class install and update path on every platform.
 
 ### Sprint 11.2 - Windows Installer And winget
 
-- [ ] Build an Inno Setup installer in the release workflow alongside the
-      portable zip (install/uninstall, Start Menu, silent flags).
+- [x] Build an Inno Setup installer in the release workflow alongside the
+      portable zip (per-user install without UAC, Start Menu entry,
+      uninstaller, silent flags; verified locally with a silent
+      install/uninstall round-trip).
 - [ ] Submit the first manifest to microsoft/winget-pkgs
-      (id: DBaseInRs.Downloader) pointing at the GitHub release asset.
+      (id: DBaseInRs.Downloader) after the stable 1.0.0 release.
 - [ ] Automate manifest updates per release with komac/wingetcreate in CI so
       `winget upgrade` tracks new versions.
 
 ### Sprint 11.3 - Linux Packages
 
-- [ ] Build a .deb package in the release workflow alongside the tarball.
+- [x] Build a .deb package in the release workflow alongside the tarball
+      (tool/build_deb.sh; verified in WSL: apt install, /usr/bin launcher,
+      desktop entry and icon, app runs, clean removal).
 - [ ] Publish the .deb to the maintainer's apt repository
       (https://peace.dbase.in.rs/) and document adding the repo, so users
       install and update through the system package manager.

@@ -10,6 +10,14 @@ versioning once releases begin.
 
 ### Added
 
+- Windows installer (Inno Setup): per-user install without admin prompt,
+  Start Menu entry, optional desktop icon, uninstaller, and silent flags,
+  built by CI alongside the portable zip.
+- Debian package built by CI alongside the Linux tarball (`/usr/bin`
+  launcher, desktop entry, icon; pre-release versions use `~` ordering).
+
+### Added
+
 - New app icon (bold D mark) that stays readable in the Android launcher and
   app lists; white launch/splash background to match.
 - About card in Settings showing the app version and build number.
