@@ -200,6 +200,39 @@ class MainActivity : FlutterActivity() {
                     }
                 }
 
+                "openOutput" -> {
+                    val location = call.argument<String>("location")
+                    if (location.isNullOrBlank()) {
+                        result.error("invalid_location", "Output location is required.", null)
+                    } else {
+                        try {
+                            startActivity(outputIntent(Intent.ACTION_VIEW, location))
+                            result.success(null)
+                        } catch (error: Throwable) {
+                            result.error("open_failed", outputActionError(error), null)
+                        }
+                    }
+                }
+
+                "shareOutput" -> {
+                    val location = call.argument<String>("location")
+                    if (location.isNullOrBlank()) {
+                        result.error("invalid_location", "Output location is required.", null)
+                    } else {
+                        try {
+                            startActivity(
+                                Intent.createChooser(
+                                    outputIntent(Intent.ACTION_SEND, location),
+                                    "Share media",
+                                ),
+                            )
+                            result.success(null)
+                        } catch (error: Throwable) {
+                            result.error("share_failed", outputActionError(error), null)
+                        }
+                    }
+                }
+
                 "pickOutputFolder" -> {
                     if (pendingFolderPick != null) {
                         result.error("busy", "Folder picker already open.", null)
@@ -380,6 +413,34 @@ class MainActivity : FlutterActivity() {
     private fun cleanStaleTempFiles() {
         runCatching { File(cacheDir, "downloads").deleteRecursively() }
         runCatching { File(cacheDir, "cookies").deleteRecursively() }
+    }
+
+    private fun outputIntent(action: String, location: String): Intent {
+        val uri = Uri.parse(location)
+        require(uri.scheme == "content") {
+            "Only media saved through the system storage can be opened here."
+        }
+
+        val mimeType = contentResolver.getType(uri) ?: "*/*"
+        return Intent(action).apply {
+            if (action == Intent.ACTION_SEND) {
+                type = mimeType
+                putExtra(Intent.EXTRA_STREAM, uri)
+            } else {
+                setDataAndType(uri, mimeType)
+            }
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        }
+    }
+
+    private fun outputActionError(error: Throwable): String {
+        return when (error) {
+            is android.content.ActivityNotFoundException ->
+                "No app on this device can open this file type."
+            is IllegalArgumentException -> error.message
+                ?: "This item cannot be opened."
+            else -> sanitizeNativeError(error)
+        }
     }
 
     private fun settingsPrefs() =

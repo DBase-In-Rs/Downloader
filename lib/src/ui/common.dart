@@ -88,6 +88,9 @@ class DownloadItemTile extends StatelessWidget {
     this.onCancel,
     this.onRetry,
     this.onDelete,
+    this.onOpen,
+    this.onReveal,
+    this.onShare,
     super.key,
   });
 
@@ -95,6 +98,12 @@ class DownloadItemTile extends StatelessWidget {
   final VoidCallback? onCancel;
   final VoidCallback? onRetry;
   final VoidCallback? onDelete;
+
+  /// Opens the finished file with the default app; also invoked by tapping
+  /// the tile.
+  final VoidCallback? onOpen;
+  final VoidCallback? onReveal;
+  final VoidCallback? onShare;
 
   @override
   Widget build(BuildContext context) {
@@ -107,103 +116,138 @@ class DownloadItemTile extends StatelessWidget {
     );
 
     return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(14),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(_statusIcon(item.status), color: colors.primary),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        item.title,
-                        style: Theme.of(context).textTheme.titleMedium,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        '$provider - ${outputKindLabel(item.outputKind)}'
-                        ' - ${item.format.qualityLabel}'
-                        ' - ${item.format.extension}'
-                        '${item.finishedAt != null ? ' - ${formatTimestamp(item.finishedAt!)}' : ''}',
-                        style: Theme.of(context).textTheme.bodySmall,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ],
-                  ),
-                ),
-                if (onRetry != null) ...[
-                  const SizedBox(width: 8),
-                  IconButton(
-                    tooltip: 'Retry download',
-                    onPressed: onRetry,
-                    icon: const Icon(Icons.refresh),
-                  ),
-                ],
-                if (onCancel != null && _cancelable(item.status)) ...[
-                  const SizedBox(width: 8),
-                  IconButton(
-                    tooltip: 'Cancel',
-                    onPressed: onCancel,
-                    icon: const Icon(Icons.close),
-                  ),
-                ],
-                if (onDelete != null) ...[
-                  const SizedBox(width: 8),
-                  IconButton(
-                    tooltip: 'Remove from history',
-                    onPressed: onDelete,
-                    icon: const Icon(Icons.delete_outline),
-                  ),
-                ],
-              ],
-            ),
-            if (progress != null) ...[
-              const SizedBox(height: 12),
-              LinearProgressIndicator(value: percent),
-              const SizedBox(height: 8),
-              Wrap(
-                spacing: 14,
-                runSpacing: 6,
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onOpen,
+        child: Padding(
+          padding: const EdgeInsets.all(14),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
                 children: [
-                  _SmallMetric(icon: Icons.sync, text: progress.stage),
-                  _SmallMetric(
-                    icon: Icons.speed,
-                    text: formatSpeed(progress.speedBytesPerSecond),
+                  Icon(_statusIcon(item.status), color: colors.primary),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          item.title,
+                          style: Theme.of(context).textTheme.titleMedium,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          '$provider - ${outputKindLabel(item.outputKind)}'
+                          ' - ${item.format.qualityLabel}'
+                          ' - ${item.format.extension}'
+                          '${item.finishedAt != null ? ' - ${formatTimestamp(item.finishedAt!)}' : ''}',
+                          style: Theme.of(context).textTheme.bodySmall,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                    ),
                   ),
-                  _SmallMetric(
-                    icon: Icons.storage,
-                    text:
-                        '${formatBytes(progress.downloadedBytes)} / ${formatBytes(progress.totalBytes)}',
-                  ),
-                  _SmallMetric(
-                    icon: Icons.timer,
-                    text: formatDuration(progress.eta),
-                  ),
+                  if (onRetry != null) ...[
+                    const SizedBox(width: 8),
+                    IconButton(
+                      tooltip: 'Retry download',
+                      onPressed: onRetry,
+                      icon: const Icon(Icons.refresh),
+                    ),
+                  ],
+                  if (onCancel != null && _cancelable(item.status)) ...[
+                    const SizedBox(width: 8),
+                    IconButton(
+                      tooltip: 'Cancel',
+                      onPressed: onCancel,
+                      icon: const Icon(Icons.close),
+                    ),
+                  ],
+                  if (onDelete != null) ...[
+                    const SizedBox(width: 8),
+                    IconButton(
+                      tooltip: 'Remove from history',
+                      onPressed: onDelete,
+                      icon: const Icon(Icons.delete_outline),
+                    ),
+                  ],
+                  if (onOpen != null || onReveal != null || onShare != null)
+                    PopupMenuButton<VoidCallback>(
+                      tooltip: 'File actions',
+                      onSelected: (action) => action(),
+                      itemBuilder: (context) => [
+                        if (onOpen != null)
+                          PopupMenuItem(
+                            value: onOpen!,
+                            child: const ListTile(
+                              leading: Icon(Icons.play_circle_outline),
+                              title: Text('Open'),
+                            ),
+                          ),
+                        if (onReveal != null)
+                          PopupMenuItem(
+                            value: onReveal!,
+                            child: const ListTile(
+                              leading: Icon(Icons.folder_open),
+                              title: Text('Show in folder'),
+                            ),
+                          ),
+                        if (onShare != null)
+                          PopupMenuItem(
+                            value: onShare!,
+                            child: const ListTile(
+                              leading: Icon(Icons.share),
+                              title: Text('Share'),
+                            ),
+                          ),
+                      ],
+                    ),
                 ],
               ),
+              if (progress != null) ...[
+                const SizedBox(height: 12),
+                LinearProgressIndicator(value: percent),
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 14,
+                  runSpacing: 6,
+                  children: [
+                    _SmallMetric(icon: Icons.sync, text: progress.stage),
+                    _SmallMetric(
+                      icon: Icons.speed,
+                      text: formatSpeed(progress.speedBytesPerSecond),
+                    ),
+                    _SmallMetric(
+                      icon: Icons.storage,
+                      text:
+                          '${formatBytes(progress.downloadedBytes)} / ${formatBytes(progress.totalBytes)}',
+                    ),
+                    _SmallMetric(
+                      icon: Icons.timer,
+                      text: formatDuration(progress.eta),
+                    ),
+                  ],
+                ),
+              ],
+              if (item.errorMessage != null) ...[
+                const SizedBox(height: 10),
+                Text(item.errorMessage!, style: TextStyle(color: colors.error)),
+              ],
+              if (item.outputLocation != null) ...[
+                const SizedBox(height: 10),
+                Text(
+                  item.outputLocation!,
+                  style: Theme.of(context).textTheme.bodySmall,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
             ],
-            if (item.errorMessage != null) ...[
-              const SizedBox(height: 10),
-              Text(item.errorMessage!, style: TextStyle(color: colors.error)),
-            ],
-            if (item.outputLocation != null) ...[
-              const SizedBox(height: 10),
-              Text(
-                item.outputLocation!,
-                style: Theme.of(context).textTheme.bodySmall,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ],
-          ],
+          ),
         ),
       ),
     );

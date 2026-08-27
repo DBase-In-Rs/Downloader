@@ -5,10 +5,11 @@ provider validation beyond YouTube
 
 Canonical app/package id: `rs.in.dbase.downloader`
 
-Active targets: Android and Windows.
+Active targets: Android, Windows, and Linux (Linux verified in WSL Ubuntu
+24.04 on 2026-08-27).
 
-Backlog targets: macOS, iPhone/iOS, and Linux. These stay planned but blocked
-until they can be built and tested on their target operating systems.
+Backlog targets: macOS and iPhone/iOS. These stay planned but blocked until
+they can be built and tested on their target operating systems.
 
 License target: `GPL-3.0-only`
 
@@ -838,7 +839,7 @@ Acceptance criteria:
 - Every advertised provider has current Android and Windows smoke evidence.
 - Unsupported and experimental providers are clearly separated.
 
-## Out Of Scope: macOS, iOS, And Linux
+## Out Of Scope: macOS And iOS
 
 Decision on 2026-08-27: the app ships for **Android and Windows only** for now.
 macOS, iPhone/iOS, and Linux stay in the plan but out of active work until a
@@ -922,19 +923,27 @@ Acceptance criteria:
 - iPhone build has a tested, documented feature set.
 - Any missing parity is visible to users.
 
-## Milestone 9 - Linux Desktop (out of scope)
+## Milestone 9 - Linux Desktop
 
-Goal: add Linux only after Android and Windows are stable and a Linux test
-environment is available.
+Goal: ship Linux through CI builds, verified in WSL before it is advertised.
+Activated on 2026-08-27: CI builds a Linux tarball on every tag.
 
 ### Sprint 9.1 - Linux Platform Bring-Up
 
 Tasks:
 
-- [ ] Generate Linux platform folder if the target is approved.
-- [ ] Verify Flutter Linux build on Linux.
-- [ ] Reuse the desktop process-runner backend where possible.
-- [ ] Add Linux output folder selection and PATH binary behavior.
+- [x] Generate Linux platform folder (application id aligned to
+      `rs.in.dbase.downloader`).
+- [x] Reuse the desktop process-runner backend (already platform-neutral:
+      PATH lookup, xdg-open, ~/Downloads, ~/.config storage).
+- [x] Add CI Linux build job producing a release tarball.
+- [x] Add Linux output folder selection and PATH binary behavior (shared
+      desktop Settings card).
+- [x] Verify the Linux build on Linux (WSL Ubuntu 24.04, same base as the
+      CI runner): `flutter build linux --release` passed, the GUI launches
+      through WSLg, and the desktop smoke test completed a real YouTube
+      MP3 download end to end (metadata, progress, FFmpeg conversion,
+      file saved).
 - [ ] Add Linux package identity/distribution notes.
 
 Acceptance criteria:

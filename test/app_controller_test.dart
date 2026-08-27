@@ -371,32 +371,41 @@ void main() {
     expect(backend.started.single.formatId, 'bestaudio/best');
   });
 
-  test('non-heuristic playlist URLs fall back to playlist extraction', () async {
-    final backend = ManualMediaBackend()
-      ..infoError = Exception('ERROR: no video found on this page')
-      ..playlistResponse = const PlaylistInfo(
-        url: 'https://artist.bandcamp.com/album/test',
-        title: 'Album',
-        entries: [
-          PlaylistEntry(url: 'https://artist.bandcamp.com/track/a', title: 'A'),
-          PlaylistEntry(url: 'https://artist.bandcamp.com/track/b', title: 'B'),
-        ],
+  test(
+    'non-heuristic playlist URLs fall back to playlist extraction',
+    () async {
+      final backend = ManualMediaBackend()
+        ..infoError = Exception('ERROR: no video found on this page')
+        ..playlistResponse = const PlaylistInfo(
+          url: 'https://artist.bandcamp.com/album/test',
+          title: 'Album',
+          entries: [
+            PlaylistEntry(
+              url: 'https://artist.bandcamp.com/track/a',
+              title: 'A',
+            ),
+            PlaylistEntry(
+              url: 'https://artist.bandcamp.com/track/b',
+              title: 'B',
+            ),
+          ],
+        );
+      final controller = AppController(
+        backend: backend,
+        sharedUrlService: const FakeSharedUrlService(),
       );
-    final controller = AppController(
-      backend: backend,
-      sharedUrlService: const FakeSharedUrlService(),
-    );
-    addTearDown(controller.dispose);
-    await controller.initialize();
+      addTearDown(controller.dispose);
+      await controller.initialize();
 
-    // No list=/playlist/sets marker, so the heuristic sees a single item.
-    controller.setUrlText('https://artist.bandcamp.com/album/test');
-    await controller.analyzeUrl();
+      // No list=/playlist/sets marker, so the heuristic sees a single item.
+      controller.setUrlText('https://artist.bandcamp.com/album/test');
+      await controller.analyzeUrl();
 
-    expect(controller.extractionState, ExtractionState.loaded);
-    expect(controller.playlistInfo?.entries, hasLength(2));
-    expect(controller.errorMessage, isNull);
-  });
+      expect(controller.extractionState, ExtractionState.loaded);
+      expect(controller.playlistInfo?.entries, hasLength(2));
+      expect(controller.errorMessage, isNull);
+    },
+  );
 
   test('single-item error surfaces when playlist fallback is empty', () async {
     final backend = ManualMediaBackend()
@@ -510,6 +519,76 @@ void main() {
 
     controller.setHistoryProviderFilter(null);
     expect(controller.filteredHistory.single.providerId, 'soundcloud');
+  });
+
+  test('video-only formats get best audio merged in', () {
+    const videoOnly = MediaFormat(
+      id: '137',
+      extension: 'mp4',
+      kind: MediaKind.video,
+      qualityLabel: '1080p',
+    );
+    const muxed = MediaFormat(
+      id: '18',
+      extension: 'mp4',
+      kind: MediaKind.muxed,
+      qualityLabel: '360p',
+    );
+    const audio = MediaFormat(
+      id: '140',
+      extension: 'm4a',
+      kind: MediaKind.audio,
+      qualityLabel: '128 kbps',
+    );
+
+    expect(
+      effectiveFormatSelector(videoOnly, OutputKind.mp4),
+      '137+bestaudio/137',
+    );
+    expect(
+      effectiveFormatSelector(videoOnly, OutputKind.original),
+      '137+bestaudio/137',
+    );
+    expect(
+      effectiveFormatSelector(videoOnly, OutputKind.mp3),
+      'bestaudio/best',
+    );
+    expect(effectiveFormatSelector(muxed, OutputKind.mp4), '18');
+    expect(effectiveFormatSelector(audio, OutputKind.mp3), '140');
+  });
+
+  test('queued video-only download requests merged audio', () async {
+    final backend = ManualMediaBackend();
+    final controller = await analyzedController(backend);
+    addTearDown(controller.dispose);
+
+    controller.setOutputKind(OutputKind.mp4);
+    await controller.startDownload(
+      const MediaFormat(
+        id: 'hd-video',
+        extension: 'mp4',
+        kind: MediaKind.video,
+        qualityLabel: '720p',
+      ),
+    );
+
+    expect(backend.started.single.formatId, 'hd-video+bestaudio/hd-video');
+  });
+
+  test('clearAnalysis resets the home screen state', () async {
+    final backend = ManualMediaBackend();
+    final controller = await analyzedController(backend);
+    addTearDown(controller.dispose);
+
+    expect(controller.hasAnalysisContent, isTrue);
+    controller.clearAnalysis();
+
+    expect(controller.urlText, isEmpty);
+    expect(controller.mediaInfo, isNull);
+    expect(controller.playlistInfo, isNull);
+    expect(controller.errorMessage, isNull);
+    expect(controller.extractionState, ExtractionState.idle);
+    expect(controller.hasAnalysisContent, isFalse);
   });
 
   test('queue item serialization round-trips', () {

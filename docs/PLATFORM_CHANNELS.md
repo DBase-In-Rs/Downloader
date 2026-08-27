@@ -180,6 +180,18 @@ Android behavior:
 
 Response: `null`. Deletes the encrypted cookie store.
 
+### `openOutput`
+
+Request: `{"location": "content://..."}`. Opens the saved media with the
+default app (`ACTION_VIEW` with a granted read permission). Only `content://`
+URIs are accepted. Errors: `invalid_location`, `open_failed`.
+
+### `shareOutput`
+
+Request: `{"location": "content://..."}`. Opens the system share sheet
+(`ACTION_SEND` with the stream URI). Errors: `invalid_location`,
+`share_failed`.
+
 ### `pickOutputFolder`
 
 Opens the system `ACTION_OPEN_DOCUMENT_TREE` picker and persists the

@@ -2,12 +2,14 @@ import 'package:flutter/material.dart';
 
 import '../models/download_models.dart';
 import '../services/app_controller.dart';
+import '../services/output_actions_service.dart';
 import 'common.dart';
 
 class HistoryPage extends StatelessWidget {
-  const HistoryPage({required this.controller, super.key});
+  HistoryPage({required this.controller, super.key});
 
   final AppController controller;
+  final _outputActions = OutputActionsService();
 
   @override
   Widget build(BuildContext context) {
@@ -58,12 +60,35 @@ class HistoryPage extends StatelessWidget {
                       final retryable =
                           item.status == DownloadStatus.failed ||
                           item.status == DownloadStatus.canceled;
+                      final output =
+                          item.status == DownloadStatus.completed &&
+                              item.outputLocation != null
+                          ? item.outputLocation!
+                          : null;
                       return DownloadItemTile(
                         item: item,
                         onRetry: retryable
                             ? () => controller.retryDownload(item)
                             : null,
                         onDelete: () => controller.deleteHistoryItem(item.id),
+                        onOpen: output != null && _outputActions.canOpen
+                            ? () => _runAction(
+                                context,
+                                () => _outputActions.open(output),
+                              )
+                            : null,
+                        onReveal: output != null && _outputActions.canReveal
+                            ? () => _runAction(
+                                context,
+                                () => _outputActions.reveal(output),
+                              )
+                            : null,
+                        onShare: output != null && _outputActions.canShare
+                            ? () => _runAction(
+                                context,
+                                () => _outputActions.share(output),
+                              )
+                            : null,
                       );
                     },
                   ),
@@ -71,6 +96,17 @@ class HistoryPage extends StatelessWidget {
         ],
       ),
     );
+  }
+}
+
+Future<void> _runAction(
+  BuildContext context,
+  Future<String?> Function() action,
+) async {
+  final messenger = ScaffoldMessenger.of(context);
+  final failure = await action();
+  if (failure != null) {
+    messenger.showSnackBar(SnackBar(content: Text(failure)));
   }
 }
 

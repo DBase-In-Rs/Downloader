@@ -4,7 +4,7 @@
 [![Latest release](https://img.shields.io/github/v/release/DBase-In-Rs/Downloader?include_prereleases&label=release)](https://github.com/DBase-In-Rs/Downloader/releases)
 [![Downloads](https://img.shields.io/github/downloads/DBase-In-Rs/Downloader/total)](https://github.com/DBase-In-Rs/Downloader/releases)
 [![License: GPL-3.0-only](https://img.shields.io/badge/license-GPL--3.0--only-blue.svg)](LICENSE)
-[![Platforms](https://img.shields.io/badge/platforms-Android%20%7C%20Windows-3DDC84?logo=android&logoColor=white)](#)
+[![Platforms](https://img.shields.io/badge/platforms-Android%20%7C%20Windows%20%7C%20Linux-3DDC84?logo=android&logoColor=white)](#)
 [![Made with Flutter](https://img.shields.io/badge/made%20with-Flutter-02569B?logo=flutter&logoColor=white)](https://flutter.dev)
 [![Powered by yt-dlp](https://img.shields.io/badge/powered%20by-yt--dlp-red)](https://github.com/yt-dlp/yt-dlp)
 [![FFmpeg](https://img.shields.io/badge/FFmpeg-GPL-007808?logo=ffmpeg&logoColor=white)](https://ffmpeg.org)
@@ -16,13 +16,13 @@ DBase Video & Music Downloader is a Flutter app for downloading video and audio
 from user-provided URLs. The canonical app/package identifier is
 `rs.in.dbase.downloader`.
 
-The app ships for **Android and Windows**. The UI is Flutter; the media
-backend is platform-specific:
+The app ships for **Android, Windows, and Linux**. The UI is Flutter; the
+media backend is platform-specific:
 
 - Android: Kotlin Platform Channels, youtubedl-android, yt-dlp, FFmpeg,
   foreground service, and MediaStore.
-- Windows: Flutter desktop UI with a backend that runs user-provided yt-dlp
-  and FFmpeg binaries (resolved from PATH or Settings).
+- Windows and Linux: Flutter desktop UI with a shared backend that runs
+  user-provided yt-dlp and FFmpeg binaries (resolved from PATH or Settings).
 
 macOS and iPhone/iOS are **out of scope** (see PLAN.md): they require a macOS
 development machine, and iOS additionally has yt-dlp/FFmpeg packaging,
@@ -166,6 +166,14 @@ flutter test
 flutter run
 flutter build apk --debug
 ```
+
+### Release builds
+
+Releases are built by GitHub Actions: pushing a `v*` tag builds signed
+Android APKs and the Windows zip and attaches them to the GitHub release
+(pre-release when the tag contains a suffix like `-beta.5`). The signing
+keystore lives only in repository secrets; local release builds fall back to
+debug signing unless `android/key.properties` exists.
 
 Platform folders were generated with:
 

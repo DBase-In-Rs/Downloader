@@ -95,7 +95,7 @@ BEGIN
             VALUE "InternalName", "dbase_downloader" "\0"
             VALUE "LegalCopyright", "Copyright (C) 2026 DBase In Rs contributors" "\0"
             VALUE "OriginalFilename", "dbase_downloader.exe" "\0"
-            VALUE "ProductName", "DBase Downloader" "\0"
+            VALUE "ProductName", "DBase Video & Music Downloader" "\0"
             VALUE "ProductVersion", VERSION_AS_STRING "\0"
         END
     END

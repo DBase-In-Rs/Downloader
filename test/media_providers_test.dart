@@ -86,6 +86,42 @@ void main() {
       'https://www.mlb.com/video/example': 'mlb',
       'https://www.aljazeera.com/program/example': 'aljazeera',
       'https://www.arte.tv/en/videos/12345/example/': 'arte',
+      'https://ok.ru/video/123456': 'odnoklassniki',
+      'https://boosty.to/creator/posts/abc': 'boosty',
+      'https://dzen.ru/video/watch/abc123': 'dzen',
+      'https://www.newgrounds.com/portal/view/123': 'newgrounds',
+      'https://nebula.tv/videos/example': 'nebula',
+      'https://www.floatplane.com/post/abc': 'floatplane',
+      'https://www.vevo.com/watch/artist/song/US123': 'vevo',
+      'https://www.dailywire.com/episode/example': 'dailywire',
+      'https://example.mave.digital/ep-1': 'mave',
+      'https://365.rtvslo.si/arhiv/example/123': 'rtvslo',
+      'https://hrti.hrt.hr/video/show/123': 'hrt',
+      'https://www.raiplay.it/video/2024/example.html': 'rai',
+      'https://www.ardmediathek.de/video/example': 'ard',
+      'https://www.ceskatelevize.cz/porady/example/': 'ceska_televize',
+      'https://www.rtve.es/play/videos/example/': 'rtve',
+      'https://www.svtplay.se/video/example': 'svt',
+      'https://tv.nrk.no/serie/example': 'nrk',
+      'https://vod.tvp.pl/video/example,123': 'tvp',
+      'https://mediaklikk.hu/video/example/': 'mediaklikk',
+      'https://puhutv.com/example-izle': 'puhutv',
+      'https://www.france.tv/example/video.html': 'francetv',
+      'https://abcnews.go.com/Video/example-123': 'abcnews',
+      'https://www.cbsnews.com/video/example/': 'cbsnews',
+      'https://video.foxnews.com/v/123': 'foxnews',
+      'https://www.nbcnews.com/video/example-123': 'nbcnews',
+      'https://www.gamespot.com/videos/example/': 'gamespot',
+      'https://www.ign.com/videos/example': 'ign',
+      'https://example.libsyn.com/episode': 'libsyn',
+      'https://www.nhl.com/video/example-123': 'nhl',
+      'https://picarto.tv/streamer': 'picarto',
+      'https://roosterteeth.com/watch/example': 'roosterteeth',
+      'https://www.dumpert.nl/item/123_abc': 'dumpert',
+      'https://store.steampowered.com/app/123/Example/': 'steam',
+      'https://play.vidyard.com/abc123': 'vidyard',
+      'https://www.skynews.com.au/video/example': 'skynews_au',
+      'https://banbye.com/watch/v_abc123': 'banbye',
       'https://v.youku.com/v_show/id_abc.html': 'youku',
       'https://watch.cloudflarestream.com/abc123': 'cloudflare_stream',
       'https://content.jwplatform.com/players/abc-def.html': 'jwplatform',
@@ -98,7 +134,6 @@ void main() {
       'https://www.threads.net/@user/post/123': 'threads',
       'https://www.buzzvideo.com/a123': 'buzzvideo',
       'https://tubidy.mobi/watch/example': 'tubidy',
-      'https://wallhaven.cc/w/abc123': 'wallpaper',
     };
 
     for (final entry in cases.entries) {
@@ -127,7 +162,7 @@ void main() {
       'NiconicoUser': 'niconico',
       'apple:podcasts': 'apple_podcasts',
       'PodbayFMChannel': 'podbay',
-      'ESPNArticle': 'espn',
+      'WatchESPN': 'espn',
       'CloudflareStream': 'cloudflare_stream',
       'JWPlatform': 'jwplatform',
       'RTVCKaltura': 'kaltura',
@@ -171,6 +206,58 @@ void main() {
       normalizeMediaUrl('https://example.com/watch?token=abc&utm_source=x'),
       'https://example.com/watch?token=abc&utm_source=x',
     );
+  });
+
+  test('dynamic provider naming covers every yt-dlp site', () {
+    // Uncataloged extractor: named after the extractor.
+    final byExtractor = dynamicMediaProvider(
+      url: 'https://example-niche-site.com/watch/1',
+      extractor: 'veoh',
+    );
+    expect(byExtractor.id, 'ext:veoh');
+    expect(byExtractor.displayName, 'Veoh');
+
+    // Extractor variants collapse to the base name; casing is kept.
+    expect(
+      dynamicMediaProvider(extractor: 'NicheSite:playlist').displayName,
+      'NicheSite',
+    );
+
+    // No extractor: named after the host.
+    final byHost = dynamicMediaProvider(url: 'https://www.example.com/v/1');
+    expect(byHost.id, 'site:example.com');
+    expect(byHost.displayName, 'example.com');
+
+    // The generic extractor never masks the host name.
+    expect(
+      dynamicMediaProvider(
+        url: 'https://www.example.com/v/1',
+        extractor: 'generic',
+      ).id,
+      'site:example.com',
+    );
+
+    // Cataloged providers always win.
+    expect(
+      dynamicMediaProvider(
+        url: 'https://youtu.be/abc',
+        extractor: 'youtube',
+      ).id,
+      'youtube',
+    );
+  });
+
+  test('stored dynamic identities survive restore', () {
+    final restored = storedMediaProvider(
+      providerId: 'ext:nichesite',
+      providerName: 'NicheSite',
+      url: 'https://niche.example/v/1',
+    );
+    expect(restored.displayName, 'NicheSite');
+    expect(restored.id, 'ext:nichesite');
+
+    // Catalog ids resolve back to the full catalog entry.
+    expect(storedMediaProvider(providerId: 'tiktok').displayName, 'TikTok');
   });
 
   test(

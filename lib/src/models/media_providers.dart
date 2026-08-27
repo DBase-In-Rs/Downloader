@@ -380,7 +380,7 @@ const mediaProviderCatalog = [
     displayName: 'ESPN',
     tier: MediaProviderTier.planned,
     domains: ['espn.com', 'espncricinfo.com'],
-    extractorNames: ['espn', 'espnarticle', 'espncricinfo', 'watchespn'],
+    extractorNames: ['espn', 'espncricinfo', 'watchespn'],
     cookiesOftenNeeded: true,
   ),
   MediaProviderInfo(
@@ -577,7 +577,7 @@ const mediaProviderCatalog = [
     displayName: 'MLB',
     tier: MediaProviderTier.planned,
     domains: ['mlb.com'],
-    extractorNames: ['mlb', 'mlbvideo', 'mlbarticle'],
+    extractorNames: ['mlb', 'mlbvideo'],
   ),
   MediaProviderInfo(
     id: 'aljazeera',
@@ -592,6 +592,282 @@ const mediaProviderCatalog = [
     tier: MediaProviderTier.planned,
     domains: ['arte.tv'],
     extractorNames: ['artetv', 'artetvplaylist', 'artetvembed'],
+    playlists: true,
+  ),
+  MediaProviderInfo(
+    id: 'odnoklassniki',
+    displayName: 'OK.ru',
+    tier: MediaProviderTier.planned,
+    domains: ['ok.ru', 'odnoklassniki.ru'],
+    extractorNames: ['odnoklassniki'],
+  ),
+  MediaProviderInfo(
+    id: 'boosty',
+    displayName: 'Boosty',
+    tier: MediaProviderTier.planned,
+    domains: ['boosty.to'],
+    extractorNames: ['boosty'],
+    cookiesOftenNeeded: true,
+  ),
+  MediaProviderInfo(
+    id: 'dzen',
+    displayName: 'Dzen',
+    tier: MediaProviderTier.planned,
+    domains: ['dzen.ru'],
+    extractorNames: ['dzen.ru', 'dzen.ru:channel'],
+    playlists: true,
+  ),
+  MediaProviderInfo(
+    id: 'newgrounds',
+    displayName: 'Newgrounds',
+    tier: MediaProviderTier.planned,
+    domains: ['newgrounds.com'],
+    extractorNames: ['newgrounds', 'newgrounds:playlist', 'newgrounds:user'],
+    playlists: true,
+  ),
+  MediaProviderInfo(
+    id: 'nebula',
+    displayName: 'Nebula',
+    tier: MediaProviderTier.planned,
+    domains: ['nebula.tv', 'nebula.app'],
+    extractorNames: ['nebula:video', 'nebula:media', 'nebula:channel'],
+    cookiesOftenNeeded: true,
+    playlists: true,
+  ),
+  MediaProviderInfo(
+    id: 'floatplane',
+    displayName: 'Floatplane',
+    tier: MediaProviderTier.planned,
+    domains: ['floatplane.com'],
+    extractorNames: ['floatplane', 'floatplanechannel'],
+    cookiesOftenNeeded: true,
+    playlists: true,
+  ),
+  MediaProviderInfo(
+    id: 'vevo',
+    displayName: 'Vevo',
+    tier: MediaProviderTier.planned,
+    domains: ['vevo.com'],
+    extractorNames: ['vevo', 'vevoplaylist'],
+    playlists: true,
+  ),
+  MediaProviderInfo(
+    id: 'dailywire',
+    displayName: 'Daily Wire',
+    tier: MediaProviderTier.planned,
+    domains: ['dailywire.com'],
+    extractorNames: ['dailywire', 'dailywirepodcast'],
+    cookiesOftenNeeded: true,
+  ),
+  MediaProviderInfo(
+    id: 'mave',
+    displayName: 'Mave',
+    tier: MediaProviderTier.planned,
+    domains: ['mave.digital'],
+    extractorNames: ['mave', 'mave:channel'],
+    audioFirst: true,
+    playlists: true,
+  ),
+  MediaProviderInfo(
+    id: 'rtvslo',
+    displayName: 'RTV Slovenija',
+    tier: MediaProviderTier.planned,
+    domains: ['rtvslo.si', '365.rtvslo.si'],
+    extractorNames: ['rtvslo.si', 'rtvslo.si:show'],
+    playlists: true,
+  ),
+  MediaProviderInfo(
+    id: 'hrt',
+    displayName: 'HRTi',
+    tier: MediaProviderTier.planned,
+    domains: ['hrti.hrt.hr'],
+    extractorNames: ['hrti', 'hrtiplaylist'],
+    cookiesOftenNeeded: true,
+    playlists: true,
+  ),
+  MediaProviderInfo(
+    id: 'rai',
+    displayName: 'RaiPlay',
+    tier: MediaProviderTier.planned,
+    domains: ['raiplay.it', 'rai.it', 'raiplaysound.it'],
+    extractorNames: ['rai', 'raiplay', 'raiplaysound'],
+    playlists: true,
+  ),
+  MediaProviderInfo(
+    id: 'ard',
+    displayName: 'ARD Mediathek',
+    tier: MediaProviderTier.planned,
+    domains: ['ardmediathek.de', 'ardaudiothek.de'],
+    extractorNames: ['ardmediathek', 'ardaudiothek'],
+    playlists: true,
+  ),
+  MediaProviderInfo(
+    id: 'ceska_televize',
+    displayName: 'Česká televize',
+    tier: MediaProviderTier.planned,
+    domains: ['ceskatelevize.cz'],
+    extractorNames: ['ceskatelevize'],
+  ),
+  MediaProviderInfo(
+    id: 'rtve',
+    displayName: 'RTVE',
+    tier: MediaProviderTier.planned,
+    domains: ['rtve.es'],
+    extractorNames: ['rtve.es:alacarta', 'rtve.es:television', 'rtve.es:audio'],
+  ),
+  MediaProviderInfo(
+    id: 'svt',
+    displayName: 'SVT Play',
+    tier: MediaProviderTier.planned,
+    domains: ['svtplay.se', 'svt.se'],
+    extractorNames: ['svt:play', 'svt:page'],
+    playlists: true,
+  ),
+  MediaProviderInfo(
+    id: 'nrk',
+    displayName: 'NRK',
+    tier: MediaProviderTier.planned,
+    domains: ['nrk.no', 'tv.nrk.no', 'radio.nrk.no'],
+    extractorNames: ['nrk', 'nrktv', 'nrkplaylist', 'nrkradiopodkast'],
+    playlists: true,
+  ),
+  MediaProviderInfo(
+    id: 'tvp',
+    displayName: 'TVP',
+    tier: MediaProviderTier.planned,
+    domains: ['tvp.pl', 'vod.tvp.pl'],
+    extractorNames: ['tvp', 'tvp:vod', 'tvp:stream'],
+    playlists: true,
+  ),
+  MediaProviderInfo(
+    id: 'mediaklikk',
+    displayName: 'MédiaKlikk',
+    tier: MediaProviderTier.planned,
+    domains: ['mediaklikk.hu'],
+    extractorNames: ['mediaklikk'],
+  ),
+  MediaProviderInfo(
+    id: 'puhutv',
+    displayName: 'Puhutv',
+    tier: MediaProviderTier.planned,
+    domains: ['puhutv.com'],
+    extractorNames: ['puhutv', 'puhutv:serie'],
+    playlists: true,
+  ),
+  MediaProviderInfo(
+    id: 'francetv',
+    displayName: 'France TV',
+    tier: MediaProviderTier.planned,
+    domains: ['france.tv', 'francetvinfo.fr'],
+    extractorNames: ['francetv', 'francetv:site'],
+  ),
+  MediaProviderInfo(
+    id: 'abcnews',
+    displayName: 'ABC News',
+    tier: MediaProviderTier.planned,
+    domains: ['abcnews.go.com'],
+    extractorNames: ['abcnews', 'abcnews:video'],
+  ),
+  MediaProviderInfo(
+    id: 'cbsnews',
+    displayName: 'CBS News',
+    tier: MediaProviderTier.planned,
+    domains: ['cbsnews.com'],
+    extractorNames: ['cbsnews', 'cbsnews:embed', 'cbsnews:live'],
+  ),
+  MediaProviderInfo(
+    id: 'foxnews',
+    displayName: 'Fox News',
+    tier: MediaProviderTier.planned,
+    domains: ['foxnews.com', 'video.foxnews.com'],
+    extractorNames: ['foxnews', 'foxnewsvideo'],
+  ),
+  MediaProviderInfo(
+    id: 'nbcnews',
+    displayName: 'NBC News',
+    tier: MediaProviderTier.planned,
+    domains: ['nbcnews.com'],
+    extractorNames: ['nbcnews'],
+  ),
+  MediaProviderInfo(
+    id: 'gamespot',
+    displayName: 'GameSpot',
+    tier: MediaProviderTier.planned,
+    domains: ['gamespot.com'],
+    extractorNames: ['gamespot'],
+  ),
+  MediaProviderInfo(
+    id: 'ign',
+    displayName: 'IGN',
+    tier: MediaProviderTier.planned,
+    domains: ['ign.com'],
+    extractorNames: ['ign.com', 'ignvideo'],
+  ),
+  MediaProviderInfo(
+    id: 'libsyn',
+    displayName: 'Libsyn',
+    tier: MediaProviderTier.planned,
+    domains: ['libsyn.com'],
+    extractorNames: ['libsyn'],
+    audioFirst: true,
+  ),
+  MediaProviderInfo(
+    id: 'nhl',
+    displayName: 'NHL',
+    tier: MediaProviderTier.planned,
+    domains: ['nhl.com'],
+    extractorNames: ['nhl.com'],
+  ),
+  MediaProviderInfo(
+    id: 'picarto',
+    displayName: 'Picarto',
+    tier: MediaProviderTier.planned,
+    domains: ['picarto.tv'],
+    extractorNames: ['picarto', 'picarto:vod'],
+  ),
+  MediaProviderInfo(
+    id: 'roosterteeth',
+    displayName: 'Rooster Teeth',
+    tier: MediaProviderTier.planned,
+    domains: ['roosterteeth.com'],
+    extractorNames: ['roosterteeth', 'roosterteethseries'],
+    cookiesOftenNeeded: true,
+    playlists: true,
+  ),
+  MediaProviderInfo(
+    id: 'dumpert',
+    displayName: 'Dumpert',
+    tier: MediaProviderTier.planned,
+    domains: ['dumpert.nl'],
+    extractorNames: ['dumpert'],
+  ),
+  MediaProviderInfo(
+    id: 'steam',
+    displayName: 'Steam',
+    tier: MediaProviderTier.planned,
+    domains: ['store.steampowered.com', 'steamcommunity.com'],
+    extractorNames: ['steam', 'steamcommunity', 'steamcommunitybroadcast'],
+  ),
+  MediaProviderInfo(
+    id: 'vidyard',
+    displayName: 'Vidyard',
+    tier: MediaProviderTier.planned,
+    domains: ['vidyard.com', 'play.vidyard.com'],
+    extractorNames: ['vidyard'],
+  ),
+  MediaProviderInfo(
+    id: 'skynews_au',
+    displayName: 'Sky News Australia',
+    tier: MediaProviderTier.planned,
+    domains: ['skynews.com.au'],
+    extractorNames: ['skynewsau'],
+  ),
+  MediaProviderInfo(
+    id: 'banbye',
+    displayName: 'BanBye',
+    tier: MediaProviderTier.planned,
+    domains: ['banbye.com'],
+    extractorNames: ['banbye', 'banbyechannel'],
     playlists: true,
   ),
   MediaProviderInfo(
@@ -625,13 +901,6 @@ const mediaProviderCatalog = [
     extractorNames: [],
     audioFirst: true,
   ),
-  MediaProviderInfo(
-    id: 'wallpaper',
-    displayName: 'Wallpaper/Image Site',
-    tier: MediaProviderTier.research,
-    domains: ['wallhaven.cc', 'wallpapers.com', 'wallpaperflare.com'],
-    extractorNames: [],
-  ),
 ];
 
 MediaProviderInfo resolveMediaProvider({String? url, String? extractor}) {
@@ -641,6 +910,86 @@ MediaProviderInfo resolveMediaProvider({String? url, String? extractor}) {
   }
 
   return mediaProviderForExtractor(extractor);
+}
+
+/// Resolves a provider identity for ANY yt-dlp-supported site. Cataloged
+/// providers win; everything else gets a dynamic identity named after the
+/// yt-dlp extractor (or the URL host), so all ~1750 extractors show a real
+/// name and group correctly in history without a catalog entry.
+MediaProviderInfo dynamicMediaProvider({String? url, String? extractor}) {
+  final cataloged = resolveMediaProvider(url: url, extractor: extractor);
+  if (cataloged.id != unknownMediaProvider.id) {
+    return cataloged;
+  }
+
+  final extractorName = _dynamicExtractorName(extractor);
+  if (extractorName != null) {
+    return MediaProviderInfo(
+      id: 'ext:${_normalizeExtractor(extractorName)}',
+      displayName: extractorName,
+      tier: MediaProviderTier.generic,
+      domains: const [],
+      extractorNames: const [],
+    );
+  }
+
+  final host = Uri.tryParse(url ?? '')?.host.toLowerCase() ?? '';
+  if (host.isNotEmpty) {
+    final trimmed = host.startsWith('www.') ? host.substring(4) : host;
+    return MediaProviderInfo(
+      id: 'site:$trimmed',
+      displayName: trimmed,
+      tier: MediaProviderTier.generic,
+      domains: const [],
+      extractorNames: const [],
+    );
+  }
+
+  return unknownMediaProvider;
+}
+
+/// Rebuilds the provider identity persisted on a queue/history item,
+/// keeping dynamic (non-catalog) names intact across restarts.
+MediaProviderInfo storedMediaProvider({
+  String? providerId,
+  String? providerName,
+  String? url,
+}) {
+  if (providerId != null && providerId.isNotEmpty) {
+    final cataloged = mediaProviderById(providerId);
+    if (cataloged.id != unknownMediaProvider.id) {
+      return cataloged;
+    }
+
+    return MediaProviderInfo(
+      id: providerId,
+      displayName: providerName?.isNotEmpty == true ? providerName! : providerId,
+      tier: MediaProviderTier.generic,
+      domains: const [],
+      extractorNames: const [],
+    );
+  }
+
+  return dynamicMediaProvider(url: url);
+}
+
+String? _dynamicExtractorName(String? extractor) {
+  final raw = (extractor ?? '').trim();
+  if (raw.isEmpty) {
+    return null;
+  }
+
+  final base = raw.split(':').first.trim();
+  if (base.isEmpty || base.toLowerCase() == 'generic') {
+    return null;
+  }
+
+  // "coub" reads better as "Coub"; mixed-case and dotted names stay as-is.
+  if (base == base.toLowerCase() && !base.contains('.')) {
+    return base[0].toUpperCase() + base.substring(1);
+  }
+
+  return base;
 }
 
 MediaProviderInfo mediaProviderForUrl(String? url) {

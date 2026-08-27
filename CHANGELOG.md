@@ -8,6 +8,47 @@ versioning once releases begin.
 
 ## [Unreleased]
 
+## [1.0.0-rc.1] - 2026-08-27
+
+Release candidate for 1.0.0: Android, Windows, and Linux.
+
+### Added
+
+- Clear button on the Home screen to reset the URL, results, and errors
+  after a download is queued.
+- History items are now actionable: tap to open the finished file with the
+  default app, plus a menu with Open, Show in folder (desktop), and Share
+  (Android).
+- Automated release builds: pushing a `v*` tag builds signed Android APKs
+  (all ABIs), the Windows zip, and a Linux tarball on GitHub Actions and
+  attaches them to the release; a manual run from the Actions tab produces
+  the same artifacts without publishing.
+- Linux desktop support, verified on WSL Ubuntu 24.04: release build, GUI
+  launch, and an end-to-end YouTube MP3 download through the shared desktop
+  backend.
+- Dynamic provider identity for every yt-dlp-supported site (~1750
+  extractors): sites outside the curated catalog are now named after their
+  yt-dlp extractor (or the URL host) instead of "Generic URL", and group
+  correctly in the history provider filter.
+- 36 more recognized providers, all verified against the live yt-dlp
+  extractor list: OK.ru, Boosty, Dzen, Newgrounds, Nebula, Floatplane, Vevo,
+  Daily Wire, Mave, RTV Slovenija, HRTi, RaiPlay, ARD Mediathek, Česká
+  televize, RTVE, SVT Play, NRK, TVP, MédiaKlikk, Puhutv, France TV,
+  ABC/CBS/Fox/NBC News, GameSpot, IGN, Libsyn, NHL, Picarto, Rooster Teeth,
+  Dumpert, Steam, Vidyard, Sky News Australia, and BanBye.
+
+### Removed
+
+- Non-media catalog entries, per the audio/video-only scope: the
+  wallpaper/static-image research entry and article/lyrics extractor
+  aliases.
+
+### Fixed
+
+- Silent videos from Facebook, Instagram, YouTube, and other DASH sites:
+  picking a video-only format now merges the best audio stream via FFmpeg;
+  a video-only pick with an MP3/M4A output uses the best audio stream.
+
 ## [1.0.0-beta.4] - 2026-08-27
 
 ### Added

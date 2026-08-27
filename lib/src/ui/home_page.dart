@@ -40,7 +40,17 @@ class _HomePageState extends State<HomePage> {
     return PageSurface(
       child: ListView(
         children: [
-          const SectionHeader(title: 'New Download', icon: Icons.add_link),
+          SectionHeader(
+            title: 'New Download',
+            icon: Icons.add_link,
+            trailing: widget.controller.hasAnalysisContent
+                ? TextButton.icon(
+                    onPressed: widget.controller.clearAnalysis,
+                    icon: const Icon(Icons.clear_all),
+                    label: const Text('Clear'),
+                  )
+                : null,
+          ),
           const SizedBox(height: 16),
           _UrlInput(
             controller: _urlController,

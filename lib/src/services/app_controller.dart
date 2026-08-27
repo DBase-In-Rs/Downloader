@@ -91,25 +91,33 @@ class AppController extends ChangeNotifier {
   MediaProviderInfo get currentProvider {
     final info = _mediaInfo;
     if (info != null) {
-      return resolveMediaProvider(url: info.url, extractor: info.extractor);
+      return storedMediaProvider(
+        providerId: info.providerId,
+        providerName: info.providerName,
+        url: info.url,
+      );
     }
 
     final playlist = _playlistInfo;
     if (playlist != null) {
-      return playlist.providerId == null
-          ? mediaProviderForUrl(playlist.url)
-          : mediaProviderById(playlist.providerId);
+      return storedMediaProvider(
+        providerId: playlist.providerId,
+        providerName: playlist.providerName,
+        url: playlist.url,
+      );
     }
 
-    return mediaProviderForUrl(_urlText);
+    return dynamicMediaProvider(url: _urlText);
   }
 
   List<MediaProviderInfo> get historyProviderOptions {
     final providers = <String, MediaProviderInfo>{};
     for (final item in _history) {
-      final provider = item.providerId == null
-          ? mediaProviderForUrl(item.url)
-          : mediaProviderById(item.providerId);
+      final provider = storedMediaProvider(
+        providerId: item.providerId,
+        providerName: item.providerName,
+        url: item.url,
+      );
       providers[provider.id] = provider;
     }
 
@@ -126,7 +134,8 @@ class AppController extends ChangeNotifier {
     }
 
     return _history.where((item) {
-      final providerId = item.providerId ?? mediaProviderForUrl(item.url).id;
+      final providerId =
+          item.providerId ?? storedMediaProvider(url: item.url).id;
       final providerName = providerDisplayName(
         providerId: item.providerId,
         providerName: item.providerName,
@@ -194,6 +203,28 @@ class AppController extends ChangeNotifier {
       _engineUpdateMessage = _friendlyError(error);
     }
 
+    notifyListeners();
+  }
+
+  /// True when the Home screen holds anything a user may want to clear.
+  bool get hasAnalysisContent =>
+      _urlText.trim().isNotEmpty ||
+      _mediaInfo != null ||
+      _playlistInfo != null ||
+      _errorMessage != null;
+
+  /// Resets the Home screen to its initial state (URL, results, errors).
+  void clearAnalysis() {
+    if (!hasAnalysisContent && _extractionState == ExtractionState.idle) {
+      return;
+    }
+
+    _urlText = '';
+    _mediaInfo = null;
+    _playlistInfo = null;
+    _selectedPlaylistUrls.clear();
+    _errorMessage = null;
+    _extractionState = ExtractionState.idle;
     notifyListeners();
   }
 
@@ -369,9 +400,11 @@ class AppController extends ChangeNotifier {
         title: entry.title,
         format: format,
         outputKind: _outputKind,
-        provider: playlist.providerId == null
-            ? mediaProviderForUrl(playlist.url)
-            : mediaProviderById(playlist.providerId),
+        provider: storedMediaProvider(
+          providerId: playlist.providerId,
+          providerName: playlist.providerName,
+          url: playlist.url,
+        ),
       );
     }
   }
@@ -397,9 +430,11 @@ class AppController extends ChangeNotifier {
       title: source.title,
       format: source.format,
       outputKind: source.outputKind,
-      provider: source.providerId == null
-          ? mediaProviderForUrl(source.url)
-          : mediaProviderById(source.providerId),
+      provider: storedMediaProvider(
+        providerId: source.providerId,
+        providerName: source.providerName,
+        url: source.url,
+      ),
     );
   }
 
@@ -516,7 +551,7 @@ class AppController extends ChangeNotifier {
   }) async {
     // A timestamp alone can collide when two items are enqueued within the
     // same clock tick, so a session-local sequence keeps ids unique.
-    final resolvedProvider = provider ?? mediaProviderForUrl(url);
+    final resolvedProvider = provider ?? dynamicMediaProvider(url: url);
     final item = DownloadQueueItem(
       id: '${DateTime.now().microsecondsSinceEpoch}-${_idSequence++}',
       url: url,
@@ -561,15 +596,17 @@ class AppController extends ChangeNotifier {
         DownloadRequest(
           id: item.id,
           url: item.url,
-          formatId: item.format.id,
+          formatId: effectiveFormatSelector(item.format, item.outputKind),
           outputKind: item.outputKind,
           title: item.title,
         ),
       );
     } catch (error) {
-      final provider = item.providerId == null
-          ? mediaProviderForUrl(item.url)
-          : mediaProviderById(item.providerId);
+      final provider = storedMediaProvider(
+        providerId: item.providerId,
+        providerName: item.providerName,
+        url: item.url,
+      );
       _finishQueueItem(
         item.id,
         (current) => current.copyWith(
@@ -710,9 +747,11 @@ class AppController extends ChangeNotifier {
     }
 
     final item = _queue[index];
-    return item.providerId == null
-        ? mediaProviderForUrl(item.url)
-        : mediaProviderById(item.providerId);
+    return storedMediaProvider(
+      providerId: item.providerId,
+      providerName: item.providerName,
+      url: item.url,
+    );
   }
 
   String _friendlyError(Object error, {MediaProviderInfo? provider}) {
@@ -768,7 +807,7 @@ class AppController extends ChangeNotifier {
   }
 
   MediaInfo _withResolvedProvider(MediaInfo info) {
-    final provider = resolveMediaProvider(
+    final provider = dynamicMediaProvider(
       url: _urlText,
       extractor: info.extractor,
     );
@@ -779,7 +818,7 @@ class AppController extends ChangeNotifier {
   }
 
   PlaylistInfo _withResolvedPlaylistProvider(PlaylistInfo playlist) {
-    final provider = mediaProviderForUrl(playlist.url);
+    final provider = dynamicMediaProvider(url: playlist.url);
     return playlist.copyWith(
       providerId: playlist.providerId ?? provider.id,
       providerName: playlist.providerName ?? provider.displayName,
@@ -798,6 +837,23 @@ class AppController extends ChangeNotifier {
       _formatFilter = MediaKindFilter.audio;
     }
   }
+}
+
+/// Builds the yt-dlp format selector for a queue item. Sites like Facebook,
+/// Instagram, and YouTube serve DASH video-only streams; requesting such a
+/// format alone produces a silent video, so best audio is merged in. A
+/// video-only pick with an audio output falls back to the best audio stream.
+String effectiveFormatSelector(MediaFormat format, OutputKind outputKind) {
+  final videoOnly = format.hasVideo && !format.hasAudio;
+  if (!videoOnly) {
+    return format.id;
+  }
+
+  return switch (outputKind) {
+    OutputKind.mp3 || OutputKind.m4a => 'bestaudio/best',
+    OutputKind.mp4 ||
+    OutputKind.original => '${format.id}+bestaudio/${format.id}',
+  };
 }
 
 bool isValidUrl(String value) {
