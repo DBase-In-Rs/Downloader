@@ -42,6 +42,8 @@ const cases = [
     'https://www.ted.com/talks/ken_robinson_do_schools_kill_creativity',
   ),
   SmokeCase('internet_archive', 'https://archive.org/details/BigBuckBunny_124'),
+  SmokeCase('ninegag', 'https://9gag.com/gag/aE0rEjx'),
+  SmokeCase('jamendo', 'https://www.jamendo.com/track/1972914/reggaeton'),
   SmokeCase('bilibili', 'https://www.bilibili.com/video/BV1GJ411x7h7'),
   SmokeCase(
     'twitch',

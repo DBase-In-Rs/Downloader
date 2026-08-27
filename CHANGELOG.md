@@ -8,6 +8,8 @@ versioning once releases begin.
 
 ## [Unreleased]
 
+## [1.0.0-beta.4] - 2026-08-27
+
 ### Added
 
 - Playlist fallback for every provider: when single-item analysis fails on a

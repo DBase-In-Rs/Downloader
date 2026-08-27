@@ -73,6 +73,8 @@ providers or swap in private URLs locally (do not commit account-gated URLs).
 | TED | upstream broken | - | yt-dlp TED extractor error ("JSON object must be str..."), not an app issue |
 | Bilibili | geo-blocked | - | test video unavailable from this region without proxy |
 | Reddit | untested | - | needs a live post URL; subreddit listings unsupported by yt-dlp |
+| 9GAG | PASS (2026-08-27) | not sampled | |
+| Jamendo | PASS (2026-08-27) | not sampled | |
 
 ## Android Spot Check (2026-08-27, Moto G54, Android 15)
 
