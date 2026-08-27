@@ -982,9 +982,8 @@ Goal: give users a first-class install and update path on every platform.
       desktop entry and icon, app runs, clean removal).
 - [x] Publish the .deb to the maintainer's apt repository
       (https://peace.dbase.in.rs/): CI pipes the package to a forced-command
-      SSH ingest script that updates and re-signs the repo (docs/APT_REPO.md
-      has the one-time server setup and user instructions). Pending the
-      one-time server setup to go live.
+      SSH ingest script that updates and re-signs the repo. Server setup is
+      documented privately with the maintainer.
 - [ ] Evaluate Flathub submission as an additional channel.
 
 ### Sprint 11.4 - Android Update Polish (optional)

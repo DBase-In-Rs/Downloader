@@ -3,7 +3,7 @@
 # re-signs the indexes. Installed on the server as a forced SSH command, so
 # the CI deploy key can do nothing else.
 #
-# Install to /usr/local/bin/peace-ingest (see docs/APT_REPO.md).
+# Install to /usr/local/bin/peace-ingest.
 set -euo pipefail
 
 REPO_ROOT="/var/www/peace-repo"
