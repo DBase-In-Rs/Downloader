@@ -16,6 +16,10 @@ versioning once releases begin.
 - Provider smoke matrix tool (`tool/provider_smoke.dart`) and recorded
   Windows results for YouTube, TikTok, Dailymotion, SoundCloud, Bandcamp,
   Internet Archive, and Twitch in `docs/PROVIDER_QA.md`.
+- 18 more recognized providers verified against the live yt-dlp extractor
+  list: Kick, N1 Info, Google Drive, Dropbox, Telegram, Patreon, 9GAG, Loom,
+  Zoom, Douyin, Weibo, RedGifs, Jamendo, iHeartRadio, Spreaker, MLB,
+  Al Jazeera, and ARTE.
 
 ### Added
 
