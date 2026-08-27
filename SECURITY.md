@@ -16,8 +16,10 @@ Do not open a public issue for vulnerabilities involving:
 - exposed logs containing private URLs, tokens, or cookies;
 - exported Android components that can be abused by other apps.
 
-Use GitHub private vulnerability reporting once it is enabled for the
-repository. Until then, contact the maintainer privately.
+Use GitHub private vulnerability reporting (enabled for this repository:
+Security tab > Report a vulnerability). The repository also runs Dependabot
+alerts and security updates, secret scanning with push protection, and
+CodeQL code scanning.
 
 ## Sensitive Data Rules
 

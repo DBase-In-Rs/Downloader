@@ -8,6 +8,17 @@ versioning once releases begin.
 
 ## [Unreleased]
 
+### Added
+
+- Dependabot (pub, Gradle, GitHub Actions), Dependabot alerts and security
+  updates, secret scanning with push protection, private vulnerability
+  reporting, and CodeQL code scanning.
+
+### Changed
+
+- Upgraded transitive dependencies (`meta`, `vector_math`); the remaining
+  outdated transitive packages are pinned by the Flutter SDK.
+
 ## [1.0.0-rc.1] - 2026-08-27
 
 Release candidate for 1.0.0: Android, Windows, and Linux.
