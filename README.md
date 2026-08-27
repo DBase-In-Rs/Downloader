@@ -66,7 +66,8 @@ second.
   `dbase-downloader-vX.Y.Z-windows-x64-setup.exe` from the
   [latest release](https://github.com/DBase-In-Rs/Downloader/releases/latest)
   and run it - installs per-user without administrator rights, with a Start
-  Menu entry and uninstaller. winget publishing is planned.
+  Menu entry and uninstaller. A winget manifest is submitted and in review;
+  once approved: `winget install DBaseInRs.Downloader`.
 - **Portable**: download the `...-windows-x64.zip`, extract anywhere, run
   `dbase_downloader.exe`.
 

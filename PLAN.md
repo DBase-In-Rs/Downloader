@@ -1,7 +1,8 @@
 # DBase Video & Music Downloader Plan
 
-Status: 1.0.0 release candidates shipping for Android, Windows, and Linux
-with CI-built releases; remaining work is tracked in Milestones 10-11
+Status: 1.0.0 stable released on 2026-08-27 for Android, Windows, and Linux
+(CI-built, installer + apt repo live, winget manifest submitted); remaining
+work is tracked in Milestones 10-11
 
 Canonical app/package id: `rs.in.dbase.downloader`
 
@@ -997,8 +998,9 @@ Goal: give users a first-class install and update path on every platform.
       portable zip (per-user install without UAC, Start Menu entry,
       uninstaller, silent flags; verified locally with a silent
       install/uninstall round-trip).
-- [ ] Submit the first manifest to microsoft/winget-pkgs
-      (id: DBaseInRs.Downloader) after the stable 1.0.0 release.
+- [x] Submit the first manifest to microsoft/winget-pkgs
+      (id: DBaseInRs.Downloader): microsoft/winget-pkgs#425232, opened after
+      the stable 1.0.0 release; validated locally and awaiting review.
 - [ ] Automate manifest updates per release with komac/wingetcreate in CI so
       `winget upgrade` tracks new versions.
 
