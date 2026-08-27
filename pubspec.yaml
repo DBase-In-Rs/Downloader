@@ -16,7 +16,9 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 # https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html
 # In Windows, build-name is used as the major, minor, and patch parts
 # of the product and file versions while build-number is used as the build suffix.
-version: 1.0.0+5
+# Pre-release suffix stays in the version so the in-app update checker can
+# order builds correctly (1.0.0-rc.2 < 1.0.0).
+version: 1.0.0-rc.2+6
 
 environment:
   sdk: ^3.13.1
@@ -41,6 +43,12 @@ dependencies:
   # System file picker used for cookies.txt import.
   file_selector: ^1.0.3
 
+  # App name/version shown on the Settings screen.
+  package_info_plus: ^10.0.0
+
+  # Opens browser-extension links from the cookie guide.
+  url_launcher: ^6.3.1
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
@@ -61,7 +69,7 @@ dev_dependencies:
 flutter_launcher_icons:
   android: true
   image_path: assets/branding/icon_tile.png
-  adaptive_icon_background: "#012051"
+  adaptive_icon_background: "#FFFFFF"
   adaptive_icon_foreground: assets/branding/icon_foreground.png
   windows:
     generate: true

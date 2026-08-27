@@ -1,6 +1,8 @@
 import 'package:file_selector/file_selector.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:package_info_plus/package_info_plus.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../models/media_providers.dart';
 import '../services/android_storage_service.dart';
@@ -41,6 +43,8 @@ class SettingsPage extends StatelessWidget {
             const _AndroidFolderCard(),
             const SizedBox(height: 10),
           ],
+          _AboutCard(controller: controller),
+          const SizedBox(height: 10),
           Card(
             child: ListTile(
               leading: const Icon(Icons.description_outlined),
@@ -98,6 +102,11 @@ class SettingsPage extends StatelessWidget {
                     ),
                   ),
                   IconButton(
+                    tooltip: 'How to get cookies.txt',
+                    onPressed: () => _showCookieHelp(context),
+                    icon: const Icon(Icons.help_outline),
+                  ),
+                  IconButton(
                     tooltip: 'Import cookies.txt',
                     onPressed: () => _importCookies(context),
                     icon: const Icon(Icons.upload_file),
@@ -115,6 +124,13 @@ class SettingsPage extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+
+  void _showCookieHelp(BuildContext context) {
+    showDialog<void>(
+      context: context,
+      builder: (context) => const _CookieHelpDialog(),
     );
   }
 
@@ -238,6 +254,219 @@ class _ProviderTierSection extends StatelessWidget {
                 ),
             ],
           ),
+        ],
+      ),
+    );
+  }
+}
+
+class _CookieHelpDialog extends StatelessWidget {
+  const _CookieHelpDialog();
+
+  static const _chromeUrl =
+      'https://chromewebstore.google.com/detail/get-cookiestxt-locally/cclelndahbckbenkjhflpdbgdldlbecc';
+  static const _firefoxUrl =
+      'https://addons.mozilla.org/en-US/firefox/addon/get-cookies-txt-locally/';
+
+  static const _steps = [
+    'Install the "Get cookies.txt LOCALLY" extension in Chrome or Firefox '
+        'on your computer:',
+    'Open a private/incognito window and sign in to the site (YouTube, '
+        'Instagram, Facebook...). Check that the media you want actually '
+        'plays there.',
+    'Use the extension to export cookies for that site as cookies.txt.',
+    'Close the private window WITHOUT signing out - this keeps the exported '
+        'session valid much longer.',
+    'Move the file to this device and import it here.',
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+
+    return AlertDialog(
+      icon: Icon(Icons.cookie_outlined, color: colors.primary),
+      title: const Text('How to get cookies.txt'),
+      content: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 440),
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Some media needs a signed-in account. Sites block logins '
+                'from embedded app browsers, so cookies are exported from '
+                'your own browser instead.',
+                style: Theme.of(context).textTheme.bodyMedium,
+              ),
+              const SizedBox(height: 16),
+              for (var i = 0; i < _steps.length; i++) ...[
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    CircleAvatar(
+                      radius: 12,
+                      backgroundColor: colors.primaryContainer,
+                      child: Text(
+                        '${i + 1}',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                          color: colors.onPrimaryContainer,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(child: Text(_steps[i])),
+                  ],
+                ),
+                if (i == 0) ...[
+                  const SizedBox(height: 8),
+                  Padding(
+                    padding: const EdgeInsets.only(left: 34),
+                    child: Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        _ExtensionLink(
+                          label: 'Chrome Web Store',
+                          color: const Color(0xFF4285F4),
+                          url: _chromeUrl,
+                        ),
+                        _ExtensionLink(
+                          label: 'Firefox Add-ons',
+                          color: const Color(0xFFFF7139),
+                          url: _firefoxUrl,
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+                const SizedBox(height: 12),
+              ],
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: colors.secondaryContainer.withValues(alpha: 0.5),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(Icons.lightbulb_outline, size: 18, color: colors.primary),
+                    const SizedBox(width: 8),
+                    const Expanded(
+                      child: Text(
+                        'Use the cookies only in this app - using them '
+                        'elsewhere invalidates them. Re-export when Settings '
+                        'shows them as expired.',
+                        style: TextStyle(fontSize: 13),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Got it'),
+        ),
+      ],
+    );
+  }
+}
+
+class _ExtensionLink extends StatelessWidget {
+  const _ExtensionLink({
+    required this.label,
+    required this.color,
+    required this.url,
+  });
+
+  final String label;
+  final Color color;
+  final String url;
+
+  @override
+  Widget build(BuildContext context) {
+    return OutlinedButton.icon(
+      style: OutlinedButton.styleFrom(
+        foregroundColor: color,
+        side: BorderSide(color: color.withValues(alpha: 0.6)),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      ),
+      onPressed: () => launchUrl(
+        Uri.parse(url),
+        mode: LaunchMode.externalApplication,
+      ),
+      icon: const Icon(Icons.extension, size: 18),
+      label: Text(label),
+    );
+  }
+}
+
+class _AboutCard extends StatelessWidget {
+  const _AboutCard({required this.controller});
+
+  final AppController controller;
+
+  @override
+  Widget build(BuildContext context) {
+    final update = controller.availableUpdate;
+
+    return Card(
+      child: Column(
+        children: [
+          ListTile(
+            leading: const Icon(Icons.info_outline),
+            title: const Text('DBase Video & Music Downloader'),
+            subtitle: FutureBuilder<PackageInfo>(
+              future: PackageInfo.fromPlatform(),
+              builder: (context, snapshot) {
+                final info = snapshot.data;
+                return Text(
+                  info == null
+                      ? 'Version unavailable'
+                      : 'Version ${info.version} (build ${info.buildNumber})',
+                );
+              },
+            ),
+          ),
+          if (update != null)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.new_releases_outlined,
+                    color: Theme.of(context).colorScheme.primary,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'New version available: ${update.version}',
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.primary,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                  FilledButton.icon(
+                    onPressed: () => launchUrl(
+                      Uri.parse(update.assetUrl ?? update.releaseUrl),
+                      mode: LaunchMode.externalApplication,
+                    ),
+                    icon: const Icon(Icons.download, size: 18),
+                    label: const Text('Download'),
+                  ),
+                ],
+              ),
+            ),
         ],
       ),
     );

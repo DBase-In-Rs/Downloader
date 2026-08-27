@@ -158,25 +158,25 @@ class _SplashScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF012051),
+      backgroundColor: Colors.white,
       body: Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Image.asset('assets/branding/logo.png', width: 160, height: 160),
+            Image.asset('assets/branding/logo.png', width: 180, height: 180),
             const SizedBox(height: 28),
             const SizedBox(
               width: 28,
               height: 28,
               child: CircularProgressIndicator(
                 strokeWidth: 3,
-                color: Colors.white70,
+                color: Color(0xFF15347A),
               ),
             ),
             const SizedBox(height: 16),
             Text(
               updating ? 'Preparing downloader engine...' : 'Starting...',
-              style: const TextStyle(color: Colors.white70, fontSize: 14),
+              style: const TextStyle(color: Colors.black54, fontSize: 14),
             ),
           ],
         ),

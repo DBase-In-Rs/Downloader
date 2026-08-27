@@ -1,9 +1,11 @@
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 
 import '../models/download_models.dart';
 import '../models/media_providers.dart';
+import 'app_update_service.dart';
 import 'media_backend.dart';
 import 'queue_store.dart';
 import 'shared_url_service.dart';
@@ -71,6 +73,11 @@ class AppController extends ChangeNotifier {
   OutputKind get outputKind => _outputKind;
 
   CookieStatus get cookieStatus => _cookieStatus;
+
+  AppUpdateInfo? _availableUpdate;
+
+  /// A newer app release on GitHub, when one exists for this platform.
+  AppUpdateInfo? get availableUpdate => _availableUpdate;
 
   EngineUpdateState get engineUpdateState => _engineUpdateState;
 
@@ -180,7 +187,37 @@ class AppController extends ChangeNotifier {
     // regularly break older releases. The native side serializes the update
     // with downloads, so this can run alongside queue startup.
     unawaited(updateEngine());
+    unawaited(_checkForAppUpdate());
     await _pumpQueue();
+  }
+
+  Future<void> _checkForAppUpdate() async {
+    if (kIsWeb) {
+      return;
+    }
+
+    try {
+      final info = await PackageInfo.fromPlatform();
+      final marker = switch (defaultTargetPlatform) {
+        TargetPlatform.android => 'arm64-v8a',
+        TargetPlatform.windows => 'windows-x64',
+        TargetPlatform.linux => 'linux-x64',
+        _ => '',
+      };
+      if (marker.isEmpty) {
+        return;
+      }
+
+      _availableUpdate = await AppUpdateService().checkForUpdate(
+        info.version,
+        platformAssetMarker: marker,
+      );
+      if (_availableUpdate != null) {
+        notifyListeners();
+      }
+    } catch (_) {
+      // Best-effort check; unavailable in tests and offline runs.
+    }
   }
 
   Future<void> updateEngine() async {

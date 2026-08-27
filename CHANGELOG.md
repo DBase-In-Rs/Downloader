@@ -10,6 +10,17 @@ versioning once releases begin.
 
 ### Added
 
+- New app icon (bold D mark) that stays readable in the Android launcher and
+  app lists; white launch/splash background to match.
+- About card in Settings showing the app version and build number.
+- In-app guide for exporting cookies.txt with step-by-step instructions,
+  direct Chrome Web Store and Firefox Add-ons links for the
+  "Get cookies.txt LOCALLY" extension, and expiry tips.
+- In-app update notifications: the app checks GitHub Releases on startup and
+  Settings offers a direct download of the right file for the platform
+  (arm64 APK, Windows zip, Linux tarball). Stable installs are only offered
+  stable releases.
+
 - Dependabot (pub, Gradle, GitHub Actions), Dependabot alerts and security
   updates, secret scanning with push protection, private vulnerability
   reporting, and CodeQL code scanning.

@@ -951,6 +951,41 @@ Acceptance criteria:
 - Linux build launches and can run metadata/download smoke tests on Linux.
 - Linux is not advertised until tested on Linux.
 
+## Milestone 11 - Distribution And Updates
+
+Goal: give users a first-class install and update path on every platform.
+
+### Sprint 11.1 - Update Notifications (done)
+
+- [x] In-app update check against GitHub Releases on startup.
+- [x] Settings surfaces the new version with a direct platform download
+      (arm64 APK / Windows zip / Linux tarball); stable installs are only
+      offered stable releases.
+- [x] Version carries the pre-release suffix so ordering works
+      (1.0.0-rc.2 < 1.0.0).
+
+### Sprint 11.2 - Windows Installer And winget
+
+- [ ] Build an Inno Setup installer in the release workflow alongside the
+      portable zip (install/uninstall, Start Menu, silent flags).
+- [ ] Submit the first manifest to microsoft/winget-pkgs
+      (id: DBaseInRs.Downloader) pointing at the GitHub release asset.
+- [ ] Automate manifest updates per release with komac/wingetcreate in CI so
+      `winget upgrade` tracks new versions.
+
+### Sprint 11.3 - Linux Packages
+
+- [ ] Build a .deb package in the release workflow alongside the tarball.
+- [ ] Publish the .deb to the maintainer's apt repository
+      (https://peace.dbase.in.rs/) and document adding the repo, so users
+      install and update through the system package manager.
+- [ ] Evaluate Flathub submission as an additional channel.
+
+### Sprint 11.4 - Android Update Polish (optional)
+
+- [ ] In-app APK download with direct install intent
+      (REQUEST_INSTALL_PACKAGES) instead of the browser handoff.
+
 ## Milestone 10 - Hardening, Policy, And Release
 
 Goal: prepare public releases with source and compliance.
