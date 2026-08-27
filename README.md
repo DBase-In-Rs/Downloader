@@ -6,6 +6,8 @@
 [![License: GPL-3.0-only](https://img.shields.io/badge/license-GPL--3.0--only-blue.svg)](LICENSE)
 [![Supporter](https://img.shields.io/badge/%E2%9D%A4-become%20a%20supporter-D01010)](https://buy.polar.sh/polar_cl_zPF9CaYg2iyuHxQ3hA3mdXVvomRJb8gEzC5d93f8xfV)
 [![Supporter Pro](https://img.shields.io/badge/%F0%9F%8F%85-supporter%20pro-15347A)](https://buy.polar.sh/polar_cl_G3W6En67QTEVoBC1oVln4HQqcpqK8w7vujkJD4WjGOj)
+[![Ko-fi](https://img.shields.io/badge/Ko--fi-majstorov-FF5E5B?logo=kofi&logoColor=white)](https://ko-fi.com/majstorov)
+[![PayPal](https://img.shields.io/badge/PayPal-majstorov-00457C?logo=paypal&logoColor=white)](https://www.paypal.com/paypalme/majstorov)
 [![Platforms](https://img.shields.io/badge/platforms-Android%20%7C%20Windows%20%7C%20Linux-3DDC84?logo=android&logoColor=white)](#)
 [![Made with Flutter](https://img.shields.io/badge/made%20with-Flutter-02569B?logo=flutter&logoColor=white)](https://flutter.dev)
 [![Powered by yt-dlp](https://img.shields.io/badge/powered%20by-yt--dlp-red)](https://github.com/yt-dlp/yt-dlp)
@@ -166,8 +168,10 @@ DBase Downloader is free and open source. If it saves you time, you can
 [become a supporter](https://buy.polar.sh/polar_cl_zPF9CaYg2iyuHxQ3hA3mdXVvomRJb8gEzC5d93f8xfV)
 or go [Supporter Pro](https://buy.polar.sh/polar_cl_G3W6En67QTEVoBC1oVln4HQqcpqK8w7vujkJD4WjGOj)
 (payment is handled by [Polar](https://polar.sh), the merchant of record)
-and keep development going. The app is never paywalled: every feature works
-without supporting.
+and keep development going. One-off tips work too, through
+[Ko-fi](https://ko-fi.com/majstorov) or
+[PayPal](https://www.paypal.com/paypalme/majstorov). The app is never
+paywalled: every feature works without supporting.
 
 ## 🛠️ Development
 

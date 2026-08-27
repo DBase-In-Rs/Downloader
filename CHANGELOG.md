@@ -19,7 +19,8 @@ versioning once releases begin.
   dark key icon that clashed with the blue app bar.
 - README refreshed (supporter badges, emoji section headers matching the
   maintainer's other repositories, Engine Check, install commands) and a
-  GitHub Sponsor button added via .github/FUNDING.yml.
+  GitHub Sponsor button added via .github/FUNDING.yml with Polar checkouts,
+  Ko-fi, and PayPal.
 
 ### Removed
 
