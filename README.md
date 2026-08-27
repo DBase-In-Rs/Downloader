@@ -38,6 +38,65 @@ flowchart TD
     E --> F["MP3, M4A, MP4, or original file"]
 ```
 
+## Install
+
+All builds are produced and signed automatically by CI for every release:
+**[latest release](https://github.com/DBase-In-Rs/Downloader/releases/latest)**
+([all releases](https://github.com/DBase-In-Rs/Downloader/releases)).
+The app checks for new versions on startup and offers the right download in
+Settings.
+
+### Android
+
+Download and open the APK (allow "install from unknown sources"; updates
+install over the existing app):
+
+| Device | File |
+| --- | --- |
+| Most phones (2016+, 64-bit ARM) | [app-arm64-v8a-release.apk](https://github.com/DBase-In-Rs/Downloader/releases/latest/download/app-arm64-v8a-release.apk) |
+| Older 32-bit phones | [app-armeabi-v7a-release.apk](https://github.com/DBase-In-Rs/Downloader/releases/latest/download/app-armeabi-v7a-release.apk) |
+| Emulators / x86 devices | [app-x86_64-release.apk](https://github.com/DBase-In-Rs/Downloader/releases/latest/download/app-x86_64-release.apk) |
+
+Not sure which one? Take the first; if it refuses to install, take the
+second.
+
+### Windows
+
+- **Installer** (recommended): download
+  `dbase-downloader-vX.Y.Z-windows-x64-setup.exe` from the
+  [latest release](https://github.com/DBase-In-Rs/Downloader/releases/latest)
+  and run it - installs per-user without administrator rights, with a Start
+  Menu entry and uninstaller. winget publishing is planned.
+- **Portable**: download the `...-windows-x64.zip`, extract anywhere, run
+  `dbase_downloader.exe`.
+
+Requires [yt-dlp](https://github.com/yt-dlp/yt-dlp) and
+[FFmpeg](https://ffmpeg.org) (for conversions):
+`winget install yt-dlp ffmpeg`. Custom paths can be set in Settings.
+
+### Linux
+
+**Debian/Ubuntu via apt** (recommended - updates arrive with
+`apt upgrade`):
+
+```bash
+sudo install -d -m 755 /etc/apt/keyrings
+curl -fsSL https://peace.dbase.in.rs/public.key \
+  | sudo gpg --dearmor -o /etc/apt/keyrings/peace.gpg
+echo "deb [signed-by=/etc/apt/keyrings/peace.gpg] https://peace.dbase.in.rs stable main" \
+  | sudo tee /etc/apt/sources.list.d/peace.list
+sudo apt update
+sudo apt install dbase-downloader
+```
+
+**Tarball**: download `...-linux-x64.tar.gz` from the
+[latest release](https://github.com/DBase-In-Rs/Downloader/releases/latest),
+extract, and run `./dbase_downloader`.
+
+Requires `ffmpeg` (`sudo apt install ffmpeg`) and a recent
+[yt-dlp](https://github.com/yt-dlp/yt-dlp/releases/latest) (the distro
+package is often too old for YouTube; the standalone binary is recommended).
+
 ## Status
 
 This repository is in early implementation. Platform folders for Android, iOS,
