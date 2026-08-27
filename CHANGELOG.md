@@ -8,6 +8,8 @@ versioning once releases begin.
 
 ## [Unreleased]
 
+## [1.0.1] - 2026-08-27
+
 ### Changed
 
 - App colors now match the logo: the theme seed and app bar use the logo's
