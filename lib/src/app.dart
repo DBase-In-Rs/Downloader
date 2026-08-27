@@ -5,6 +5,7 @@ import 'services/app_controller.dart';
 import 'services/media_backend.dart';
 import 'services/queue_store.dart';
 import 'services/shared_url_service.dart';
+import 'services/supporter_service.dart';
 import 'ui/history_page.dart';
 import 'ui/home_page.dart';
 import 'ui/queue_page.dart';
@@ -15,12 +16,14 @@ class DBaseDownloaderApp extends StatelessWidget {
     required this.backend,
     required this.sharedUrlService,
     this.queueStore,
+    this.supporterService,
     super.key,
   });
 
   final MediaBackend backend;
   final SharedUrlService sharedUrlService;
   final QueueStore? queueStore;
+  final SupporterService? supporterService;
 
   @override
   Widget build(BuildContext context) {
@@ -46,6 +49,7 @@ class DBaseDownloaderApp extends StatelessWidget {
         backend: backend,
         sharedUrlService: sharedUrlService,
         queueStore: queueStore,
+        supporterService: supporterService,
       ),
     );
   }
@@ -56,12 +60,14 @@ class DBaseDownloaderHome extends StatefulWidget {
     required this.backend,
     required this.sharedUrlService,
     this.queueStore,
+    this.supporterService,
     super.key,
   });
 
   final MediaBackend backend;
   final SharedUrlService sharedUrlService;
   final QueueStore? queueStore;
+  final SupporterService? supporterService;
 
   @override
   State<DBaseDownloaderHome> createState() => _DBaseDownloaderHomeState();
@@ -78,6 +84,7 @@ class _DBaseDownloaderHomeState extends State<DBaseDownloaderHome> {
       backend: widget.backend,
       sharedUrlService: widget.sharedUrlService,
       queueStore: widget.queueStore,
+      supporterService: widget.supporterService,
     )..initialize();
   }
 
@@ -116,6 +123,7 @@ class _DBaseDownloaderHomeState extends State<DBaseDownloaderHome> {
               appBar: AppBar(
                 title: const Text('DBase Downloader'),
                 actions: [
+                  if (_controller.isSupporter) const _SupporterHeart(),
                   _CookieStatusButton(status: _controller.cookieStatus),
                 ],
               ),
@@ -198,6 +206,21 @@ class _SectionBody extends StatelessWidget {
       AppSection.history => HistoryPage(controller: controller),
       AppSection.settings => SettingsPage(controller: controller),
     };
+  }
+}
+
+class _SupporterHeart extends StatelessWidget {
+  const _SupporterHeart();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Tooltip(
+      message: 'Supporter - thank you!',
+      child: IconButton(
+        onPressed: null,
+        icon: Icon(Icons.favorite, color: Color(0xFFE0435C)),
+      ),
+    );
   }
 }
 

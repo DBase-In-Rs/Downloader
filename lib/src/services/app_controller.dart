@@ -9,6 +9,7 @@ import 'app_update_service.dart';
 import 'media_backend.dart';
 import 'queue_store.dart';
 import 'shared_url_service.dart';
+import 'supporter_service.dart';
 
 enum EngineUpdateState { idle, checking, updated, upToDate, failed }
 
@@ -17,7 +18,9 @@ class AppController extends ChangeNotifier {
     required this.backend,
     required this.sharedUrlService,
     QueueStore? queueStore,
-  }) : queueStore = queueStore ?? MemoryQueueStore() {
+    SupporterService? supporterService,
+  }) : queueStore = queueStore ?? MemoryQueueStore(),
+       supporterService = supporterService ?? SupporterService() {
     _backendSubscription = backend.events.listen(_handleBackendEvent);
     _sharedUrlSubscription = sharedUrlService.sharedTextStream.listen(
       receiveSharedText,
@@ -27,6 +30,7 @@ class AppController extends ChangeNotifier {
   final MediaBackend backend;
   final SharedUrlService sharedUrlService;
   final QueueStore queueStore;
+  final SupporterService supporterService;
 
   late final StreamSubscription<BackendEvent> _backendSubscription;
   late final StreamSubscription<String> _sharedUrlSubscription;
@@ -78,6 +82,11 @@ class AppController extends ChangeNotifier {
 
   /// A newer app release on GitHub, when one exists for this platform.
   AppUpdateInfo? get availableUpdate => _availableUpdate;
+
+  bool _isSupporter = false;
+
+  /// Whether a supporter license key is stored on this install.
+  bool get isSupporter => _isSupporter;
 
   EngineUpdateState get engineUpdateState => _engineUpdateState;
 
@@ -188,7 +197,29 @@ class AppController extends ChangeNotifier {
     // with downloads, so this can run alongside queue startup.
     unawaited(updateEngine());
     unawaited(_checkForAppUpdate());
+    unawaited(_loadSupporterStatus());
     await _pumpQueue();
+  }
+
+  Future<void> _loadSupporterStatus() async {
+    try {
+      if (await supporterService.hasStoredKey()) {
+        _isSupporter = true;
+        notifyListeners();
+      }
+    } catch (_) {
+      // Missing preferences (e.g. first run) simply mean not a supporter.
+    }
+  }
+
+  /// Validates and stores a supporter license key entered by the user.
+  Future<SupporterValidation> activateSupporterKey(String key) async {
+    final result = await supporterService.activate(key);
+    if (result == SupporterValidation.valid && !_isSupporter) {
+      _isSupporter = true;
+      notifyListeners();
+    }
+    return result;
   }
 
   Future<void> _checkForAppUpdate() async {

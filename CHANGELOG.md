@@ -8,6 +8,13 @@ versioning once releases begin.
 
 ## [Unreleased]
 
+### Added
+
+- Supporter licenses through Polar (merchant of record): a Support card in
+  Settings opens the checkout page and accepts the license key from the
+  purchase email; validation happens once at activation (no telemetry, no
+  startup phone-home), and supporters get a heart in the app bar.
+
 ## [1.0.0] - 2026-08-27
 
 First stable release: download video and music from any yt-dlp-supported
