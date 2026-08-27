@@ -60,9 +60,10 @@ class SupporterService {
   static const polarOrganizationId = 'eaa3d2c8-122d-4d8b-97e9-0aee2b476c95';
 
   /// Checkout page for the supporter license (Polar is the merchant of
-  /// record and handles payment, receipts, and taxes).
+  /// record and handles payment, receipts, and taxes). Any license key from
+  /// the organization activates, whichever product it was bought through.
   static const checkoutUrl =
-      'https://buy.polar.sh/checkout?products=6987901a-a106-497f-901b-eaf55740b7f3';
+      'https://buy.polar.sh/polar_cl_zPF9CaYg2iyuHxQ3hA3mdXVvomRJb8gEzC5d93f8xfV';
 
   final SupporterStore store;
   final String organizationId;

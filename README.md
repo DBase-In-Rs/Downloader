@@ -153,7 +153,7 @@ Polar request if you activate a supporter license key).
 ## Support the Project
 
 DBase Downloader is free and open source. If it saves you time, you can
-[become a supporter](https://buy.polar.sh/checkout?products=6987901a-a106-497f-901b-eaf55740b7f3)
+[become a supporter](https://buy.polar.sh/polar_cl_zPF9CaYg2iyuHxQ3hA3mdXVvomRJb8gEzC5d93f8xfV)
 (payment is handled by [Polar](https://polar.sh), the merchant of record) and
 activate the license key from your purchase email in Settings - you get a
 heart in the app, and development keeps going. The app is never paywalled:
