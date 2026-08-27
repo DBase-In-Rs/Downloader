@@ -154,9 +154,9 @@ time. Network requests go only to the media providers you download from
 DBase Downloader is free and open source. If it saves you time, you can
 [become a supporter](https://buy.polar.sh/polar_cl_zPF9CaYg2iyuHxQ3hA3mdXVvomRJb8gEzC5d93f8xfV)
 or go [Supporter Pro](https://buy.polar.sh/polar_cl_G3W6En67QTEVoBC1oVln4HQqcpqK8w7vujkJD4WjGOj)
-(payment is handled by [Polar](https://polar.sh), the merchant of record) -
-you get a heart in the app, and development keeps going. The app is never
-paywalled: every feature works without supporting.
+(payment is handled by [Polar](https://polar.sh), the merchant of record)
+and keep development going. The app is never paywalled: every feature works
+without supporting.
 
 ## Development
 

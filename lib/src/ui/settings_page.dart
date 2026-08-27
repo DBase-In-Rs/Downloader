@@ -9,7 +9,7 @@ import '../services/android_storage_service.dart';
 import '../services/app_controller.dart';
 import '../services/desktop_media_backend.dart';
 import '../services/desktop_settings.dart';
-import '../services/supporter_service.dart';
+import '../services/supporter_links.dart';
 import 'common.dart';
 
 bool get _isDesktopPlatform =>
@@ -46,7 +46,7 @@ class SettingsPage extends StatelessWidget {
           ],
           _AboutCard(controller: controller),
           const SizedBox(height: 10),
-          _SupportCard(controller: controller),
+          const _SupportCard(),
           const SizedBox(height: 10),
           Card(
             child: ListTile(
@@ -479,78 +479,58 @@ class _AboutCard extends StatelessWidget {
 const _heartColor = Color(0xFFE0435C);
 
 class _SupportCard extends StatelessWidget {
-  const _SupportCard({required this.controller});
-
-  final AppController controller;
+  const _SupportCard();
 
   @override
   Widget build(BuildContext context) {
-    final supporter = controller.isSupporter;
-
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(14),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Icon(
-              supporter ? Icons.favorite : Icons.favorite_border,
-              color: _heartColor,
-            ),
+            const Icon(Icons.favorite, color: _heartColor),
             const SizedBox(width: 12),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    supporter
-                        ? 'You are a supporter - thank you!'
-                        : 'Support the Developer',
+                    'Support the Developer',
                     style: Theme.of(context).textTheme.titleMedium,
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    supporter
-                        ? 'Your heart shows in the app bar. The app stays '
-                              'free and open source for everyone.'
-                        : 'DBase Downloader is free and open source. If it '
-                              'saves you time, supporting keeps development '
-                              'going - and gets you a heart in the app.',
+                    'DBase Downloader is free and open source. If it saves '
+                    'you time, supporting keeps development going.',
                     style: Theme.of(context).textTheme.bodySmall,
                   ),
-                  if (!supporter) ...[
-                    const SizedBox(height: 10),
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      children: [
-                        FilledButton.icon(
-                          style: FilledButton.styleFrom(
-                            backgroundColor: _heartColor,
-                          ),
-                          onPressed: () => launchUrl(
-                            Uri.parse(SupporterService.checkoutUrl),
-                            mode: LaunchMode.externalApplication,
-                          ),
-                          icon: const Icon(Icons.favorite, size: 18),
-                          label: const Text('Become a supporter'),
+                  const SizedBox(height: 10),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      FilledButton.icon(
+                        style: FilledButton.styleFrom(
+                          backgroundColor: _heartColor,
                         ),
-                        FilledButton.tonalIcon(
-                          onPressed: () => launchUrl(
-                            Uri.parse(SupporterService.checkoutProUrl),
-                            mode: LaunchMode.externalApplication,
-                          ),
-                          icon: const Icon(Icons.workspace_premium, size: 18),
-                          label: const Text('Supporter Pro'),
+                        onPressed: () => launchUrl(
+                          Uri.parse(SupporterLinks.checkout),
+                          mode: LaunchMode.externalApplication,
                         ),
-                        OutlinedButton.icon(
-                          onPressed: () => _markSupported(context),
-                          icon: const Icon(Icons.check, size: 18),
-                          label: const Text('I already supported'),
+                        icon: const Icon(Icons.favorite, size: 18),
+                        label: const Text('Become a supporter'),
+                      ),
+                      FilledButton.tonalIcon(
+                        onPressed: () => launchUrl(
+                          Uri.parse(SupporterLinks.checkoutPro),
+                          mode: LaunchMode.externalApplication,
                         ),
-                      ],
-                    ),
-                  ],
+                        icon: const Icon(Icons.workspace_premium, size: 18),
+                        label: const Text('Supporter Pro'),
+                      ),
+                    ],
+                  ),
                 ],
               ),
             ),
@@ -558,15 +538,6 @@ class _SupportCard extends StatelessWidget {
         ),
       ),
     );
-  }
-
-  Future<void> _markSupported(BuildContext context) async {
-    await controller.setSupporter(true);
-    if (context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Thank you for your support!')),
-      );
-    }
   }
 }
 

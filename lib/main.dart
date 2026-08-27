@@ -11,7 +11,6 @@ void main() {
       backend: createMediaBackend(),
       sharedUrlService: createSharedUrlService(),
       queueStore: createQueueStore(),
-      supporterService: createSupporterService(),
     ),
   );
 }

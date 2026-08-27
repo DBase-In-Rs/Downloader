@@ -11,9 +11,9 @@ versioning once releases begin.
 ### Added
 
 - Support the developer through Polar (merchant of record): a Support card
-  in Settings opens the Supporter or Supporter Pro checkout in the browser,
-  and supporters get a heart in the app bar (honor-based - no license keys,
-  no validation, and no network calls from the app).
+  in Settings opens the Supporter or Supporter Pro checkout in the browser.
+  The app never tracks purchases - no license keys, no validation, and no
+  network calls.
 
 ## [1.0.0] - 2026-08-27
 

@@ -8,7 +8,6 @@ import 'platform_media_backend.dart';
 import 'platform_shared_url_service.dart';
 import 'queue_store.dart';
 import 'shared_url_service.dart';
-import 'supporter_service.dart';
 
 bool get _isDesktop =>
     !kIsWeb &&
@@ -42,12 +41,4 @@ QueueStore createQueueStore() {
   }
 
   return SharedPreferencesQueueStore();
-}
-
-SupporterService createSupporterService() {
-  if (kIsWeb) {
-    return SupporterService();
-  }
-
-  return SupporterService(store: SharedPreferencesSupporterStore());
 }
