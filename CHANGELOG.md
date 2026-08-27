@@ -15,6 +15,7 @@ versioning once releases begin.
   many secondary yt-dlp providers.
 - Detected-provider labels in Home, Queue, and History, plus provider filtering
   in History.
+- Supported Websites dialog in Settings, grouped by provider status.
 - Shared/pasted provider URL cleanup for common tracking parameters.
 - Provider-aware error messages for login-required, private, geo-blocked,
   rate-limited, unsupported, and DRM/protected media failures.

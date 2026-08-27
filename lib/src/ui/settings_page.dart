@@ -2,6 +2,7 @@ import 'package:file_selector/file_selector.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
+import '../models/media_providers.dart';
 import '../services/android_storage_service.dart';
 import '../services/app_controller.dart';
 import '../services/desktop_media_backend.dart';
@@ -29,6 +30,8 @@ class SettingsPage extends StatelessWidget {
           const SectionHeader(title: 'Settings', icon: Icons.settings),
           const SizedBox(height: 16),
           _EngineCard(controller: controller),
+          const SizedBox(height: 10),
+          const _SupportedWebsitesCard(),
           const SizedBox(height: 10),
           if (_isDesktopPlatform) ...[
             const _DesktopPathsCard(),
@@ -135,6 +138,108 @@ class SettingsPage extends StatelessWidget {
 
     messenger.showSnackBar(
       SnackBar(content: Text(failure ?? 'Cookies imported.')),
+    );
+  }
+}
+
+class _SupportedWebsitesCard extends StatelessWidget {
+  const _SupportedWebsitesCard();
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: ListTile(
+        leading: const Icon(Icons.public),
+        title: const Text('Supported Websites'),
+        subtitle: const Text('Verified, experimental, and research providers'),
+        onTap: () => showDialog<void>(
+          context: context,
+          builder: (context) => const _SupportedWebsitesDialog(),
+        ),
+      ),
+    );
+  }
+}
+
+class _SupportedWebsitesDialog extends StatelessWidget {
+  const _SupportedWebsitesDialog();
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Supported Websites'),
+      content: SizedBox(
+        width: 520,
+        child: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: const [
+              _ProviderTierSection(
+                title: 'Verified',
+                tier: MediaProviderTier.supported,
+              ),
+              _ProviderTierSection(
+                title: 'Priority',
+                tier: MediaProviderTier.priority,
+              ),
+              _ProviderTierSection(
+                title: 'Experimental',
+                tier: MediaProviderTier.planned,
+              ),
+              _ProviderTierSection(
+                title: 'Research',
+                tier: MediaProviderTier.research,
+              ),
+            ],
+          ),
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Close'),
+        ),
+      ],
+    );
+  }
+}
+
+class _ProviderTierSection extends StatelessWidget {
+  const _ProviderTierSection({required this.title, required this.tier});
+
+  final String title;
+  final MediaProviderTier tier;
+
+  @override
+  Widget build(BuildContext context) {
+    final providers = mediaProvidersByTier(tier);
+    if (providers.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 18),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(title, style: Theme.of(context).textTheme.titleSmall),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              for (final provider in providers)
+                Chip(
+                  avatar: Icon(
+                    provider.audioFirst ? Icons.audiotrack : Icons.public,
+                    size: 18,
+                  ),
+                  label: Text(provider.displayName),
+                ),
+            ],
+          ),
+        ],
+      ),
     );
   }
 }

@@ -74,4 +74,27 @@ void main() {
     final field = tester.widget<TextField>(find.byType(TextField));
     expect(field.controller?.text, 'https://youtu.be/test');
   });
+
+  testWidgets('shows supported websites from Settings', (tester) async {
+    await tester.pumpWidget(
+      DBaseDownloaderApp(
+        backend: FakeMediaBackend(),
+        sharedUrlService: const FakeSharedUrlService(),
+      ),
+    );
+    await tester.pump();
+
+    await tester.tap(find.text('Settings'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Supported Websites'), findsOneWidget);
+
+    await tester.tap(find.text('Supported Websites'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Verified'), findsOneWidget);
+    expect(find.text('Priority'), findsOneWidget);
+    expect(find.text('YouTube'), findsOneWidget);
+    expect(find.text('Dailymotion'), findsOneWidget);
+  });
 }

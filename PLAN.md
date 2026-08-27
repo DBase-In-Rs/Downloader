@@ -606,6 +606,7 @@ Tasks:
 - [x] Reconcile URL provider detection with yt-dlp's returned extractor name.
 - [x] Store provider id/name in queue and history records.
 - [x] Add provider filter/search in History.
+- [x] Add a Settings view for the recognized website/provider catalog.
 - [x] Add provider-specific user-facing errors for unsupported, login-required,
       private, age-restricted, geo-blocked, rate-limited, and extractor-broken
       failures.
@@ -633,6 +634,7 @@ Implementation notes on 2026-08-27:
 - Queue and History items persist provider id/name with fallback detection for
   older saved records.
 - History can filter by provider.
+- Settings includes a Supported Websites dialog grouped by provider tier.
 - `docs/SUPPORTED_WEBSITES.md` mirrors the upstream yt-dlp extractor list.
 - `docs/PROVIDER_QA.md` documents the private `secrets/provider_smoke.json`
   format.

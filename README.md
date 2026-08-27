@@ -107,6 +107,8 @@ Implemented:
 - Documented channel schema in [docs/PLATFORM_CHANNELS.md](docs/PLATFORM_CHANNELS.md).
 - Provider catalog, shared/pasted URL cleanup, detected-provider labels, and
   provider-aware error messages for the multi-site roadmap.
+- In-app Supported Websites dialog grouped by verified, priority,
+  experimental, and research status.
 - Sequential download queue with pause/resume, retry for failed items, and
   queue persistence across app restarts.
 - yt-dlp engine self-update on startup plus a manual update action in
