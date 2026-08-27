@@ -15,22 +15,38 @@ repository so Linux users install and update through `apt`.
    key.
 
 GitHub secrets used: `PEACE_SSH_KEY` (private deploy key),
-`PEACE_SSH_HOST` (server host).
+`PEACE_SSH_HOST` (SSH host: `eu.dbase.in.rs`; the repo is *served* at
+https://peace.dbase.in.rs).
 
 ## One-time server setup (run as root)
+
+Steps 1 and 4 (ownership, authorized_keys) were completed on 2026-08-27.
 
 ```bash
 # 1. The repo belongs to the 'peace' user, which also signs it.
 chown -R peace:peace /var/www/peace-repo
 
-# 2. Give the 'peace' user the repository GPG key (currently in root's
-#    keyring).
+# 2. Move the repository GPG key from root to the 'peace' user. Piping
+#    through sudo fails ("Inappropriate ioctl") because gpg needs a
+#    terminal for the passphrase - export to a file with a tty instead:
+export GPG_TTY=$(tty)
 gpg --export-secret-keys 59114321298910073BF2AE8440F7E0F08D39A768 \
-  | sudo -u peace gpg --import
+  > /tmp/repo-key.gpg          # prompts for the key passphrase
+chown peace:peace /tmp/repo-key.gpg
+su - peace -c 'export GPG_TTY=$(tty); gpg --import /tmp/repo-key.gpg'
+rm -f /tmp/repo-key.gpg
+sudo -u peace gpg --list-secret-keys   # must show "sec" for the key
 
-# 3. Install the ingest script (content: tool/server/peace-ingest in the
-#    app repository).
-install -m 755 peace-ingest /usr/local/bin/peace-ingest
+# 2b. Only if the key HAS a passphrase: store it so the ingest script can
+#     sign non-interactively (the script picks this file up automatically).
+sudo -u peace bash -c \
+  'read -rs -p "Repo key passphrase: " P; echo; \
+   printf "%s" "$P" > ~/.gnupg/repo-passphrase; chmod 600 ~/.gnupg/repo-passphrase'
+
+# 3. Install the ingest script straight from the app repository.
+curl -fsSL https://raw.githubusercontent.com/DBase-In-Rs/Downloader/main/tool/server/peace-ingest \
+  -o /usr/local/bin/peace-ingest
+chmod 755 /usr/local/bin/peace-ingest
 
 # 4. Authorize the CI deploy key, locked to the ingest command only.
 mkdir -p /home/peace/.ssh && chmod 700 /home/peace/.ssh
@@ -44,7 +60,7 @@ chown -R peace:peace /home/peace/.ssh
 Test from any machine with the private key:
 
 ```bash
-cat some-package.deb | ssh -i peace_ci_key peace@peace.dbase.in.rs
+cat some-package.deb | ssh -i peace_ci_key peace@eu.dbase.in.rs
 ```
 
 ## User instructions (goes in README once live)

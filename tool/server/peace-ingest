@@ -13,6 +13,14 @@ COMPONENT="main"
 ARCHS=("amd64" "i386" "arm64")
 GPG_KEY_ID="59114321298910073BF2AE8440F7E0F08D39A768"
 
+# Non-interactive signing: when the key is passphrase-protected, store the
+# passphrase in this file (chmod 600, owned by the peace user).
+PASSFILE="$HOME/.gnupg/repo-passphrase"
+GPG_SIGN=(gpg --batch --yes --default-key "$GPG_KEY_ID")
+if [[ -f "$PASSFILE" ]]; then
+  GPG_SIGN+=(--pinentry-mode loopback --passphrase-file "$PASSFILE")
+fi
+
 TMP="$(mktemp /tmp/ingest-XXXXXX.deb)"
 trap 'rm -f "$TMP"' EXIT
 cat > "$TMP"
@@ -51,10 +59,10 @@ apt-ftparchive \
   -o "APT::FTPArchive::Release::Description=DBase and peace packages" \
   release "$REPO_ROOT/dists/$DIST" > "$REPO_ROOT/dists/$DIST/Release"
 
-gpg --batch --yes --default-key "$GPG_KEY_ID" \
+"${GPG_SIGN[@]}" \
   --output "$REPO_ROOT/dists/$DIST/Release.gpg" \
   --armor --detach-sign "$REPO_ROOT/dists/$DIST/Release"
-gpg --batch --yes --default-key "$GPG_KEY_ID" \
+"${GPG_SIGN[@]}" \
   --output "$REPO_ROOT/dists/$DIST/InRelease" \
   --clearsign "$REPO_ROOT/dists/$DIST/Release"
 
