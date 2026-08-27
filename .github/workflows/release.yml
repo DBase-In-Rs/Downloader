@@ -119,6 +119,23 @@ jobs:
             build/dbase-downloader-*-linux-x64.tar.gz
             build/dbase-downloader-*-linux-amd64.deb
 
+      - name: Publish deb to apt repo
+        if: startsWith(github.ref, 'refs/tags/')
+        env:
+          PEACE_SSH_KEY: ${{ secrets.PEACE_SSH_KEY }}
+          PEACE_SSH_HOST: ${{ secrets.PEACE_SSH_HOST }}
+        run: |
+          if [ -z "$PEACE_SSH_KEY" ] || [ -z "$PEACE_SSH_HOST" ]; then
+            echo "apt repo secrets not configured; skipping"
+            exit 0
+          fi
+          mkdir -p ~/.ssh
+          printf '%s\n' "$PEACE_SSH_KEY" > ~/.ssh/peace_ci
+          chmod 600 ~/.ssh/peace_ci
+          ssh-keyscan -H "$PEACE_SSH_HOST" >> ~/.ssh/known_hosts 2>/dev/null
+          cat build/dbase-downloader-*-linux-amd64.deb \
+            | ssh -i ~/.ssh/peace_ci "peace@$PEACE_SSH_HOST"
+
   windows:
     name: Windows build
     runs-on: windows-latest

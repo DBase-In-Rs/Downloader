@@ -980,9 +980,11 @@ Goal: give users a first-class install and update path on every platform.
 - [x] Build a .deb package in the release workflow alongside the tarball
       (tool/build_deb.sh; verified in WSL: apt install, /usr/bin launcher,
       desktop entry and icon, app runs, clean removal).
-- [ ] Publish the .deb to the maintainer's apt repository
-      (https://peace.dbase.in.rs/) and document adding the repo, so users
-      install and update through the system package manager.
+- [x] Publish the .deb to the maintainer's apt repository
+      (https://peace.dbase.in.rs/): CI pipes the package to a forced-command
+      SSH ingest script that updates and re-signs the repo (docs/APT_REPO.md
+      has the one-time server setup and user instructions). Pending the
+      one-time server setup to go live.
 - [ ] Evaluate Flathub submission as an additional channel.
 
 ### Sprint 11.4 - Android Update Polish (optional)

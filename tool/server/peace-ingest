@@ -1,0 +1,61 @@
+#!/bin/bash
+# Ingests one .deb (received on stdin) into the peace apt repository and
+# re-signs the indexes. Installed on the server as a forced SSH command, so
+# the CI deploy key can do nothing else.
+#
+# Install to /usr/local/bin/peace-ingest (see docs/APT_REPO.md).
+set -euo pipefail
+
+REPO_ROOT="/var/www/peace-repo"
+POOL_DIR="$REPO_ROOT/pool/main"
+DIST="stable"
+COMPONENT="main"
+ARCHS=("amd64" "i386" "arm64")
+GPG_KEY_ID="59114321298910073BF2AE8440F7E0F08D39A768"
+
+TMP="$(mktemp /tmp/ingest-XXXXXX.deb)"
+trap 'rm -f "$TMP"' EXIT
+cat > "$TMP"
+
+# Validate and derive the canonical file name from the package metadata.
+PKG="$(dpkg-deb -f "$TMP" Package)"
+VER="$(dpkg-deb -f "$TMP" Version)"
+ARCH="$(dpkg-deb -f "$TMP" Architecture)"
+if [[ -z "$PKG" || -z "$VER" || -z "$ARCH" ]]; then
+  echo "ERROR: not a valid Debian package" >&2
+  exit 1
+fi
+
+DEST="$POOL_DIR/${PKG}_${VER}_${ARCH}.deb"
+mv "$TMP" "$DEST"
+trap - EXIT
+chmod 644 "$DEST"
+echo "Ingested $DEST"
+
+echo "Regenerating package indexes..."
+for A in "${ARCHS[@]}"; do
+  DIR="$REPO_ROOT/dists/$DIST/$COMPONENT/binary-$A"
+  mkdir -p "$DIR"
+  apt-ftparchive --arch "$A" packages "$POOL_DIR" > "$DIR/Packages"
+  gzip -kf "$DIR/Packages"
+done
+
+echo "Regenerating and signing Release..."
+apt-ftparchive \
+  -o "APT::FTPArchive::Release::Origin=Velimir Majstorov" \
+  -o "APT::FTPArchive::Release::Label=Peace APT Repo" \
+  -o "APT::FTPArchive::Release::Suite=$DIST" \
+  -o "APT::FTPArchive::Release::Codename=$DIST" \
+  -o "APT::FTPArchive::Release::Architectures=${ARCHS[*]}" \
+  -o "APT::FTPArchive::Release::Components=$COMPONENT" \
+  -o "APT::FTPArchive::Release::Description=DBase and peace packages" \
+  release "$REPO_ROOT/dists/$DIST" > "$REPO_ROOT/dists/$DIST/Release"
+
+gpg --batch --yes --default-key "$GPG_KEY_ID" \
+  --output "$REPO_ROOT/dists/$DIST/Release.gpg" \
+  --armor --detach-sign "$REPO_ROOT/dists/$DIST/Release"
+gpg --batch --yes --default-key "$GPG_KEY_ID" \
+  --output "$REPO_ROOT/dists/$DIST/InRelease" \
+  --clearsign "$REPO_ROOT/dists/$DIST/Release"
+
+echo "OK: $PKG $VER ($ARCH) published"
