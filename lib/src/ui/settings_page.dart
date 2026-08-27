@@ -1,12 +1,14 @@
 import 'package:file_selector/file_selector.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../models/media_providers.dart';
 import '../services/android_storage_service.dart';
 import '../services/app_controller.dart';
+import '../services/binary_probe.dart';
 import '../services/desktop_media_backend.dart';
 import '../services/desktop_settings.dart';
 import '../services/supporter_links.dart';
@@ -37,6 +39,8 @@ class SettingsPage extends StatelessWidget {
           const _SupportedWebsitesCard(),
           const SizedBox(height: 10),
           if (_isDesktopPlatform) ...[
+            const _EngineBinariesCard(),
+            const SizedBox(height: 10),
             const _DesktopPathsCard(),
             const SizedBox(height: 10),
           ],
@@ -389,11 +393,13 @@ class _ExtensionLink extends StatelessWidget {
     required this.label,
     required this.color,
     required this.url,
+    this.icon = Icons.extension,
   });
 
   final String label;
   final Color color;
   final String url;
+  final IconData icon;
 
   @override
   Widget build(BuildContext context) {
@@ -407,7 +413,7 @@ class _ExtensionLink extends StatelessWidget {
         Uri.parse(url),
         mode: LaunchMode.externalApplication,
       ),
-      icon: const Icon(Icons.extension, size: 18),
+      icon: Icon(icon, size: 18),
       label: Text(label),
     );
   }
@@ -621,6 +627,241 @@ class _AndroidFolderCardState extends State<_AndroidFolderCard> {
   Future<void> _clear() async {
     await _storage.clearOutputFolder();
     await _load();
+  }
+}
+
+class _EngineBinariesCard extends StatefulWidget {
+  const _EngineBinariesCard();
+
+  @override
+  State<_EngineBinariesCard> createState() => _EngineBinariesCardState();
+}
+
+class _EngineBinariesCardState extends State<_EngineBinariesCard> {
+  final _probe = DesktopBinaryProbe();
+  EngineProbe? _result;
+  var _checking = true;
+  String _installCommand = windowsInstallCommand;
+
+  bool get _isLinux => defaultTargetPlatform == TargetPlatform.linux;
+
+  @override
+  void initState() {
+    super.initState();
+    _check();
+  }
+
+  Future<void> _check() async {
+    setState(() => _checking = true);
+    final result = await _probe.probe();
+    final command = _isLinux
+        ? linuxInstallCommand(await readOsRelease())
+        : windowsInstallCommand;
+    if (mounted) {
+      setState(() {
+        _result = result;
+        _installCommand = command;
+        _checking = false;
+      });
+    }
+  }
+
+  Future<void> _copyCommand() async {
+    await Clipboard.setData(ClipboardData(text: _installCommand));
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Command copied to clipboard')),
+      );
+    }
+  }
+
+  Future<void> _openStore() async {
+    final opened = await openLinuxSoftwareCenter();
+    if (!opened && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('No software center found - use the terminal command'),
+        ),
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final result = _result;
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    'Engine Check',
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                ),
+                IconButton(
+                  tooltip: 'Check again',
+                  onPressed: _checking ? null : _check,
+                  icon: const Icon(Icons.refresh),
+                ),
+              ],
+            ),
+            if (_checking || result == null)
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 8),
+                child: LinearProgressIndicator(),
+              )
+            else ...[
+              _BinaryStatusRow(
+                name: 'yt-dlp',
+                purpose: 'downloads and site extraction',
+                status: result.ytDlp,
+              ),
+              _BinaryStatusRow(
+                name: 'FFmpeg',
+                purpose: 'MP3/M4A conversion and MP4 merge',
+                status: result.ffmpeg,
+              ),
+              if (!result.allFound) ...[
+                const SizedBox(height: 10),
+                Text(
+                  _isLinux
+                      ? 'Install the missing tools from the terminal:'
+                      : 'Install the missing tools with winget '
+                            '(built into Windows):',
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+                const SizedBox(height: 6),
+                Container(
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).colorScheme.surfaceContainerHigh,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  padding: const EdgeInsets.only(left: 12),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          _installCommand,
+                          style: const TextStyle(
+                            fontFamily: 'monospace',
+                            fontSize: 13,
+                          ),
+                        ),
+                      ),
+                      IconButton(
+                        tooltip: 'Copy command',
+                        onPressed: _copyCommand,
+                        icon: const Icon(Icons.copy, size: 18),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    if (_isLinux)
+                      OutlinedButton.icon(
+                        onPressed: _openStore,
+                        icon: const Icon(Icons.store, size: 18),
+                        label: const Text('Open Software Center'),
+                      ),
+                    _ExtensionLink(
+                      label: 'yt-dlp downloads',
+                      color: Theme.of(context).colorScheme.primary,
+                      url: 'https://github.com/yt-dlp/yt-dlp/releases/latest',
+                      icon: Icons.download,
+                    ),
+                    if (!_isLinux)
+                      _ExtensionLink(
+                        label: 'FFmpeg builds',
+                        color: Theme.of(context).colorScheme.primary,
+                        url: 'https://www.gyan.dev/ffmpeg/builds/',
+                        icon: Icons.download,
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  _isLinux
+                      ? 'Distro yt-dlp packages are often outdated; the '
+                            'GitHub binary above is recommended for YouTube.'
+                      : 'After installing, restart the terminal session and '
+                            'press the refresh button above.',
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+              ],
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _BinaryStatusRow extends StatelessWidget {
+  const _BinaryStatusRow({
+    required this.name,
+    required this.purpose,
+    required this.status,
+  });
+
+  final String name;
+  final String purpose;
+  final BinaryProbeResult status;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        children: [
+          Icon(
+            status.found ? Icons.check_circle : Icons.cancel,
+            size: 20,
+            color: status.found ? Colors.green.shade700 : colors.error,
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text.rich(
+              TextSpan(
+                text: name,
+                style: const TextStyle(fontWeight: FontWeight.w600),
+                children: [
+                  TextSpan(
+                    text: '  -  $purpose',
+                    style: TextStyle(
+                      fontWeight: FontWeight.normal,
+                      fontSize: 12.5,
+                      color: Theme.of(context).textTheme.bodySmall?.color,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          Text(
+            status.found
+                ? (status.version == null ? 'Found' : 'v${status.version}')
+                : 'Not found',
+            style: TextStyle(
+              fontSize: 12.5,
+              fontWeight: FontWeight.w600,
+              color: status.found ? Colors.green.shade700 : colors.error,
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
 

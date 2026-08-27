@@ -16,6 +16,12 @@ versioning once releases begin.
 
 ### Added
 
+- Engine Check card in desktop Settings: detects whether yt-dlp and FFmpeg
+  are runnable (configured paths or PATH) and, when missing, shows how to
+  install them - the winget command on Windows, the distro's package-manager
+  command (apt/dnf/pacman/zypper from /etc/os-release) or the software
+  center on Linux, plus official download links. Android needs none of this
+  since both tools ship with the app.
 - Support the developer through Polar (merchant of record): a Support card
   in Settings opens the Supporter or Supporter Pro checkout in the browser.
   The app never tracks purchases - no license keys, no validation, and no
