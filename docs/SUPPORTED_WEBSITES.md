@@ -12,7 +12,13 @@ yt-dlp includes extractors for many websites, and it can also try embedded media
 
 - YouTube videos: implemented and previously verified during beta work.
 
-## Priority Verification Queue
+## DBase Recognized Providers
+
+These providers are recognized by the app, shown in the UI, stored in queue and
+history records, and passed to the yt-dlp backend. They are not DBase-verified
+until the Android and Windows smoke matrix passes.
+
+Priority queue:
 
 1. Dailymotion
 2. Vimeo
@@ -22,12 +28,60 @@ yt-dlp includes extractors for many websites, and it can also try embedded media
 6. Instagram
 7. Facebook
 8. Twitter/X
-9. Pinterest
-10. Reddit
-11. Twitch
-12. Rumble
 
-Research-only until proven: BuzzVideo, Tubidy, wallpaper/static-image sites, Threads, and Snapchat.
+Planned/experimental queue:
+
+- Pinterest
+- Reddit
+- Twitch
+- Rumble
+- Bandcamp
+- Audiomack
+- Mixcloud
+- Audius
+- Internet Archive
+- LinkedIn
+- Tumblr
+- VK
+- VK Play
+- Odysee/LBRY
+- Streamable
+- Imgur
+- Flickr
+- BitChute
+- PeerTube
+- TED
+- Bilibili
+- Niconico
+- Coub
+- Vocaroo
+- HearThis.at
+- Apple Podcasts
+- Podbay
+- Podchaser
+- Acast
+- BBC
+- CNN
+- PBS
+- ESPN
+- Substack
+- Bluesky
+- Truth Social
+- Rutube
+- Youku
+- Cloudflare Stream
+- JW Platform
+- Kaltura
+- Wistia
+- Brightcove
+
+Research-only until proven:
+
+- BuzzVideo
+- Tubidy
+- Wallpaper/static-image sites
+- Threads
+- Snapchat Spotlight
 
 ## Upstream yt-dlp Extractors
 

@@ -513,7 +513,8 @@ Verification on 2026-08-26:
 - Downloads run in a temp directory and move to the output folder with
   `name (1).ext` collision handling; cancel kills the yt-dlp process; engine
   update runs `yt-dlp --update`.
-- Desktop cookies are not supported yet (import reports unsupported).
+- Desktop cookies are now supported through the per-user app-data cookie file;
+  see `PRIVACY.md` for the storage caveat.
 - End-to-end verification on Windows with PATH binaries
   (`tool/desktop_smoke.dart`): metadata extraction returned real formats,
   and an MP3 download completed with live progress into a chosen output
@@ -559,6 +560,35 @@ as a QA roadmap, not a permanent guarantee.
 | Tumblr | Low | Explicit extractor | Public video/audio posts. |
 | VK / VK Video | Low | Explicit extractor | Public videos; region/login risk. |
 | Odysee/LBRY | Low | Explicit extractor | Public videos after social/video core. |
+| Streamable | Low | Explicit extractor | Public short videos. |
+| Imgur | Low | Explicit extractor | Public videos/GIF-style media where yt-dlp exposes formats. |
+| Flickr | Low | Explicit extractor | Public videos. |
+| BitChute | Low | Explicit extractor | Public videos/channels. |
+| PeerTube | Low | Explicit extractor | Public videos and playlists; many instance domains need extractor-name fallback. |
+| TED | Low | Explicit extractor | Public talks. |
+| Bilibili | Low | Explicit extractor | Public videos/audio where region/login allows. |
+| Niconico | Low | Explicit extractor | Public videos; login may be needed. |
+| Coub | Low | Explicit extractor | Public loop videos. |
+| Vocaroo | Low | Explicit extractor | Audio-first downloads. |
+| HearThis.at | Low | Explicit extractor | Audio-first downloads. |
+| Apple Podcasts | Low | Explicit extractor | Public podcast episodes. |
+| Podbay | Low | Explicit extractor | Public podcast episodes/channels. |
+| Podchaser | Low | Explicit extractor | Public podcast episodes/shows. |
+| Acast | Low | Explicit extractor | Public podcast episodes/channels. |
+| BBC | Low | Explicit extractor | Public clips/programme pages where region rules allow. |
+| CNN | Low | Explicit extractor | Public news videos. |
+| PBS | Low | Explicit extractor | Public videos where region rules allow. |
+| ESPN | Low | Explicit extractor | Public clips; auth/region risk. |
+| Substack | Low | Explicit extractor | Public embedded audio/video posts. |
+| Bluesky | Low | Explicit extractor | Public video posts. |
+| Truth Social | Low | Explicit extractor | Public videos; login/rate risk. |
+| Rutube | Low | Explicit extractor | Public videos/playlists. |
+| Youku | Low | Explicit extractor | Public videos; region risk. |
+| Cloudflare Stream | Low | Explicit extractor | Direct Cloudflare Stream URLs and embeds. |
+| JW Platform | Low | Explicit extractor | Direct JW Platform URLs and embeds. |
+| Kaltura | Low | Explicit extractor | Direct Kaltura URLs and embeds. |
+| Wistia | Low | Explicit extractor | Direct Wistia URLs and embeds. |
+| Brightcove | Low | Explicit extractor | Direct Brightcove player URLs and embeds. |
 | BuzzVideo | Research | Not confirmed in current yt-dlp supported-sites list | Try generic extractor only; do not advertise until proven. |
 | Tubidy | Research | Not confirmed in current yt-dlp supported-sites list | Try generic extractor only; likely needs separate decision. |
 | Wallpaper sites | Research | Not a video/audio provider category | Decide whether this becomes a separate image/wallpaper downloader mode. |
@@ -576,16 +606,16 @@ Tasks:
 - [x] Reconcile URL provider detection with yt-dlp's returned extractor name.
 - [x] Store provider id/name in queue and history records.
 - [x] Add provider filter/search in History.
-- [ ] Add provider-specific user-facing errors for unsupported, login-required,
+- [x] Add provider-specific user-facing errors for unsupported, login-required,
       private, age-restricted, geo-blocked, rate-limited, and extractor-broken
       failures.
 - [x] Add a manual smoke-test matrix file format under ignored `secrets/` so
       real provider test URLs are never committed.
 - [x] Extend `tool/desktop_smoke.dart` or add a new provider smoke tool that
       can run metadata/download checks for a matrix of URLs.
-- [ ] Add Android manual QA checklist per provider: share intent, direct paste,
+- [x] Add Android manual QA checklist per provider: share intent, direct paste,
       metadata, MP3, MP4/original, cancel, backgrounding, save location.
-- [ ] Add Windows manual QA checklist per provider: PATH binaries, configured
+- [x] Add Windows manual QA checklist per provider: PATH binaries, configured
       binaries, metadata, MP3, MP4/original, cancel, output collision.
 
 Acceptance criteria:
@@ -608,6 +638,11 @@ Implementation notes on 2026-08-27:
   format.
 - `tool/provider_smoke.dart` runs Windows/desktop metadata and download smoke
   tests from that private matrix.
+- Provider-aware errors now convert common yt-dlp failures into short guidance
+  for cookies/login, private or unavailable media, geo blocks, rate limits,
+  unsupported URLs, and protected/DRM media.
+- Android and Windows provider QA checklists are documented in
+  `docs/PROVIDER_QA.md`.
 
 ### Sprint 6.2 - Dailymotion, Vimeo, And SoundCloud
 
@@ -631,8 +666,10 @@ Tasks:
 - [ ] Test SoundCloud track metadata on Android and Windows.
 - [ ] Test SoundCloud MP3/M4A/original download on Android and Windows.
 - [ ] Test SoundCloud set/playlist expansion on Android and Windows.
+- [x] Reconstruct flat playlist entry IDs for Dailymotion and Vimeo in Android
+      and desktop backends.
 - [ ] Verify playlist/set expansion where yt-dlp returns entries.
-- [ ] Add provider-specific output presets for audio-first services.
+- [x] Add provider-specific output presets for audio-first services.
 
 Acceptance criteria:
 
@@ -642,20 +679,27 @@ Acceptance criteria:
   the smoke tests pass.
 - SoundCloud defaults to sensible audio output choices.
 
+Implementation notes on 2026-08-27:
+
+- Audio-first providers now switch away from MP4/video-only selection after
+  analysis so SoundCloud-style URLs default back to audio output/filtering.
+- Flat playlist entry ID reconstruction now supports Dailymotion and Vimeo in
+  addition to YouTube.
+
 ### Sprint 6.3 - TikTok Videos
 
 Tasks:
 
-- [ ] Add TikTok provider entry and URL aliases:
+- [x] Add TikTok provider entry and URL aliases:
       `tiktok.com`, `www.tiktok.com`, `m.tiktok.com`, `vm.tiktok.com`, and
       `vt.tiktok.com`.
-- [ ] Normalize shared TikTok URLs by trimming tracking query parameters while
+- [x] Normalize shared TikTok URLs by trimming tracking query parameters while
       preserving the real media URL.
 - [ ] Verify public video metadata on Android and Windows.
 - [ ] Verify MP4/original download on Android and Windows.
 - [ ] Verify MP3 extraction on Android and Windows.
 - [ ] Verify shared short links from the Android TikTok app/share sheet.
-- [ ] Add TikTok-specific handling for login/rate-limit/region errors.
+- [x] Add TikTok-specific handling for login/rate-limit/region errors.
 - [ ] Document known limits: private videos, deleted videos, region-blocked
       videos, and any provider-side bot checks.
 
@@ -669,14 +713,14 @@ Acceptance criteria:
 
 Tasks:
 
-- [ ] Add Instagram provider entry and URL aliases:
+- [x] Add Instagram provider entry and URL aliases:
       `instagram.com`, `www.instagram.com`, `m.instagram.com`.
 - [ ] Validate Reels URLs.
 - [ ] Validate post URLs with video media.
 - [ ] Validate shared links from Android Instagram.
 - [ ] Decide whether carousel posts should enqueue each video or only the first
       extractable video.
-- [ ] Add cookie guidance for login-required/private/restricted content.
+- [x] Add cookie guidance for login-required/private/restricted content.
 - [ ] Add provider-scoped cookie handling so Instagram/Facebook cookies are not
       blindly sent to unrelated providers.
 - [ ] Verify Android and Windows MP4/original plus MP3 output.
@@ -690,16 +734,16 @@ Acceptance criteria:
 
 Tasks:
 
-- [ ] Add Facebook provider entry and aliases:
+- [x] Add Facebook provider entry and aliases:
       `facebook.com`, `www.facebook.com`, `m.facebook.com`, `fb.watch`.
-- [ ] Add Twitter/X provider entry and aliases:
+- [x] Add Twitter/X provider entry and aliases:
       `x.com`, `www.x.com`, `twitter.com`, `www.twitter.com`, `mobile.twitter.com`.
 - [ ] Verify public Facebook videos and Reels.
 - [ ] Verify public Twitter/X videos.
 - [ ] Verify Android share links from Facebook and X apps.
 - [ ] Verify Windows paste/download flow.
-- [ ] Add cookie guidance for Facebook/X login-required videos.
-- [ ] Add error mapping for deleted posts, unavailable posts, sensitive-content
+- [x] Add cookie guidance for Facebook/X login-required videos.
+- [x] Add error mapping for deleted posts, unavailable posts, sensitive-content
       gating, and rate limits.
 - [ ] Decide whether X Spaces/audio belongs in this release or later.
 
@@ -712,13 +756,22 @@ Acceptance criteria:
 
 Tasks:
 
-- [ ] Add Pinterest provider entry and validate video pins.
-- [ ] Add Reddit provider entry and validate video posts with audio.
-- [ ] Add Twitch provider entry and validate clips and VODs.
-- [ ] Add Rumble provider entry and validate public videos.
-- [ ] Add Audiomack, Mixcloud, Audius, Internet Archive, LinkedIn, Tumblr,
+- [x] Add Pinterest provider entry.
+- [ ] Validate Pinterest video pins.
+- [x] Add Reddit provider entry.
+- [ ] Validate Reddit video posts with audio.
+- [x] Add Twitch provider entry.
+- [ ] Validate Twitch clips and VODs.
+- [x] Add Rumble provider entry.
+- [ ] Validate Rumble public videos.
+- [x] Add Audiomack, Mixcloud, Audius, Internet Archive, LinkedIn, Tumblr,
       VK/VK Video, and Odysee/LBRY entries as lower-priority smoke targets.
-- [ ] Mark livestream capture, DRM-protected media, and private/paywalled media
+- [x] Add Streamable, Imgur, Flickr, BitChute, PeerTube, TED, Bilibili,
+      Niconico, Coub, Vocaroo, HearThis.at, Apple Podcasts, Podbay,
+      Podchaser, Acast, BBC, CNN, PBS, ESPN, Substack, Bluesky, Truth Social,
+      Rutube, Youku, Cloudflare Stream, JW Platform, Kaltura, Wistia, and
+      Brightcove as experimental smoke targets.
+- [x] Mark livestream capture, DRM-protected media, and private/paywalled media
       as out of scope.
 
 Acceptance criteria:
@@ -726,16 +779,28 @@ Acceptance criteria:
 - Secondary providers either move to supported status with smoke evidence or
   stay hidden as experimental/research providers.
 
+Implementation notes on 2026-08-27:
+
+- The Dart provider catalog now recognizes all secondary providers listed in
+  this sprint plus common embed/CDN extractors.
+- URL/extractor mapping is covered by unit tests.
+- Download validation remains pending until Android and Windows smoke matrices
+  are populated with public test URLs.
+
 ### Sprint 6.7 - Research And Generic Extractor Candidates
 
 Tasks:
 
+- [x] Add BuzzVideo research entry for URL detection.
 - [ ] Test BuzzVideo URLs if still available; use generic extractor only unless
       yt-dlp adds a dedicated extractor.
+- [x] Add Tubidy research entry for URL detection.
 - [ ] Test Tubidy URLs; use generic extractor only unless yt-dlp adds a
       dedicated extractor.
+- [x] Add wallpaper/static-image research entry for URL detection.
 - [ ] Define "Wallpaper" scope: video wallpapers through yt-dlp, static image
       wallpaper downloads through a separate image pipeline, or no support.
+- [x] Add Threads and Snapchat Spotlight research entries.
 - [ ] Test Threads and Snapchat URLs through generic extraction.
 - [ ] Keep unproven providers out of public badges, README feature claims, and
       release notes.

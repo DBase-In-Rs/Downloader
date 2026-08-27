@@ -558,10 +558,14 @@ class MainActivity : FlutterActivity() {
             return url
         }
 
-        // Flat YouTube playlist entries may carry only the video id.
         val id = entry.path("id").asText(null) ?: url
-        if (!id.isNullOrBlank() && entry.path("ie_key").asText("").equals("Youtube", true)) {
-            return "https://www.youtube.com/watch?v=$id"
+        if (!id.isNullOrBlank()) {
+            return when (entry.path("ie_key").asText("").lowercase()) {
+                "youtube" -> "https://www.youtube.com/watch?v=$id"
+                "dailymotion" -> "https://www.dailymotion.com/video/$id"
+                "vimeo" -> "https://vimeo.com/$id"
+                else -> null
+            }
         }
 
         return null

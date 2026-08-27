@@ -77,6 +77,16 @@ Provider support is advertised by DBase only after Android and Windows smoke
 tests pass. The next verification batch is Dailymotion, Vimeo, and SoundCloud,
 followed by TikTok, Instagram, Facebook, and Twitter/X.
 
+The app currently recognizes provider URLs for YouTube/Shorts, Dailymotion,
+Vimeo, SoundCloud, TikTok, Instagram, Facebook, Twitter/X, Pinterest, Reddit,
+Twitch, Rumble, Bandcamp, Audiomack, Mixcloud, Audius, Internet Archive,
+LinkedIn, Tumblr, VK/VK Play, Odysee/LBRY, Streamable, Imgur, Flickr,
+BitChute, PeerTube, TED, Bilibili, Niconico, Coub, Vocaroo, HearThis.at,
+Apple Podcasts, Podbay, Podchaser, Acast, BBC, CNN, PBS, ESPN, Substack,
+Bluesky, Truth Social, Rutube, Youku, Cloudflare Stream, JW Platform,
+Kaltura, Wistia, and Brightcove. These recognized providers remain
+experimental until they pass the documented smoke matrix.
+
 ## Current Implementation
 
 Implemented:
@@ -95,7 +105,8 @@ Implemented:
 - Android foreground service for active downloads.
 - Android MediaStore save for audio/video on Android 10+.
 - Documented channel schema in [docs/PLATFORM_CHANNELS.md](docs/PLATFORM_CHANNELS.md).
-- Provider catalog and detected-provider labels for the multi-site roadmap.
+- Provider catalog, shared/pasted URL cleanup, detected-provider labels, and
+  provider-aware error messages for the multi-site roadmap.
 - Sequential download queue with pause/resume, retry for failed items, and
   queue persistence across app restarts.
 - yt-dlp engine self-update on startup plus a manual update action in

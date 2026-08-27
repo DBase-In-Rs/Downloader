@@ -34,6 +34,7 @@ Core user flows:
 - paste or type URL;
 - receive shared URLs from the OS share sheet where supported;
 - detect the provider/site from the URL where possible;
+- normalize shared/pasted URLs by removing common tracking query parameters;
 - inspect available formats and metadata;
 - choose MP3, M4A, MP4, or original format;
 - choose quality;
@@ -137,7 +138,9 @@ Android 10+, and deletes temporary files in the worker cleanup path.
 Provider support is tracked in `lib/src/models/media_providers.dart`,
 `docs/SUPPORTED_WEBSITES.md`, and `docs/PROVIDER_QA.md`. yt-dlp may list an
 extractor before DBase has verified it. Do not advertise a provider as DBase
-supported until Android and Windows smoke tests pass.
+supported until Android and Windows smoke tests pass. The Dart catalog has
+separate tiers for verified, priority, planned/experimental, and research
+providers; keep those tiers honest when adding sites.
 
 ## Platform Identity
 

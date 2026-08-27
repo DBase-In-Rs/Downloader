@@ -29,6 +29,25 @@ Suggested private matrix:
 ]
 ```
 
+Recommended batches:
+
+- Batch 1: Dailymotion, Vimeo, SoundCloud.
+- Batch 2: YouTube Shorts, TikTok, Instagram, Facebook, Twitter/X.
+- Batch 3: Pinterest, Reddit, Twitch, Rumble, Bandcamp.
+- Batch 4: Audiomack, Mixcloud, Audius, Internet Archive, Odysee/LBRY.
+- Batch 5: Streamable, Imgur, Flickr, BitChute, PeerTube, TED, Bilibili,
+  Niconico, Coub.
+- Batch 6: Vocaroo, HearThis.at, Apple Podcasts, Podbay, Podchaser, Acast.
+- Batch 7: BBC, CNN, PBS, ESPN, Substack, Bluesky, Truth Social, Rutube,
+  Youku.
+- Embed/CDN batch: Cloudflare Stream, JW Platform, Kaltura, Wistia,
+  Brightcove.
+- Research batch: BuzzVideo, Tubidy, wallpaper/static-image sites, Threads,
+  Snapchat Spotlight.
+
+Each matrix row should use a public URL where possible. For login-required
+cases, use a non-committed URL and fresh cookies only on the local test machine.
+
 Run the Windows/desktop matrix with:
 
 ```bash
@@ -74,3 +93,17 @@ dart run tool/provider_smoke.dart path/to/provider_smoke.json
   evidence.
 - `Research`: not confirmed in the yt-dlp supported-sites list, or only the
   generic extractor might work.
+
+## Provider Error Checks
+
+For each provider batch, force or find at least one failure case when practical:
+
+- login/cookies required;
+- private, removed, or unavailable media;
+- geo/region block;
+- rate limit or temporary block;
+- unsupported URL or broken extractor;
+- DRM/protected-media rejection.
+
+The UI should turn those into short user-facing messages and must not show full
+signed URLs, cookies, auth headers, or tokens.

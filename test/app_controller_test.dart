@@ -13,6 +13,8 @@ class ManualMediaBackend implements MediaBackend {
   final _events = StreamController<BackendEvent>.broadcast();
   final started = <DownloadRequest>[];
   final canceled = <String>[];
+  String? mediaUrlOverride;
+  String? extractorOverride;
 
   @override
   Stream<BackendEvent> get events => _events.stream;
@@ -20,8 +22,9 @@ class ManualMediaBackend implements MediaBackend {
   @override
   Future<MediaInfo> getInfo(MediaInfoRequest request) async {
     return MediaInfo(
-      url: request.url,
+      url: mediaUrlOverride ?? request.url,
       title: 'Manual media',
+      extractor: extractorOverride,
       formats: const [
         MediaFormat(
           id: 'best_mp4',
@@ -121,6 +124,24 @@ void main() {
       'https://youtu.be/video',
     );
     expect(extractFirstUrl('No link here'), isNull);
+  });
+
+  test('normalizes pasted and shared provider URLs', () {
+    final controller = AppController(
+      backend: FakeMediaBackend(),
+      sharedUrlService: const FakeSharedUrlService(),
+    );
+    addTearDown(controller.dispose);
+
+    controller.setUrlText(
+      ' https://www.tiktok.com/@artist/video/123?is_from_webapp=1&sender_device=pc&utm_source=copy ',
+    );
+    expect(controller.urlText, 'https://www.tiktok.com/@artist/video/123');
+
+    controller.receiveSharedText(
+      'Watch https://www.youtube.com/watch?v=abc123&si=shared&utm_campaign=x.',
+    );
+    expect(controller.urlText, 'https://www.youtube.com/watch?v=abc123');
   });
 
   test('controller analyzes URL with fake backend', () async {
@@ -251,6 +272,63 @@ void main() {
 
     expect(controller.queue.single.providerId, 'vimeo');
     expect(controller.queue.single.providerName, 'Vimeo');
+  });
+
+  test('YouTube Shorts provider survives canonical watch URLs', () async {
+    final backend = ManualMediaBackend()
+      ..mediaUrlOverride = 'https://www.youtube.com/watch?v=abc123'
+      ..extractorOverride = 'Youtube';
+    final controller = AppController(
+      backend: backend,
+      sharedUrlService: const FakeSharedUrlService(),
+    );
+    addTearDown(controller.dispose);
+    await controller.initialize();
+
+    controller.setUrlText('https://www.youtube.com/shorts/abc123?si=shared');
+    await controller.analyzeUrl();
+
+    expect(controller.mediaInfo?.providerId, 'youtube_shorts');
+
+    await controller.startDownload(controller.visibleFormats.single);
+    expect(controller.queue.single.providerId, 'youtube_shorts');
+  });
+
+  test('audio-first providers reset video-only output choices', () async {
+    final backend = ManualMediaBackend();
+    final controller = AppController(
+      backend: backend,
+      sharedUrlService: const FakeSharedUrlService(),
+    );
+    addTearDown(controller.dispose);
+    await controller.initialize();
+
+    controller.setOutputKind(OutputKind.mp4);
+    controller.setFormatFilter(MediaKindFilter.video);
+    controller.setUrlText('https://soundcloud.com/artist/track');
+    await controller.analyzeUrl();
+
+    expect(controller.outputKind, OutputKind.mp3);
+    expect(controller.formatFilter, MediaKindFilter.audio);
+  });
+
+  test('download failures show provider-specific cookie guidance', () async {
+    final backend = ManualMediaBackend();
+    final controller = AppController(
+      backend: backend,
+      sharedUrlService: const FakeSharedUrlService(),
+    );
+    addTearDown(controller.dispose);
+    await controller.initialize();
+
+    controller.setUrlText('https://vimeo.com/123456');
+    await controller.analyzeUrl();
+    await controller.startDownload(controller.visibleFormats.single);
+    backend.emitFailed(backend.started.single.id, 'ERROR: Login required');
+    await pumpEventQueue();
+
+    expect(controller.history.single.errorMessage, contains('Vimeo'));
+    expect(controller.history.single.errorMessage, contains('cookies.txt'));
   });
 
   test('playlist analysis selects all entries and enqueues them', () async {

@@ -7,6 +7,7 @@ class MediaProviderInfo {
     required this.tier,
     required this.domains,
     required this.extractorNames,
+    this.pathPrefixes = const [],
     this.audioFirst = false,
     this.playlists = false,
     this.cookiesOftenNeeded = false,
@@ -17,6 +18,7 @@ class MediaProviderInfo {
   final MediaProviderTier tier;
   final List<String> domains;
   final List<String> extractorNames;
+  final List<String> pathPrefixes;
   final bool audioFirst;
   final bool playlists;
   final bool cookiesOftenNeeded;
@@ -32,11 +34,28 @@ const unknownMediaProvider = MediaProviderInfo(
 
 const mediaProviderCatalog = [
   MediaProviderInfo(
+    id: 'youtube_shorts',
+    displayName: 'YouTube Shorts',
+    tier: MediaProviderTier.priority,
+    domains: ['youtube.com'],
+    extractorNames: ['youtube:shorts:pivot:audio'],
+    pathPrefixes: ['/shorts/'],
+    cookiesOftenNeeded: true,
+  ),
+  MediaProviderInfo(
     id: 'youtube',
     displayName: 'YouTube',
     tier: MediaProviderTier.supported,
     domains: ['youtube.com', 'youtu.be', 'youtube-nocookie.com'],
-    extractorNames: ['youtube'],
+    extractorNames: [
+      'youtube',
+      'youtubetab',
+      'youtubeplaylist',
+      'youtubechannel',
+      'youtubehandle',
+      'youtubeytbe',
+      'youtubelivestreamembed',
+    ],
     playlists: true,
     cookiesOftenNeeded: true,
   ),
@@ -45,7 +64,7 @@ const mediaProviderCatalog = [
     displayName: 'Dailymotion',
     tier: MediaProviderTier.priority,
     domains: ['dailymotion.com', 'dai.ly'],
-    extractorNames: ['dailymotion'],
+    extractorNames: ['dailymotion', 'dailymotionplaylist'],
     playlists: true,
   ),
   MediaProviderInfo(
@@ -53,7 +72,7 @@ const mediaProviderCatalog = [
     displayName: 'Vimeo',
     tier: MediaProviderTier.priority,
     domains: ['vimeo.com', 'player.vimeo.com'],
-    extractorNames: ['vimeo'],
+    extractorNames: ['vimeo', 'vimeoreview'],
     cookiesOftenNeeded: true,
   ),
   MediaProviderInfo(
@@ -61,7 +80,7 @@ const mediaProviderCatalog = [
     displayName: 'SoundCloud',
     tier: MediaProviderTier.priority,
     domains: ['soundcloud.com', 'snd.sc'],
-    extractorNames: ['soundcloud'],
+    extractorNames: ['soundcloud', 'soundcloudembed'],
     audioFirst: true,
     playlists: true,
   ),
@@ -77,7 +96,7 @@ const mediaProviderCatalog = [
     displayName: 'Instagram',
     tier: MediaProviderTier.priority,
     domains: ['instagram.com'],
-    extractorNames: ['instagram'],
+    extractorNames: ['instagram', 'instagramios'],
     cookiesOftenNeeded: true,
   ),
   MediaProviderInfo(
@@ -85,7 +104,7 @@ const mediaProviderCatalog = [
     displayName: 'Facebook',
     tier: MediaProviderTier.priority,
     domains: ['facebook.com', 'fb.watch'],
-    extractorNames: ['facebook'],
+    extractorNames: ['facebook', 'facebookpluginsvideo'],
     cookiesOftenNeeded: true,
   ),
   MediaProviderInfo(
@@ -93,7 +112,7 @@ const mediaProviderCatalog = [
     displayName: 'Twitter/X',
     tier: MediaProviderTier.priority,
     domains: ['x.com', 'twitter.com'],
-    extractorNames: ['twitter', 'x'],
+    extractorNames: ['twitter', 'twitteramplify', 'x'],
     cookiesOftenNeeded: true,
   ),
   MediaProviderInfo(
@@ -101,7 +120,7 @@ const mediaProviderCatalog = [
     displayName: 'Pinterest',
     tier: MediaProviderTier.planned,
     domains: ['pinterest.com', 'pin.it'],
-    extractorNames: ['pinterest'],
+    extractorNames: ['pinterest', 'pinterestcollection'],
   ),
   MediaProviderInfo(
     id: 'reddit',
@@ -115,7 +134,7 @@ const mediaProviderCatalog = [
     displayName: 'Twitch',
     tier: MediaProviderTier.planned,
     domains: ['twitch.tv'],
-    extractorNames: ['twitch'],
+    extractorNames: ['twitch', 'twitchclips', 'twitchvod', 'twitchstream'],
     playlists: true,
   ),
   MediaProviderInfo(
@@ -123,7 +142,7 @@ const mediaProviderCatalog = [
     displayName: 'Rumble',
     tier: MediaProviderTier.planned,
     domains: ['rumble.com'],
-    extractorNames: ['rumble'],
+    extractorNames: ['rumble', 'rumblechannel', 'rumbleembed'],
   ),
   MediaProviderInfo(
     id: 'bandcamp',
@@ -156,7 +175,7 @@ const mediaProviderCatalog = [
     displayName: 'Audius',
     tier: MediaProviderTier.planned,
     domains: ['audius.co'],
-    extractorNames: ['audius'],
+    extractorNames: ['audius', 'audiusartist', 'audiusplaylist', 'audiustrack'],
     audioFirst: true,
     playlists: true,
   ),
@@ -165,7 +184,7 @@ const mediaProviderCatalog = [
     displayName: 'Internet Archive',
     tier: MediaProviderTier.planned,
     domains: ['archive.org'],
-    extractorNames: ['archiveorg'],
+    extractorNames: ['archiveorg', 'internetarchive'],
     playlists: true,
   ),
   MediaProviderInfo(
@@ -182,6 +201,7 @@ const mediaProviderCatalog = [
     tier: MediaProviderTier.planned,
     domains: ['tumblr.com'],
     extractorNames: ['tumblr'],
+    cookiesOftenNeeded: true,
   ),
   MediaProviderInfo(
     id: 'vk',
@@ -192,21 +212,297 @@ const mediaProviderCatalog = [
     cookiesOftenNeeded: true,
   ),
   MediaProviderInfo(
+    id: 'vk_play',
+    displayName: 'VK Play',
+    tier: MediaProviderTier.planned,
+    domains: ['vkplay.ru', 'live.vkplay.ru'],
+    extractorNames: ['vkplay', 'vkplaylive'],
+    cookiesOftenNeeded: true,
+  ),
+  MediaProviderInfo(
     id: 'odysee',
     displayName: 'Odysee/LBRY',
     tier: MediaProviderTier.planned,
     domains: ['odysee.com', 'lbry.tv'],
     extractorNames: ['odysee', 'lbry'],
   ),
+  MediaProviderInfo(
+    id: 'streamable',
+    displayName: 'Streamable',
+    tier: MediaProviderTier.planned,
+    domains: ['streamable.com'],
+    extractorNames: ['streamable'],
+  ),
+  MediaProviderInfo(
+    id: 'imgur',
+    displayName: 'Imgur',
+    tier: MediaProviderTier.planned,
+    domains: ['imgur.com', 'i.imgur.com'],
+    extractorNames: ['imgur'],
+  ),
+  MediaProviderInfo(
+    id: 'flickr',
+    displayName: 'Flickr',
+    tier: MediaProviderTier.planned,
+    domains: ['flickr.com', 'flic.kr'],
+    extractorNames: ['flickr'],
+  ),
+  MediaProviderInfo(
+    id: 'bitchute',
+    displayName: 'BitChute',
+    tier: MediaProviderTier.planned,
+    domains: ['bitchute.com'],
+    extractorNames: ['bitchute', 'bitchutechannel'],
+    playlists: true,
+  ),
+  MediaProviderInfo(
+    id: 'peertube',
+    displayName: 'PeerTube',
+    tier: MediaProviderTier.planned,
+    domains: ['joinpeertube.org', 'peertube.tv'],
+    extractorNames: ['peertube'],
+    playlists: true,
+  ),
+  MediaProviderInfo(
+    id: 'ted',
+    displayName: 'TED',
+    tier: MediaProviderTier.planned,
+    domains: ['ted.com'],
+    extractorNames: ['ted'],
+  ),
+  MediaProviderInfo(
+    id: 'bilibili',
+    displayName: 'Bilibili',
+    tier: MediaProviderTier.planned,
+    domains: ['bilibili.com', 'b23.tv'],
+    extractorNames: [
+      'bilibili',
+      'bilibiliwatchlater',
+      'bilibiliplaylist',
+      'bilibiliaudio',
+      'bilibiliaudioalbum',
+      'bilibilispacevideo',
+      'bilibilispaceaudio',
+    ],
+    playlists: true,
+    cookiesOftenNeeded: true,
+  ),
+  MediaProviderInfo(
+    id: 'niconico',
+    displayName: 'Niconico',
+    tier: MediaProviderTier.planned,
+    domains: ['nicovideo.jp', 'nico.ms', 'nicochannel.jp'],
+    extractorNames: ['niconico', 'niconicouser', 'niconicochannelplus'],
+    cookiesOftenNeeded: true,
+  ),
+  MediaProviderInfo(
+    id: 'coub',
+    displayName: 'Coub',
+    tier: MediaProviderTier.planned,
+    domains: ['coub.com'],
+    extractorNames: ['coub'],
+  ),
+  MediaProviderInfo(
+    id: 'vocaroo',
+    displayName: 'Vocaroo',
+    tier: MediaProviderTier.planned,
+    domains: ['vocaroo.com', 'voca.ro'],
+    extractorNames: ['vocaroo'],
+    audioFirst: true,
+  ),
+  MediaProviderInfo(
+    id: 'hearthisat',
+    displayName: 'HearThis.at',
+    tier: MediaProviderTier.planned,
+    domains: ['hearthis.at'],
+    extractorNames: ['hearthisat'],
+    audioFirst: true,
+  ),
+  MediaProviderInfo(
+    id: 'apple_podcasts',
+    displayName: 'Apple Podcasts',
+    tier: MediaProviderTier.planned,
+    domains: ['podcasts.apple.com'],
+    extractorNames: ['apple:podcasts'],
+    audioFirst: true,
+    playlists: true,
+  ),
+  MediaProviderInfo(
+    id: 'podbay',
+    displayName: 'Podbay',
+    tier: MediaProviderTier.planned,
+    domains: ['podbay.fm'],
+    extractorNames: ['podbayfm', 'podbayfmchannel'],
+    audioFirst: true,
+    playlists: true,
+  ),
+  MediaProviderInfo(
+    id: 'podchaser',
+    displayName: 'Podchaser',
+    tier: MediaProviderTier.planned,
+    domains: ['podchaser.com'],
+    extractorNames: ['podchaser'],
+    audioFirst: true,
+    playlists: true,
+  ),
+  MediaProviderInfo(
+    id: 'acast',
+    displayName: 'Acast',
+    tier: MediaProviderTier.planned,
+    domains: ['acast.com', 'play.acast.com'],
+    extractorNames: ['acast', 'acastchannel'],
+    audioFirst: true,
+    playlists: true,
+  ),
+  MediaProviderInfo(
+    id: 'bbc',
+    displayName: 'BBC',
+    tier: MediaProviderTier.planned,
+    domains: ['bbc.com', 'bbc.co.uk'],
+    extractorNames: ['bbc'],
+  ),
+  MediaProviderInfo(
+    id: 'cnn',
+    displayName: 'CNN',
+    tier: MediaProviderTier.planned,
+    domains: ['cnn.com'],
+    extractorNames: ['cnn', 'cnnindonesia'],
+  ),
+  MediaProviderInfo(
+    id: 'pbs',
+    displayName: 'PBS',
+    tier: MediaProviderTier.planned,
+    domains: ['pbs.org', 'video.pbs.org'],
+    extractorNames: ['pbs', 'pbskids'],
+  ),
+  MediaProviderInfo(
+    id: 'espn',
+    displayName: 'ESPN',
+    tier: MediaProviderTier.planned,
+    domains: ['espn.com', 'espncricinfo.com'],
+    extractorNames: ['espn', 'espnarticle', 'espncricinfo', 'watchespn'],
+    cookiesOftenNeeded: true,
+  ),
+  MediaProviderInfo(
+    id: 'substack',
+    displayName: 'Substack',
+    tier: MediaProviderTier.planned,
+    domains: ['substack.com'],
+    extractorNames: ['substack'],
+  ),
+  MediaProviderInfo(
+    id: 'bluesky',
+    displayName: 'Bluesky',
+    tier: MediaProviderTier.planned,
+    domains: ['bsky.app', 'bsky.social'],
+    extractorNames: ['bluesky'],
+  ),
+  MediaProviderInfo(
+    id: 'truth_social',
+    displayName: 'Truth Social',
+    tier: MediaProviderTier.planned,
+    domains: ['truthsocial.com'],
+    extractorNames: ['truth'],
+    cookiesOftenNeeded: true,
+  ),
+  MediaProviderInfo(
+    id: 'rutube',
+    displayName: 'Rutube',
+    tier: MediaProviderTier.planned,
+    domains: ['rutube.ru'],
+    extractorNames: ['rutube'],
+    playlists: true,
+  ),
+  MediaProviderInfo(
+    id: 'youku',
+    displayName: 'Youku',
+    tier: MediaProviderTier.planned,
+    domains: ['youku.com'],
+    extractorNames: ['youku'],
+  ),
+  MediaProviderInfo(
+    id: 'cloudflare_stream',
+    displayName: 'Cloudflare Stream',
+    tier: MediaProviderTier.planned,
+    domains: ['watch.cloudflarestream.com', 'cloudflarestream.com'],
+    extractorNames: ['cloudflarestream'],
+  ),
+  MediaProviderInfo(
+    id: 'jwplatform',
+    displayName: 'JW Platform',
+    tier: MediaProviderTier.planned,
+    domains: ['jwplatform.com', 'content.jwplatform.com'],
+    extractorNames: ['jwplatform'],
+  ),
+  MediaProviderInfo(
+    id: 'kaltura',
+    displayName: 'Kaltura',
+    tier: MediaProviderTier.planned,
+    domains: ['kaltura.com', 'kaltura.tv'],
+    extractorNames: ['kaltura', 'rtvckaltura'],
+  ),
+  MediaProviderInfo(
+    id: 'wistia',
+    displayName: 'Wistia',
+    tier: MediaProviderTier.planned,
+    domains: ['wistia.com', 'wistia.net'],
+    extractorNames: ['wistia', 'wistiachannel', 'wistiaplaylist'],
+    playlists: true,
+  ),
+  MediaProviderInfo(
+    id: 'brightcove',
+    displayName: 'Brightcove',
+    tier: MediaProviderTier.planned,
+    domains: ['brightcove.com', 'players.brightcove.net'],
+    extractorNames: ['brightcovenew', 'brightcove'],
+  ),
+  MediaProviderInfo(
+    id: 'snapchat',
+    displayName: 'Snapchat Spotlight',
+    tier: MediaProviderTier.research,
+    domains: ['snapchat.com'],
+    extractorNames: ['snapchatspotlight'],
+    pathPrefixes: ['/spotlight/'],
+  ),
+  MediaProviderInfo(
+    id: 'threads',
+    displayName: 'Threads',
+    tier: MediaProviderTier.research,
+    domains: ['threads.net'],
+    extractorNames: [],
+    cookiesOftenNeeded: true,
+  ),
+  MediaProviderInfo(
+    id: 'buzzvideo',
+    displayName: 'BuzzVideo',
+    tier: MediaProviderTier.research,
+    domains: ['buzzvideo.com', 'topbuzz.com'],
+    extractorNames: [],
+  ),
+  MediaProviderInfo(
+    id: 'tubidy',
+    displayName: 'Tubidy',
+    tier: MediaProviderTier.research,
+    domains: ['tubidy.com', 'tubidy.mobi'],
+    extractorNames: [],
+    audioFirst: true,
+  ),
+  MediaProviderInfo(
+    id: 'wallpaper',
+    displayName: 'Wallpaper/Image Site',
+    tier: MediaProviderTier.research,
+    domains: ['wallhaven.cc', 'wallpapers.com', 'wallpaperflare.com'],
+    extractorNames: [],
+  ),
 ];
 
 MediaProviderInfo resolveMediaProvider({String? url, String? extractor}) {
-  final byExtractor = mediaProviderForExtractor(extractor);
-  if (byExtractor.id != unknownMediaProvider.id) {
-    return byExtractor;
+  final byUrl = mediaProviderForUrl(url);
+  if (byUrl.id != unknownMediaProvider.id) {
+    return byUrl;
   }
 
-  return mediaProviderForUrl(url);
+  return mediaProviderForExtractor(extractor);
 }
 
 MediaProviderInfo mediaProviderForUrl(String? url) {
@@ -216,13 +512,71 @@ MediaProviderInfo mediaProviderForUrl(String? url) {
     return unknownMediaProvider;
   }
 
+  final path = uri?.path.toLowerCase() ?? '';
   for (final provider in mediaProviderCatalog) {
-    if (provider.domains.any((domain) => _hostMatches(host, domain))) {
-      return provider;
+    final domainMatches = provider.domains.any(
+      (domain) => _hostMatches(host, domain),
+    );
+    if (!domainMatches) {
+      continue;
     }
+
+    if (provider.pathPrefixes.isNotEmpty &&
+        !provider.pathPrefixes.any((prefix) => path.startsWith(prefix))) {
+      continue;
+    }
+
+    return provider;
   }
 
   return unknownMediaProvider;
+}
+
+String normalizeMediaUrl(String value) {
+  final trimmed = value.trim();
+  final uri = Uri.tryParse(trimmed);
+  if (uri == null || uri.host.isEmpty) {
+    return trimmed;
+  }
+
+  final provider = mediaProviderForUrl(trimmed);
+  if (provider.id == unknownMediaProvider.id) {
+    return trimmed;
+  }
+
+  final filteredQuery = <String, List<String>>{};
+  uri.queryParametersAll.forEach((key, values) {
+    final normalized = key.toLowerCase();
+    if (normalized.startsWith('utm_') ||
+        _trackingQueryParameters.contains(normalized)) {
+      return;
+    }
+
+    filteredQuery[key] = values;
+  });
+
+  if (filteredQuery.length == uri.queryParametersAll.length) {
+    return trimmed;
+  }
+
+  final normalized = uri.replace(queryParameters: filteredQuery).toString();
+  if (filteredQuery.isEmpty) {
+    return normalized.replaceFirst('?#', '#').replaceFirst(RegExp(r'\?$'), '');
+  }
+
+  return normalized;
+}
+
+List<MediaProviderInfo> mediaProvidersByTier(MediaProviderTier tier) {
+  return mediaProviderCatalog
+      .where((provider) => provider.tier == tier)
+      .toList(growable: false);
+}
+
+List<MediaProviderInfo> mediaProvidersForPublicList() {
+  return mediaProviderCatalog
+      .where((provider) => provider.tier != MediaProviderTier.generic)
+      .toList(growable: false);
 }
 
 MediaProviderInfo mediaProviderForExtractor(String? extractor) {
@@ -269,5 +623,33 @@ bool _hostMatches(String host, String domain) {
 }
 
 String _normalizeExtractor(String? extractor) {
-  return (extractor ?? '').trim().toLowerCase();
+  return (extractor ?? '').trim().toLowerCase().replaceAll(
+    RegExp(r'[\s_-]+'),
+    '',
+  );
 }
+
+const _trackingQueryParameters = {
+  '_r',
+  'fbclid',
+  'gclid',
+  'dclid',
+  'msclkid',
+  'igsh',
+  'igshid',
+  'is_from_webapp',
+  'mibextid',
+  'pp',
+  'refer',
+  'referer_url',
+  'sender_device',
+  'share_app_id',
+  'share_id',
+  'si',
+  'source',
+  'spm_id_from',
+  'timestamp',
+  'tt_from',
+  'u_code',
+  'vd_source',
+};

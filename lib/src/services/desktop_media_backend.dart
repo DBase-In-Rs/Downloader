@@ -542,8 +542,13 @@ String? _playlistEntryUrl(Map<String, dynamic> entry) {
 
   final id = stringValue(entry['id']) ?? url;
   final ieKey = stringValue(entry['ie_key'])?.toLowerCase();
-  if (id != null && id.isNotEmpty && ieKey == 'youtube') {
-    return 'https://www.youtube.com/watch?v=$id';
+  if (id != null && id.isNotEmpty) {
+    return switch (ieKey) {
+      'youtube' => 'https://www.youtube.com/watch?v=$id',
+      'dailymotion' => 'https://www.dailymotion.com/video/$id',
+      'vimeo' => 'https://vimeo.com/$id',
+      _ => null,
+    };
   }
 
   return null;

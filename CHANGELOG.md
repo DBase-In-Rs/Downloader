@@ -12,13 +12,20 @@ versioning once releases begin.
 
 - Multi-site provider catalog for Dailymotion, Vimeo, SoundCloud, TikTok,
   Instagram, Facebook, Twitter/X, Pinterest, Reddit, Twitch, Rumble, and
-  secondary providers.
+  many secondary yt-dlp providers.
 - Detected-provider labels in Home, Queue, and History, plus provider filtering
   in History.
+- Shared/pasted provider URL cleanup for common tracking parameters.
+- Provider-aware error messages for login-required, private, geo-blocked,
+  rate-limited, unsupported, and DRM/protected media failures.
 - Full upstream yt-dlp extractor list mirrored in
   `docs/SUPPORTED_WEBSITES.md`.
 - Provider QA notes and a private-matrix desktop smoke tool
   (`tool/provider_smoke.dart`).
+
+### Fixed
+
+- Added spacing between the Settings license action and the cookies section.
 
 ## [1.0.0-beta.3] - 2026-08-26
 

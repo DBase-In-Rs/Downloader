@@ -77,19 +77,23 @@ void main() {
     expect(info.formats[1].filesizeBytes, 148000000);
   });
 
-  test('maps flat playlist JSON and resolves YouTube ids', () {
+  test('maps flat playlist JSON and resolves provider ids', () {
     final playlist = playlistInfoFromYtDlpJson({
       'title': 'My playlist',
       'entries': [
         {'url': 'https://example.com/1', 'title': 'One', 'duration': 60},
         {'id': 'abc123', 'ie_key': 'Youtube', 'title': 'Two'},
+        {'id': 'x123', 'ie_key': 'Dailymotion', 'title': 'Three'},
+        {'id': '123456', 'ie_key': 'Vimeo', 'title': 'Four'},
         {'title': 'No URL entry'},
       ],
     }, 'https://example.com/playlist');
 
     expect(playlist.title, 'My playlist');
-    expect(playlist.entries, hasLength(2));
+    expect(playlist.entries, hasLength(4));
     expect(playlist.entries[1].url, 'https://www.youtube.com/watch?v=abc123');
+    expect(playlist.entries[2].url, 'https://www.dailymotion.com/video/x123');
+    expect(playlist.entries[3].url, 'https://vimeo.com/123456');
   });
 
   test('parses yt-dlp progress lines', () {

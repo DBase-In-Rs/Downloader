@@ -207,11 +207,12 @@ class AppController extends ChangeNotifier {
   }
 
   void setUrlText(String value) {
-    if (_urlText == value) {
+    final normalized = normalizeMediaUrl(value);
+    if (_urlText == normalized) {
       return;
     }
 
-    _urlText = value;
+    _urlText = normalized;
     if (_errorMessage != null && value.trim().isNotEmpty) {
       _errorMessage = null;
     }
@@ -245,14 +246,14 @@ class AppController extends ChangeNotifier {
       return;
     }
 
-    _urlText = url;
+    _urlText = normalizeMediaUrl(url);
     _section = AppSection.home;
     _errorMessage = null;
     notifyListeners();
   }
 
   Future<void> analyzeUrl() async {
-    final url = _urlText.trim();
+    final url = normalizeMediaUrl(_urlText);
     if (!isValidUrl(url)) {
       _errorMessage = 'Enter a valid URL.';
       _extractionState = ExtractionState.failed;
@@ -260,6 +261,7 @@ class AppController extends ChangeNotifier {
       return;
     }
 
+    _urlText = url;
     _extractionState = ExtractionState.loading;
     _errorMessage = null;
     _mediaInfo = null;
@@ -278,19 +280,22 @@ class AppController extends ChangeNotifier {
         if (playlist.entries.isEmpty) {
           // Not a real playlist; fall back to single-item analysis.
           _mediaInfo = _withResolvedProvider(await backend.getInfo(request));
+          _applyProviderDefaults(currentProvider);
         } else {
           _playlistInfo = _withResolvedPlaylistProvider(playlist);
+          _applyProviderDefaults(currentProvider);
           _selectedPlaylistUrls.addAll(
             playlist.entries.map((entry) => entry.url),
           );
         }
       } else {
         _mediaInfo = _withResolvedProvider(await backend.getInfo(request));
+        _applyProviderDefaults(currentProvider);
       }
       _extractionState = ExtractionState.loaded;
     } catch (error) {
       _extractionState = ExtractionState.failed;
-      _errorMessage = _friendlyError(error);
+      _errorMessage = _friendlyError(error, provider: currentProvider);
       unawaited(_refreshCookieStatus());
     }
 
@@ -340,6 +345,9 @@ class AppController extends ChangeNotifier {
         title: entry.title,
         format: format,
         outputKind: _outputKind,
+        provider: playlist.providerId == null
+            ? mediaProviderForUrl(playlist.url)
+            : mediaProviderById(playlist.providerId),
       );
     }
   }
@@ -355,6 +363,7 @@ class AppController extends ChangeNotifier {
       title: info.title,
       format: format,
       outputKind: _outputKind,
+      provider: resolveMediaProvider(url: _urlText, extractor: info.extractor),
     );
   }
 
@@ -364,6 +373,9 @@ class AppController extends ChangeNotifier {
       title: source.title,
       format: source.format,
       outputKind: source.outputKind,
+      provider: source.providerId == null
+          ? mediaProviderForUrl(source.url)
+          : mediaProviderById(source.providerId),
     );
   }
 
@@ -476,10 +488,11 @@ class AppController extends ChangeNotifier {
     required String title,
     required MediaFormat format,
     required OutputKind outputKind,
+    MediaProviderInfo? provider,
   }) async {
     // A timestamp alone can collide when two items are enqueued within the
     // same clock tick, so a session-local sequence keeps ids unique.
-    final provider = mediaProviderForUrl(url);
+    final resolvedProvider = provider ?? mediaProviderForUrl(url);
     final item = DownloadQueueItem(
       id: '${DateTime.now().microsecondsSinceEpoch}-${_idSequence++}',
       url: url,
@@ -487,8 +500,8 @@ class AppController extends ChangeNotifier {
       format: format,
       outputKind: outputKind,
       status: _queuePaused ? DownloadStatus.paused : DownloadStatus.pending,
-      providerId: provider.id,
-      providerName: provider.displayName,
+      providerId: resolvedProvider.id,
+      providerName: resolvedProvider.displayName,
     );
 
     _queue.add(item);
@@ -530,11 +543,14 @@ class AppController extends ChangeNotifier {
         ),
       );
     } catch (error) {
+      final provider = item.providerId == null
+          ? mediaProviderForUrl(item.url)
+          : mediaProviderById(item.providerId);
       _finishQueueItem(
         item.id,
         (current) => current.copyWith(
           status: DownloadStatus.failed,
-          errorMessage: _friendlyError(error),
+          errorMessage: _friendlyError(error, provider: provider),
         ),
       );
     }
@@ -610,11 +626,12 @@ class AppController extends ChangeNotifier {
           ),
         );
       case DownloadFailedEvent(:final id, :final message):
+        final provider = _queueProviderFor(id);
         _finishQueueItem(
           id,
           (current) => current.copyWith(
             status: DownloadStatus.failed,
-            errorMessage: message,
+            errorMessage: _friendlyError(message, provider: provider),
           ),
         );
         unawaited(_refreshCookieStatus());
@@ -662,17 +679,73 @@ class AppController extends ChangeNotifier {
     unawaited(_pumpQueue());
   }
 
-  String _friendlyError(Object error) {
+  MediaProviderInfo? _queueProviderFor(String id) {
+    final index = _queue.indexWhere((item) => item.id == id);
+    if (index == -1) {
+      return null;
+    }
+
+    final item = _queue[index];
+    return item.providerId == null
+        ? mediaProviderForUrl(item.url)
+        : mediaProviderById(item.providerId);
+  }
+
+  String _friendlyError(Object error, {MediaProviderInfo? provider}) {
     if (error is FormatException) {
       return error.message;
     }
 
-    return error.toString().replaceFirst('Exception: ', '');
+    final message = error.toString().replaceFirst('Exception: ', '').trim();
+    final lower = message.toLowerCase();
+    final providerName = provider?.displayName ?? 'this site';
+
+    if (lower.contains('unsupported url') ||
+        lower.contains('no suitable extractor') ||
+        lower.contains('no video formats found')) {
+      return 'This URL is not supported by the current yt-dlp engine. Update yt-dlp in Settings, then try a public media URL from $providerName again.';
+    }
+
+    if (lower.contains('login required') ||
+        lower.contains('sign in') ||
+        lower.contains('cookies') ||
+        lower.contains('private video') ||
+        lower.contains('not a bot') ||
+        lower.contains('confirm your age')) {
+      final cookieHint = provider?.cookiesOftenNeeded == true
+          ? '$providerName often requires account cookies for restricted media.'
+          : 'This media appears to require account access.';
+      return '$cookieHint Import a fresh cookies.txt file in Settings and try again.';
+    }
+
+    if (lower.contains('private') ||
+        lower.contains('unavailable') ||
+        lower.contains('not available')) {
+      return '$providerName says this media is private, removed, or unavailable.';
+    }
+
+    if (lower.contains('geo') ||
+        lower.contains('country') ||
+        lower.contains('region')) {
+      return '$providerName is blocking this media in the current region.';
+    }
+
+    if (lower.contains('rate limit') ||
+        lower.contains('too many requests') ||
+        lower.contains('temporarily blocked')) {
+      return '$providerName is rate-limiting requests. Wait a bit, update yt-dlp if needed, then try again.';
+    }
+
+    if (lower.contains('drm') || lower.contains('protected')) {
+      return '$providerName appears to use DRM or protected media. DBase does not bypass DRM.';
+    }
+
+    return message.isEmpty ? 'The media request failed.' : message;
   }
 
   MediaInfo _withResolvedProvider(MediaInfo info) {
     final provider = resolveMediaProvider(
-      url: info.url,
+      url: _urlText,
       extractor: info.extractor,
     );
     return info.copyWith(
@@ -687,6 +760,19 @@ class AppController extends ChangeNotifier {
       providerId: playlist.providerId ?? provider.id,
       providerName: playlist.providerName ?? provider.displayName,
     );
+  }
+
+  void _applyProviderDefaults(MediaProviderInfo provider) {
+    if (!provider.audioFirst) {
+      return;
+    }
+
+    if (_outputKind == OutputKind.mp4) {
+      _outputKind = OutputKind.mp3;
+    }
+    if (_formatFilter == MediaKindFilter.video) {
+      _formatFilter = MediaKindFilter.audio;
+    }
   }
 }
 
