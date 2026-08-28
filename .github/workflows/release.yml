@@ -65,6 +65,7 @@ jobs:
             cmake -S "$RUNNER_TEMP/libwebp" -B "$RUNNER_TEMP/libwebp-$abi" \
               -DCMAKE_TOOLCHAIN_FILE="$ANDROID_HOME/ndk/$NDK_VERSION/build/cmake/android.toolchain.cmake" \
               -DANDROID_ABI=$abi -DANDROID_PLATFORM=android-24 -DBUILD_SHARED_LIBS=ON \
+              -DCMAKE_SHARED_LINKER_FLAGS=-Wl,--build-id=none \
               -DWEBP_BUILD_ANIM_UTILS=OFF -DWEBP_BUILD_CWEBP=OFF -DWEBP_BUILD_DWEBP=OFF \
               -DWEBP_BUILD_GIF2WEBP=OFF -DWEBP_BUILD_IMG2WEBP=OFF -DWEBP_BUILD_VWEBP=OFF \
               -DWEBP_BUILD_WEBPINFO=OFF -DWEBP_BUILD_WEBPMUX=OFF -DWEBP_BUILD_EXTRAS=OFF > /dev/null

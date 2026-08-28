@@ -8,6 +8,15 @@ versioning once releases begin.
 
 ## [Unreleased]
 
+## [1.0.5] - 2026-08-28
+
+### Changed
+
+- The rebuilt libwebp libraries now link with `--build-id=none`: the GNU
+  build-id note was the last 20 differing bytes between our APKs and
+  F-Droid's from-source rebuild (everything else verified byte-identical),
+  so dropping it makes the reproducible-build comparison pass.
+
 ## [1.0.4] - 2026-08-28
 
 ### Changed
