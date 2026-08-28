@@ -1,0 +1,57 @@
+# F-Droid packaging metadata for DBase Downloader.
+#
+# This file is a draft of what gets submitted to the fdroiddata repository
+# (https://gitlab.com/fdroid/fdroiddata) as metadata/rs.in.dbase.downloader.yml.
+# It is kept here so the recipe evolves alongside the app; the copy in
+# fdroiddata is the one F-Droid actually builds from. See docs/fdroid/README.md
+# for the submission steps.
+
+Categories:
+  - Multimedia
+  - Internet
+License: GPL-3.0-only
+AuthorName: Velimir Majstorov
+SourceCode: https://github.com/DBase-In-Rs/Downloader
+IssueTracker: https://github.com/DBase-In-Rs/Downloader/issues
+Changelog: https://github.com/DBase-In-Rs/Downloader/blob/main/CHANGELOG.md
+Donate: https://ko-fi.com/majstorov
+
+# Summary and Description come from fastlane/metadata/android/en-US in the
+# app repository.
+
+RepoType: git
+Repo: https://github.com/DBase-In-Rs/Downloader.git
+
+# The bundled yt-dlp engine can be updated manually from Settings, which
+# downloads the latest yt-dlp release over the GitHub API (same situation
+# as Seal, com.junkfood.seal). Automatic update checks are compiled out of
+# F-Droid builds via --dart-define=FDROID_BUILD=true.
+AntiFeatures:
+  NonFreeNet:
+    en-US: The manual yt-dlp engine update in Settings downloads the latest
+      yt-dlp release through the GitHub API.
+
+Builds:
+  - versionName: 1.0.1
+    versionCode: 8
+    commit: v1.0.1
+    output: build/app/outputs/flutter-apk/app-release.apk
+    srclibs:
+      - flutter@3.47.1
+    rm:
+      - ios
+      - macos
+      - linux
+      - windows
+    prebuild:
+      - export PUB_CACHE=$(pwd)/.pub-cache
+      - $$flutter$$/bin/flutter config --no-analytics
+      - $$flutter$$/bin/flutter pub get
+    build:
+      - export PUB_CACHE=$(pwd)/.pub-cache
+      - $$flutter$$/bin/flutter build apk --release --dart-define=FDROID_BUILD=true
+
+AutoUpdateMode: Version
+UpdateCheckMode: Tags ^v[0-9.]+$
+CurrentVersion: 1.0.1
+CurrentVersionCode: 8

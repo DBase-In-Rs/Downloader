@@ -64,6 +64,9 @@ install over the existing app):
 Not sure which one? Take the first; if it refuses to install, take the
 second.
 
+An F-Droid submission is in preparation; the packaging recipe and steps
+live in [docs/fdroid](docs/fdroid/README.md).
+
 ### 🪟 Windows
 
 - **Installer** (recommended): download

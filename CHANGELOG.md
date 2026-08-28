@@ -8,6 +8,14 @@ versioning once releases begin.
 
 ## [Unreleased]
 
+### Added
+
+- F-Droid groundwork: fastlane store metadata under
+  `fastlane/metadata/android/en-US/` (title, descriptions, icon, per-version
+  changelogs), an `FDROID_BUILD` dart-define that compiles out the GitHub
+  update check and the automatic yt-dlp startup update in F-Droid builds,
+  and a draft fdroiddata recipe with submission guide in `docs/fdroid/`.
+
 ## [1.0.1] - 2026-08-27
 
 ### Changed

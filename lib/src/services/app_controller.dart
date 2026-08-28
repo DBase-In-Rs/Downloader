@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 
+import '../build_flags.dart';
 import '../models/download_models.dart';
 import '../models/media_providers.dart';
 import 'app_update_service.dart';
@@ -186,8 +187,10 @@ class AppController extends ChangeNotifier {
     // Keeping yt-dlp current is required for working extraction; providers
     // regularly break older releases. The native side serializes the update
     // with downloads, so this can run alongside queue startup.
-    unawaited(updateEngine());
-    unawaited(_checkForAppUpdate());
+    if (!kFdroidBuild) {
+      unawaited(updateEngine());
+      unawaited(_checkForAppUpdate());
+    }
     await _pumpQueue();
   }
 

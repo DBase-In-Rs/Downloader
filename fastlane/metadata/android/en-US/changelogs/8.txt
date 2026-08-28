@@ -1,0 +1,4 @@
+* Theme matched to the logo: royal blue with red accents
+* Engine Check card in Settings
+* Support links (Polar, Ko-fi, PayPal)
+* Cookie status icon fix
