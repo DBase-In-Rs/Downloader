@@ -18,9 +18,9 @@ RepoType: git
 Repo: https://github.com/DBase-In-Rs/Downloader.git
 
 Builds:
-  - versionName: 1.0.1
-    versionCode: 1008
-    commit: 7d22330dd8727002b3a00061444661b1aa6653ca
+  - versionName: 1.0.2
+    versionCode: 1009
+    commit: v1.0.2
     sudo:
       - apt-get update
       - apt-get install -y cmake make
@@ -58,9 +58,9 @@ Builds:
         --dart-define=FDROID_BUILD=true
     ndk: r28c
 
-  - versionName: 1.0.1
-    versionCode: 2008
-    commit: 7d22330dd8727002b3a00061444661b1aa6653ca
+  - versionName: 1.0.2
+    versionCode: 2009
+    commit: v1.0.2
     sudo:
       - apt-get update
       - apt-get install -y cmake make
@@ -98,9 +98,9 @@ Builds:
         --dart-define=FDROID_BUILD=true
     ndk: r28c
 
-  - versionName: 1.0.1
-    versionCode: 4008
-    commit: 7d22330dd8727002b3a00061444661b1aa6653ca
+  - versionName: 1.0.2
+    versionCode: 4009
+    commit: v1.0.2
     sudo:
       - apt-get update
       - apt-get install -y cmake make
@@ -159,5 +159,5 @@ VercodeOperation:
   - 2000+%c
   - 4000+%c
 UpdateCheckData: pubspec.yaml|version:\s.+\+(\d+)|.|version:\s(.+)\+
-CurrentVersion: 1.0.1
-CurrentVersionCode: 4008
+CurrentVersion: 1.0.2
+CurrentVersionCode: 4009
