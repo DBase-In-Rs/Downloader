@@ -1,7 +1,7 @@
 AntiFeatures:
   NonFreeNet:
-    en-US: The manual yt-dlp engine update in Settings downloads the latest 
-      yt-dlp release through the GitHub API.
+    en-US: The manual yt-dlp engine update in Settings downloads the latest yt-dlp
+      release through the GitHub API.
 Categories:
   - Internet
   - Multimedia
@@ -41,8 +41,7 @@ Builds:
       - macos
       - windows
     prebuild:
-      - flutterVersion=$(sed -n -E "s/.*flutter-version:\ '(.*)'/\1/p" 
-        .github/workflows/flutter.yml)
+      - flutterVersion=$(sed -n -E "s/.*flutter-version:\ '(.*)'/\1/p" .github/workflows/flutter.yml)
       - '[[ $flutterVersion ]]'
       - git -C $$flutter$$ checkout -f $flutterVersion
       - mkdir -p /home/runner/work/Downloader
@@ -60,22 +59,18 @@ Builds:
       - cd ..
       - mv rs.in.dbase.downloader /home/runner/work/Downloader/Downloader
       - pushd /home/runner/work/Downloader/Downloader
-      - cmake -S $$libwebp$$ -B libwebp-build 
-        -DCMAKE_TOOLCHAIN_FILE=$$NDK$$/build/cmake/android.toolchain.cmake 
-        -DANDROID_ABI=armeabi-v7a -DANDROID_PLATFORM=android-24 
-        -DBUILD_SHARED_LIBS=ON -DWEBP_BUILD_ANIM_UTILS=OFF 
-        -DWEBP_BUILD_CWEBP=OFF -DWEBP_BUILD_DWEBP=OFF -DWEBP_BUILD_GIF2WEBP=OFF 
-        -DWEBP_BUILD_IMG2WEBP=OFF -DWEBP_BUILD_VWEBP=OFF 
-        -DWEBP_BUILD_WEBPINFO=OFF -DWEBP_BUILD_WEBPMUX=OFF 
-        -DWEBP_BUILD_EXTRAS=OFF
+      - cmake -S $$libwebp$$ -B libwebp-build -DCMAKE_TOOLCHAIN_FILE=$$NDK$$/build/cmake/android.toolchain.cmake
+        -DANDROID_ABI=armeabi-v7a -DANDROID_PLATFORM=android-24 -DBUILD_SHARED_LIBS=ON
+        -DWEBP_BUILD_ANIM_UTILS=OFF -DWEBP_BUILD_CWEBP=OFF -DWEBP_BUILD_DWEBP=OFF
+        -DWEBP_BUILD_GIF2WEBP=OFF -DWEBP_BUILD_IMG2WEBP=OFF -DWEBP_BUILD_VWEBP=OFF
+        -DWEBP_BUILD_WEBPINFO=OFF -DWEBP_BUILD_WEBPMUX=OFF -DWEBP_BUILD_EXTRAS=OFF
       - cmake --build libwebp-build -j
       - mkdir -p android/app/src/main/jniLibs/armeabi-v7a
-      - cp libwebp-build/libsharpyuv.so libwebp-build/libwebp.so 
-        libwebp-build/libwebpdecoder.so libwebp-build/libwebpdemux.so 
-        libwebp-build/libwebpmux.so android/app/src/main/jniLibs/armeabi-v7a/
+      - cp libwebp-build/libsharpyuv.so libwebp-build/libwebp.so libwebp-build/libwebpdecoder.so
+        libwebp-build/libwebpdemux.so libwebp-build/libwebpmux.so android/app/src/main/jniLibs/armeabi-v7a/
       - export PUB_CACHE=$(pwd)/.pub-cache
-      - $$flutter$$/bin/flutter build apk --release --split-per-abi 
-        --target-platform="android-arm" --dart-define=FDROID_BUILD=true
+      - $$flutter$$/bin/flutter build apk --release --split-per-abi --target-platform="android-arm"
+        --dart-define=FDROID_BUILD=true
       - popd
       - mv /home/runner/work/Downloader/Downloader rs.in.dbase.downloader
     ndk: r28c
@@ -101,8 +96,7 @@ Builds:
       - macos
       - windows
     prebuild:
-      - flutterVersion=$(sed -n -E "s/.*flutter-version:\ '(.*)'/\1/p" 
-        .github/workflows/flutter.yml)
+      - flutterVersion=$(sed -n -E "s/.*flutter-version:\ '(.*)'/\1/p" .github/workflows/flutter.yml)
       - '[[ $flutterVersion ]]'
       - git -C $$flutter$$ checkout -f $flutterVersion
       - mkdir -p /home/runner/work/Downloader
@@ -120,22 +114,18 @@ Builds:
       - cd ..
       - mv rs.in.dbase.downloader /home/runner/work/Downloader/Downloader
       - pushd /home/runner/work/Downloader/Downloader
-      - cmake -S $$libwebp$$ -B libwebp-build 
-        -DCMAKE_TOOLCHAIN_FILE=$$NDK$$/build/cmake/android.toolchain.cmake 
-        -DANDROID_ABI=arm64-v8a -DANDROID_PLATFORM=android-24 
-        -DBUILD_SHARED_LIBS=ON -DWEBP_BUILD_ANIM_UTILS=OFF 
-        -DWEBP_BUILD_CWEBP=OFF -DWEBP_BUILD_DWEBP=OFF -DWEBP_BUILD_GIF2WEBP=OFF 
-        -DWEBP_BUILD_IMG2WEBP=OFF -DWEBP_BUILD_VWEBP=OFF 
-        -DWEBP_BUILD_WEBPINFO=OFF -DWEBP_BUILD_WEBPMUX=OFF 
-        -DWEBP_BUILD_EXTRAS=OFF
+      - cmake -S $$libwebp$$ -B libwebp-build -DCMAKE_TOOLCHAIN_FILE=$$NDK$$/build/cmake/android.toolchain.cmake
+        -DANDROID_ABI=arm64-v8a -DANDROID_PLATFORM=android-24 -DBUILD_SHARED_LIBS=ON
+        -DWEBP_BUILD_ANIM_UTILS=OFF -DWEBP_BUILD_CWEBP=OFF -DWEBP_BUILD_DWEBP=OFF
+        -DWEBP_BUILD_GIF2WEBP=OFF -DWEBP_BUILD_IMG2WEBP=OFF -DWEBP_BUILD_VWEBP=OFF
+        -DWEBP_BUILD_WEBPINFO=OFF -DWEBP_BUILD_WEBPMUX=OFF -DWEBP_BUILD_EXTRAS=OFF
       - cmake --build libwebp-build -j
       - mkdir -p android/app/src/main/jniLibs/arm64-v8a
-      - cp libwebp-build/libsharpyuv.so libwebp-build/libwebp.so 
-        libwebp-build/libwebpdecoder.so libwebp-build/libwebpdemux.so 
-        libwebp-build/libwebpmux.so android/app/src/main/jniLibs/arm64-v8a/
+      - cp libwebp-build/libsharpyuv.so libwebp-build/libwebp.so libwebp-build/libwebpdecoder.so
+        libwebp-build/libwebpdemux.so libwebp-build/libwebpmux.so android/app/src/main/jniLibs/arm64-v8a/
       - export PUB_CACHE=$(pwd)/.pub-cache
-      - $$flutter$$/bin/flutter build apk --release --split-per-abi 
-        --target-platform="android-arm64" --dart-define=FDROID_BUILD=true
+      - $$flutter$$/bin/flutter build apk --release --split-per-abi --target-platform="android-arm64"
+        --dart-define=FDROID_BUILD=true
       - popd
       - mv /home/runner/work/Downloader/Downloader rs.in.dbase.downloader
     ndk: r28c
@@ -161,8 +151,7 @@ Builds:
       - macos
       - windows
     prebuild:
-      - flutterVersion=$(sed -n -E "s/.*flutter-version:\ '(.*)'/\1/p" 
-        .github/workflows/flutter.yml)
+      - flutterVersion=$(sed -n -E "s/.*flutter-version:\ '(.*)'/\1/p" .github/workflows/flutter.yml)
       - '[[ $flutterVersion ]]'
       - git -C $$flutter$$ checkout -f $flutterVersion
       - mkdir -p /home/runner/work/Downloader
@@ -180,28 +169,23 @@ Builds:
       - cd ..
       - mv rs.in.dbase.downloader /home/runner/work/Downloader/Downloader
       - pushd /home/runner/work/Downloader/Downloader
-      - cmake -S $$libwebp$$ -B libwebp-build 
-        -DCMAKE_TOOLCHAIN_FILE=$$NDK$$/build/cmake/android.toolchain.cmake 
-        -DANDROID_ABI=x86_64 -DANDROID_PLATFORM=android-24 
-        -DBUILD_SHARED_LIBS=ON -DWEBP_BUILD_ANIM_UTILS=OFF 
-        -DWEBP_BUILD_CWEBP=OFF -DWEBP_BUILD_DWEBP=OFF -DWEBP_BUILD_GIF2WEBP=OFF 
-        -DWEBP_BUILD_IMG2WEBP=OFF -DWEBP_BUILD_VWEBP=OFF 
-        -DWEBP_BUILD_WEBPINFO=OFF -DWEBP_BUILD_WEBPMUX=OFF 
-        -DWEBP_BUILD_EXTRAS=OFF
+      - cmake -S $$libwebp$$ -B libwebp-build -DCMAKE_TOOLCHAIN_FILE=$$NDK$$/build/cmake/android.toolchain.cmake
+        -DANDROID_ABI=x86_64 -DANDROID_PLATFORM=android-24 -DBUILD_SHARED_LIBS=ON
+        -DWEBP_BUILD_ANIM_UTILS=OFF -DWEBP_BUILD_CWEBP=OFF -DWEBP_BUILD_DWEBP=OFF
+        -DWEBP_BUILD_GIF2WEBP=OFF -DWEBP_BUILD_IMG2WEBP=OFF -DWEBP_BUILD_VWEBP=OFF
+        -DWEBP_BUILD_WEBPINFO=OFF -DWEBP_BUILD_WEBPMUX=OFF -DWEBP_BUILD_EXTRAS=OFF
       - cmake --build libwebp-build -j
       - mkdir -p android/app/src/main/jniLibs/x86_64
-      - cp libwebp-build/libsharpyuv.so libwebp-build/libwebp.so 
-        libwebp-build/libwebpdecoder.so libwebp-build/libwebpdemux.so 
-        libwebp-build/libwebpmux.so android/app/src/main/jniLibs/x86_64/
+      - cp libwebp-build/libsharpyuv.so libwebp-build/libwebp.so libwebp-build/libwebpdecoder.so
+        libwebp-build/libwebpdemux.so libwebp-build/libwebpmux.so android/app/src/main/jniLibs/x86_64/
       - export PUB_CACHE=$(pwd)/.pub-cache
-      - $$flutter$$/bin/flutter build apk --release --split-per-abi 
-        --target-platform="android-x64" --dart-define=FDROID_BUILD=true
+      - $$flutter$$/bin/flutter build apk --release --split-per-abi --target-platform="android-x64"
+        --dart-define=FDROID_BUILD=true
       - popd
       - mv /home/runner/work/Downloader/Downloader rs.in.dbase.downloader
     ndk: r28c
 
-AllowedAPKSigningKeys: 
-  df481a26a9d4a9aacf3c1a5e1957697fb4532bbbcdf3b8406c4be94fe7cc9376
+AllowedAPKSigningKeys: df481a26a9d4a9aacf3c1a5e1957697fb4532bbbcdf3b8406c4be94fe7cc9376
 
 MaintainerNotes: |-
   Builds pass --dart-define=FDROID_BUILD=true, which compiles out the GitHub
