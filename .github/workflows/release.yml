@@ -52,14 +52,28 @@ jobs:
           flutter test
 
       - name: Build split APKs
-        run: flutter build apk --release --split-per-abi
+        run: |
+          flutter build apk --release --split-per-abi
+          mkdir -p dist
+          cp build/app/outputs/flutter-apk/app-*-release.apk dist/
+
+      # F-Droid verifies its from-source build against these signed variants
+      # (Binaries/AllowedAPKSigningKeys in the fdroiddata recipe) and ships
+      # our APK when they match, so users can move between the two channels.
+      - name: Build F-Droid variant APKs
+        run: |
+          flutter build apk --release --split-per-abi --dart-define=FDROID_BUILD=true
+          for abi in armeabi-v7a arm64-v8a x86_64; do
+            cp "build/app/outputs/flutter-apk/app-$abi-release.apk" \
+               "dist/app-$abi-fdroid-release.apk"
+          done
 
       - name: Upload workflow artifacts
         uses: actions/upload-artifact@v7
         with:
           name: android-apks
           retention-days: 5
-          path: build/app/outputs/flutter-apk/app-*-release.apk
+          path: dist/app-*.apk
 
       - name: Attach APKs to release
         if: startsWith(github.ref, 'refs/tags/')
@@ -67,7 +81,7 @@ jobs:
         with:
           prerelease: ${{ contains(github.ref_name, '-') }}
           generate_release_notes: true
-          files: build/app/outputs/flutter-apk/app-*-release.apk
+          files: dist/app-*.apk
 
   linux:
     name: Linux build
@@ -116,7 +130,7 @@ jobs:
         uses: softprops/action-gh-release@v3
         with:
           prerelease: ${{ contains(github.ref_name, '-') }}
-          generate_release_notes: true
+          generate_release_notes: false
           files: |
             build/dbase-downloader-*-linux-x64.tar.gz
             build/dbase-downloader-*-linux-amd64.deb
@@ -181,7 +195,7 @@ jobs:
         uses: softprops/action-gh-release@v3
         with:
           prerelease: ${{ contains(github.ref_name, '-') }}
-          generate_release_notes: true
+          generate_release_notes: false
           files: |
             build/dbase-downloader-*-windows-x64.zip
             build/dbase-downloader-*-windows-x64-setup.exe

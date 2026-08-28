@@ -8,6 +8,25 @@ versioning once releases begin.
 
 ## [Unreleased]
 
+## [1.0.3] - 2026-08-28
+
+### Changed
+
+- Reproducible builds for F-Droid: release CI also publishes
+  `app-<abi>-fdroid-release.apk` variants (built with `FDROID_BUILD=true`,
+  signed with the release key) that F-Droid verifies against its own
+  from-source build and ships when identical, and the bundled libwebp
+  libraries in jniLibs are now the exact NDK r28c builds the F-Droid recipe
+  produces so both pipelines emit the same bytes.
+- The in-app update checker ignores the F-Droid verification variants when
+  offering downloads.
+- GitHub auto-generated release notes are appended by only one release job
+  instead of three duplicates.
+
+### Removed
+
+- Unused x86 jniLibs (no x86 APK is produced).
+
 ## [1.0.2] - 2026-08-28
 
 ### Fixed

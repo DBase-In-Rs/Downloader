@@ -96,6 +96,11 @@ AppUpdateInfo? updateFromReleases(
         continue;
       }
       final name = asset['name'] as String? ?? '';
+      // F-Droid verification variants carry the same ABI marker but lack
+      // the update checker and engine auto-update; never offer them here.
+      if (name.contains('fdroid')) {
+        continue;
+      }
       if (name.contains(platformAssetMarker)) {
         assetUrl = asset['browser_download_url'] as String?;
         assetName = name;

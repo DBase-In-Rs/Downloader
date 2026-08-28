@@ -81,6 +81,25 @@ void main() {
     expect(update.assetName, 'app-arm64-v8a-release.apk');
   });
 
+  test('skips F-Droid verification variants when picking the asset', () {
+    final update = updateFromReleases(
+      [
+        release(
+          'v1.0.3',
+          assets: [
+            'app-arm64-v8a-fdroid-release.apk',
+            'app-arm64-v8a-release.apk',
+          ],
+        ),
+      ],
+      '1.0.2',
+      platformAssetMarker: 'arm64-v8a',
+    );
+
+    expect(update, isNotNull);
+    expect(update!.assetName, 'app-arm64-v8a-release.apk');
+  });
+
   test('returns null when already up to date', () {
     expect(
       updateFromReleases(
