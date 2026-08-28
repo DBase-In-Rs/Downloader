@@ -1020,6 +1020,35 @@ Goal: give users a first-class install and update path on every platform.
 - [ ] In-app APK download with direct install intent
       (REQUEST_INSTALL_PACKAGES) instead of the browser handoff.
 
+### Sprint 11.5 - F-Droid
+
+- [x] Fastlane store metadata in the repo (descriptions, icon, screenshots,
+      per-versionCode changelogs using the split-per-abi codes).
+- [x] FDROID_BUILD dart-define: compiles out the GitHub update check and the
+      automatic yt-dlp startup update; manual engine update stays and is
+      declared as a NonFreeNet anti-feature.
+- [x] fdroiddata recipe (per-ABI builds from the release tag, libwebp built
+      from source, flutter version read from the CI workflow pin) submitted
+      as fdroiddata!47102; pipeline green, awaiting human review.
+- [ ] After the first merge: verify the listing, screenshots, and What's New
+      render correctly on f-droid.org.
+
+### Sprint 11.6 - Desktop JS Runtime For yt-dlp (planned)
+
+Current yt-dlp needs a JavaScript runtime (deno/node) on Windows and Linux
+to solve YouTube's JS challenges; without one, extraction fails with
+confusing errors (e.g. WinError 448 when probing node through an nvm4w
+symlink that Windows treats as an untrusted mount point).
+
+- [ ] Engine Check probes for a JS runtime (deno or node >= 20) next to
+      yt-dlp/FFmpeg and shows per-platform install help (winget/apt).
+- [ ] Settings option to point at a deno/node executable or folder,
+      passed through to yt-dlp like the existing yt-dlp/FFmpeg paths.
+- [ ] Map the "untrusted mount point"/WinError 448 probe failure to a
+      friendly message (restart the app, fix or remove the stale nvm
+      symlink from PATH, or configure the runtime path).
+- [ ] Document the dependency in the README install sections.
+
 ## Milestone 10 - Hardening, Policy, And Release
 
 Goal: prepare public releases with source and compliance.
