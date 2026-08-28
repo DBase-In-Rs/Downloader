@@ -1,0 +1,2 @@
+* Reproducible builds: F-Droid now verifies and ships the developer-signed APK
+* No user-facing changes

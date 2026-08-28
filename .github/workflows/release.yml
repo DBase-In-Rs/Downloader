@@ -84,10 +84,22 @@ jobs:
       # F-Droid verifies its from-source build against these signed variants
       # (Binaries/AllowedAPKSigningKeys in the fdroiddata recipe) and ships
       # our APK when they match, so users can move between the two channels.
+      # Each ABI is built exactly like the recipe builds it - a clean,
+      # single-ABI invocation - because AAPT2 stamps manifest line numbers
+      # from the merged manifest, which differs between multi-ABI and
+      # per-ABI builds and breaks byte-for-byte verification.
       - name: Build F-Droid variant APKs
         run: |
-          flutter build apk --release --split-per-abi --dart-define=FDROID_BUILD=true
+          declare -A platforms=(
+            [armeabi-v7a]=android-arm
+            [arm64-v8a]=android-arm64
+            [x86_64]=android-x64
+          )
           for abi in armeabi-v7a arm64-v8a x86_64; do
+            flutter clean > /dev/null
+            flutter pub get > /dev/null
+            flutter build apk --release --split-per-abi \
+              --target-platform="${platforms[$abi]}" --dart-define=FDROID_BUILD=true
             cp "build/app/outputs/flutter-apk/app-$abi-release.apk" \
                "dist/app-$abi-fdroid-release.apk"
           done

@@ -8,6 +8,17 @@ versioning once releases begin.
 
 ## [Unreleased]
 
+## [1.0.6] - 2026-08-28
+
+### Changed
+
+- The F-Droid verification APKs are built exactly the way the fdroiddata
+  recipe builds them - one clean single-ABI invocation per APK instead of
+  one multi-ABI build. AAPT2 stamps manifest line numbers from the merged
+  manifest, which differs between the two build shapes; with 1.0.5 the
+  armeabi-v7a APK already verified byte-for-byte and arm64 failed over
+  exactly those line-number bytes.
+
 ## [1.0.5] - 2026-08-28
 
 ### Changed
