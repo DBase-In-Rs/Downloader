@@ -23,7 +23,7 @@ Builds:
     commit: e6618ef6ad6f1529f600fd1e6947b78b5fb83514
     sudo:
       - apt-get update
-      - apt-get install -y cmake
+      - apt-get install -y cmake make
     output: build/app/outputs/flutter-apk/app-armeabi-v7a-release.apk
     srclibs:
       - flutter@stable
@@ -63,7 +63,7 @@ Builds:
     commit: e6618ef6ad6f1529f600fd1e6947b78b5fb83514
     sudo:
       - apt-get update
-      - apt-get install -y cmake
+      - apt-get install -y cmake make
     output: build/app/outputs/flutter-apk/app-arm64-v8a-release.apk
     srclibs:
       - flutter@stable
@@ -103,7 +103,7 @@ Builds:
     commit: e6618ef6ad6f1529f600fd1e6947b78b5fb83514
     sudo:
       - apt-get update
-      - apt-get install -y cmake
+      - apt-get install -y cmake make
     output: build/app/outputs/flutter-apk/app-x86_64-release.apk
     srclibs:
       - flutter@stable
