@@ -20,9 +20,9 @@ Binaries:
   https://github.com/DBase-In-Rs/Downloader/releases/download/v%v/app-arm64-v8a-fdroid-release.apk
 
 Builds:
-  - versionName: 1.0.5
-    versionCode: 1012
-    commit: 154b0e97f80563864041cc09c85daa04c87b61e2
+  - versionName: 1.0.6
+    versionCode: 1013
+    commit: f3ecd0d008e404850674998de5c9d3b11946dced
     sudo:
       - mkdir -p /home/runner
       - chown vagrant /home/runner
@@ -76,9 +76,9 @@ Builds:
       - mv /home/runner/work/Downloader/Downloader rs.in.dbase.downloader
     ndk: r28c
 
-  - versionName: 1.0.5
-    versionCode: 2012
-    commit: 154b0e97f80563864041cc09c85daa04c87b61e2
+  - versionName: 1.0.6
+    versionCode: 2013
+    commit: f3ecd0d008e404850674998de5c9d3b11946dced
     sudo:
       - mkdir -p /home/runner
       - chown vagrant /home/runner
@@ -132,9 +132,9 @@ Builds:
       - mv /home/runner/work/Downloader/Downloader rs.in.dbase.downloader
     ndk: r28c
 
-  - versionName: 1.0.5
-    versionCode: 4012
-    commit: 154b0e97f80563864041cc09c85daa04c87b61e2
+  - versionName: 1.0.6
+    versionCode: 4013
+    commit: f3ecd0d008e404850674998de5c9d3b11946dced
     sudo:
       - mkdir -p /home/runner
       - chown vagrant /home/runner
@@ -214,5 +214,5 @@ VercodeOperation:
   - 2000+%c
   - 4000+%c
 UpdateCheckData: pubspec.yaml|version:\s.+\+(\d+)|.|version:\s(.+)\+
-CurrentVersion: 1.0.5
-CurrentVersionCode: 4012
+CurrentVersion: 1.0.6
+CurrentVersionCode: 4013
