@@ -830,6 +830,18 @@ class AppController extends ChangeNotifier {
       return '$cookieHint Import a fresh cookies.txt file in Settings and try again.';
     }
 
+    // YouTube phrases DNS-enforced Restricted Mode as "Video unavailable.
+    // This video is restricted. Please check the Google Workspace
+    // administrator and/or the network administrator restrictions." —
+    // check before the generic "unavailable" branch below.
+    if (lower.contains('workspace administrator') ||
+        lower.contains('network administrator')) {
+      return 'A DNS filter or parental-control app on this device or '
+          'network (AdGuard, family shield, work profile...) is forcing '
+          '$providerName into Restricted Mode. Pause the filter or exclude '
+          'this app from it, then try again.';
+    }
+
     if (lower.contains('private') ||
         lower.contains('unavailable') ||
         lower.contains('not available')) {

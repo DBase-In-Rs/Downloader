@@ -10,6 +10,11 @@ versioning once releases begin.
 
 ### Fixed
 
+- DNS-enforced YouTube Restricted Mode (AdGuard, family shields, work
+  profiles) now surfaces a clear hint to pause the filter or exclude the
+  app, instead of the misleading "private, removed, or unavailable"
+  message.
+
 - F-Droid builds sat on the splash screen forever: the splash waited for a
   startup engine check that those builds intentionally never start. The
   splash now only waits when the startup update actually runs.
@@ -23,6 +28,10 @@ versioning once releases begin.
   reflection behavior is unaffected because nothing else is shrunk,
   optimized, or obfuscated.
 - Pub dependencies upgraded within existing constraints (12 packages).
+- Device backups are disabled (`android:allowBackup="false"`): they
+  restored the encrypted cookie vault without its Keystore key (keys never
+  leave the device), leaving undecryptable secrets in the cloud backup and
+  a broken cookie state after reinstall.
 
 ### Added
 

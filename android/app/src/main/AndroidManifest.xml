@@ -7,10 +7,15 @@
         android:name="android.permission.WRITE_EXTERNAL_STORAGE"
         android:maxSdkVersion="28"/>
 
+    <!-- Backups restore the encrypted cookie vault without its Keystore key
+         (keys never leave the device), leaving undecryptable secrets in
+         Google's cloud and a confusing half-restored state after reinstall,
+         so device backups are disabled entirely. -->
     <application
         android:label="@string/app_name"
         android:name="${applicationName}"
-        android:icon="@mipmap/ic_launcher">
+        android:icon="@mipmap/ic_launcher"
+        android:allowBackup="false">
         <service
             android:name=".DownloadForegroundService"
             android:exported="false"

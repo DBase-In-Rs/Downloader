@@ -149,6 +149,26 @@ void main() {
     expect(controller.urlText, 'https://www.youtube.com/watch?v=abc123');
   });
 
+  test('maps DNS restricted-mode errors to a content-filter hint', () async {
+    final backend = ManualMediaBackend()
+      ..infoError = Exception(
+        'ERROR: [youtube] abc: Video unavailable. This video is restricted. '
+        'Please check the Google Workspace administrator and/or the network '
+        'administrator restrictions.',
+      );
+    final controller = AppController(
+      backend: backend,
+      sharedUrlService: const FakeSharedUrlService(),
+    );
+    await controller.initialize();
+    controller.setUrlText('https://www.youtube.com/watch?v=abc');
+    await controller.analyzeUrl();
+
+    expect(controller.errorMessage, contains('Restricted Mode'));
+    expect(controller.errorMessage, contains('DNS filter'));
+    controller.dispose();
+  });
+
   test('controller analyzes URL with fake backend', () async {
     final controller = AppController(
       backend: FakeMediaBackend(),
