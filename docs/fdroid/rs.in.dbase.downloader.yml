@@ -3,8 +3,8 @@ AntiFeatures:
     en-US: The manual yt-dlp engine update in Settings downloads the latest yt-dlp
       release through the GitHub API.
 Categories:
-  - Multimedia
   - Internet
+  - Multimedia
 License: GPL-3.0-only
 AuthorName: Velimir Majstorov
 SourceCode: https://github.com/DBase-In-Rs/Downloader
@@ -21,10 +21,15 @@ Builds:
   - versionName: 1.0.1
     versionCode: 1008
     commit: e6618ef6ad6f1529f600fd1e6947b78b5fb83514
+    sudo:
+      - apt-get update
+      - apt-get install -y cmake
     output: build/app/outputs/flutter-apk/app-armeabi-v7a-release.apk
     srclibs:
       - flutter@stable
+      - libwebp@v1.5.0
     rm:
+      - android/app/src/main/jniLibs
       - ios
       - linux
       - macos
@@ -39,17 +44,32 @@ Builds:
     scandelete:
       - .pub-cache
     build:
+      - cmake -S $$libwebp$$ -B libwebp-build -DCMAKE_TOOLCHAIN_FILE=$$NDK$$/build/cmake/android.toolchain.cmake
+        -DANDROID_ABI=armeabi-v7a -DANDROID_PLATFORM=android-24 -DBUILD_SHARED_LIBS=ON
+        -DWEBP_BUILD_ANIM_UTILS=OFF -DWEBP_BUILD_CWEBP=OFF -DWEBP_BUILD_DWEBP=OFF
+        -DWEBP_BUILD_GIF2WEBP=OFF -DWEBP_BUILD_IMG2WEBP=OFF -DWEBP_BUILD_VWEBP=OFF
+        -DWEBP_BUILD_WEBPINFO=OFF -DWEBP_BUILD_WEBPMUX=OFF -DWEBP_BUILD_EXTRAS=OFF
+      - cmake --build libwebp-build -j
+      - mkdir -p android/app/src/main/jniLibs/armeabi-v7a
+      - cp libwebp-build/libsharpyuv.so libwebp-build/libwebp.so libwebp-build/libwebpdecoder.so
+        libwebp-build/libwebpdemux.so libwebp-build/libwebpmux.so android/app/src/main/jniLibs/armeabi-v7a/
       - export PUB_CACHE=$(pwd)/.pub-cache
       - $$flutter$$/bin/flutter build apk --release --split-per-abi --target-platform="android-arm"
         --dart-define=FDROID_BUILD=true
+    ndk: r28c
 
   - versionName: 1.0.1
     versionCode: 2008
     commit: e6618ef6ad6f1529f600fd1e6947b78b5fb83514
+    sudo:
+      - apt-get update
+      - apt-get install -y cmake
     output: build/app/outputs/flutter-apk/app-arm64-v8a-release.apk
     srclibs:
       - flutter@stable
+      - libwebp@v1.5.0
     rm:
+      - android/app/src/main/jniLibs
       - ios
       - linux
       - macos
@@ -64,17 +84,32 @@ Builds:
     scandelete:
       - .pub-cache
     build:
+      - cmake -S $$libwebp$$ -B libwebp-build -DCMAKE_TOOLCHAIN_FILE=$$NDK$$/build/cmake/android.toolchain.cmake
+        -DANDROID_ABI=arm64-v8a -DANDROID_PLATFORM=android-24 -DBUILD_SHARED_LIBS=ON
+        -DWEBP_BUILD_ANIM_UTILS=OFF -DWEBP_BUILD_CWEBP=OFF -DWEBP_BUILD_DWEBP=OFF
+        -DWEBP_BUILD_GIF2WEBP=OFF -DWEBP_BUILD_IMG2WEBP=OFF -DWEBP_BUILD_VWEBP=OFF
+        -DWEBP_BUILD_WEBPINFO=OFF -DWEBP_BUILD_WEBPMUX=OFF -DWEBP_BUILD_EXTRAS=OFF
+      - cmake --build libwebp-build -j
+      - mkdir -p android/app/src/main/jniLibs/arm64-v8a
+      - cp libwebp-build/libsharpyuv.so libwebp-build/libwebp.so libwebp-build/libwebpdecoder.so
+        libwebp-build/libwebpdemux.so libwebp-build/libwebpmux.so android/app/src/main/jniLibs/arm64-v8a/
       - export PUB_CACHE=$(pwd)/.pub-cache
       - $$flutter$$/bin/flutter build apk --release --split-per-abi --target-platform="android-arm64"
         --dart-define=FDROID_BUILD=true
+    ndk: r28c
 
   - versionName: 1.0.1
     versionCode: 4008
     commit: e6618ef6ad6f1529f600fd1e6947b78b5fb83514
+    sudo:
+      - apt-get update
+      - apt-get install -y cmake
     output: build/app/outputs/flutter-apk/app-x86_64-release.apk
     srclibs:
       - flutter@stable
+      - libwebp@v1.5.0
     rm:
+      - android/app/src/main/jniLibs
       - ios
       - linux
       - macos
@@ -89,9 +124,19 @@ Builds:
     scandelete:
       - .pub-cache
     build:
+      - cmake -S $$libwebp$$ -B libwebp-build -DCMAKE_TOOLCHAIN_FILE=$$NDK$$/build/cmake/android.toolchain.cmake
+        -DANDROID_ABI=x86_64 -DANDROID_PLATFORM=android-24 -DBUILD_SHARED_LIBS=ON
+        -DWEBP_BUILD_ANIM_UTILS=OFF -DWEBP_BUILD_CWEBP=OFF -DWEBP_BUILD_DWEBP=OFF
+        -DWEBP_BUILD_GIF2WEBP=OFF -DWEBP_BUILD_IMG2WEBP=OFF -DWEBP_BUILD_VWEBP=OFF
+        -DWEBP_BUILD_WEBPINFO=OFF -DWEBP_BUILD_WEBPMUX=OFF -DWEBP_BUILD_EXTRAS=OFF
+      - cmake --build libwebp-build -j
+      - mkdir -p android/app/src/main/jniLibs/x86_64
+      - cp libwebp-build/libsharpyuv.so libwebp-build/libwebp.so libwebp-build/libwebpdecoder.so
+        libwebp-build/libwebpdemux.so libwebp-build/libwebpmux.so android/app/src/main/jniLibs/x86_64/
       - export PUB_CACHE=$(pwd)/.pub-cache
       - $$flutter$$/bin/flutter build apk --release --split-per-abi --target-platform="android-x64"
         --dart-define=FDROID_BUILD=true
+    ndk: r28c
 
 MaintainerNotes: |-
   Builds pass --dart-define=FDROID_BUILD=true, which compiles out the GitHub
@@ -100,7 +145,12 @@ MaintainerNotes: |-
   anti-feature. The Flutter version is read from the flutter-version pin in
   .github/workflows/flutter.yml. Version codes follow Flutter's
   --split-per-abi scheme: 1000*ABI + build number from pubspec.yaml
-  (armeabi-v7a=1, arm64-v8a=2, x86_64=4).
+  (armeabi-v7a=1, arm64-v8a=2, x86_64=4). The upstream repo ships prebuilt
+  16 KB-aligned libwebp libraries in android/app/src/main/jniLibs (they
+  overwrite the 4 KB-aligned copies that youtubedl-android's FFmpeg package
+  extracts, which 16 KB page-size devices refuse to load); those blobs are
+  removed and rebuilt from source (libwebp v1.5.0, NDK r28c) before the
+  flutter build.
 
 AutoUpdateMode: Version
 UpdateCheckMode: Tags ^v[0-9.]+$
