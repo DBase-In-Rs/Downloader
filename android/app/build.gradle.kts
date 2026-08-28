@@ -58,12 +58,25 @@ android {
             } else {
                 signingConfigs.getByName("debug")
             }
-            // R8 breaks youtubedl-android and Jackson, which rely on
-            // reflection; code shrinking saves almost nothing next to the
-            // bundled native libraries, so keep it off.
-            isMinifyEnabled = false
+            // R8 runs with keep-everything rules (proguard-rules.pro): it
+            // only drops Flutter's unused Play Store deferred-components
+            // support, whose Play Core references the F-Droid scanner
+            // rejects. youtubedl-android and Jackson rely on reflection, so
+            // nothing else is shrunk, optimized, or obfuscated.
+            isMinifyEnabled = true
             isShrinkResources = false
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro",
+            )
         }
+    }
+
+    dependenciesInfo {
+        // Google Play's encrypted dependency-metadata block is useless in
+        // builds distributed outside Play and trips the F-Droid scanner.
+        includeInApk = false
+        includeInBundle = false
     }
 
     packaging {

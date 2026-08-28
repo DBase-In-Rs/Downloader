@@ -8,6 +8,16 @@ versioning once releases begin.
 
 ## [Unreleased]
 
+### Changed
+
+- Android release builds now run R8 with keep-everything rules that only
+  drop Flutter's unused Play Store deferred-components support (its Play
+  Core references trip the F-Droid binary scanner) and exclude Google
+  Play's dependency-metadata signing block; youtubedl-android and Jackson
+  reflection behavior is unaffected because nothing else is shrunk,
+  optimized, or obfuscated.
+- Pub dependencies upgraded within existing constraints (12 packages).
+
 ### Added
 
 - F-Droid groundwork: fastlane store metadata under
