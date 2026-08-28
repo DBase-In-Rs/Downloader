@@ -20,7 +20,7 @@ Repo: https://github.com/DBase-In-Rs/Downloader.git
 Builds:
   - versionName: 1.0.1
     versionCode: 1008
-    commit: 66f461b0cf7b48bd5c8504210ebc3b4362d64d56
+    commit: 589a3f81faefbc37f54ad38b4cab8ff8f00d5744
     sudo:
       - apt-get update
       - apt-get install -y cmake make
@@ -60,7 +60,7 @@ Builds:
 
   - versionName: 1.0.1
     versionCode: 2008
-    commit: 66f461b0cf7b48bd5c8504210ebc3b4362d64d56
+    commit: 589a3f81faefbc37f54ad38b4cab8ff8f00d5744
     sudo:
       - apt-get update
       - apt-get install -y cmake make
@@ -100,7 +100,7 @@ Builds:
 
   - versionName: 1.0.1
     versionCode: 4008
-    commit: 66f461b0cf7b48bd5c8504210ebc3b4362d64d56
+    commit: 589a3f81faefbc37f54ad38b4cab8ff8f00d5744
     sudo:
       - apt-get update
       - apt-get install -y cmake make
