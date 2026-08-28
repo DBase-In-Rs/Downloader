@@ -20,9 +20,9 @@ Binaries:
   https://github.com/DBase-In-Rs/Downloader/releases/download/v%v/app-arm64-v8a-fdroid-release.apk
 
 Builds:
-  - versionName: 1.0.4
-    versionCode: 1011
-    commit: b215169650ab1f551c12231258c7a88b4165fb3d
+  - versionName: 1.0.5
+    versionCode: 1012
+    commit: 154b0e97f80563864041cc09c85daa04c87b61e2
     sudo:
       - mkdir -p /home/runner
       - chown vagrant /home/runner
@@ -64,6 +64,7 @@ Builds:
         -DWEBP_BUILD_ANIM_UTILS=OFF -DWEBP_BUILD_CWEBP=OFF -DWEBP_BUILD_DWEBP=OFF
         -DWEBP_BUILD_GIF2WEBP=OFF -DWEBP_BUILD_IMG2WEBP=OFF -DWEBP_BUILD_VWEBP=OFF
         -DWEBP_BUILD_WEBPINFO=OFF -DWEBP_BUILD_WEBPMUX=OFF -DWEBP_BUILD_EXTRAS=OFF
+        -DCMAKE_SHARED_LINKER_FLAGS=-Wl,--build-id=none
       - cmake --build libwebp-build -j
       - mkdir -p android/app/src/main/jniLibs/armeabi-v7a
       - cp libwebp-build/libsharpyuv.so libwebp-build/libwebp.so libwebp-build/libwebpdecoder.so
@@ -75,9 +76,9 @@ Builds:
       - mv /home/runner/work/Downloader/Downloader rs.in.dbase.downloader
     ndk: r28c
 
-  - versionName: 1.0.4
-    versionCode: 2011
-    commit: b215169650ab1f551c12231258c7a88b4165fb3d
+  - versionName: 1.0.5
+    versionCode: 2012
+    commit: 154b0e97f80563864041cc09c85daa04c87b61e2
     sudo:
       - mkdir -p /home/runner
       - chown vagrant /home/runner
@@ -119,6 +120,7 @@ Builds:
         -DWEBP_BUILD_ANIM_UTILS=OFF -DWEBP_BUILD_CWEBP=OFF -DWEBP_BUILD_DWEBP=OFF
         -DWEBP_BUILD_GIF2WEBP=OFF -DWEBP_BUILD_IMG2WEBP=OFF -DWEBP_BUILD_VWEBP=OFF
         -DWEBP_BUILD_WEBPINFO=OFF -DWEBP_BUILD_WEBPMUX=OFF -DWEBP_BUILD_EXTRAS=OFF
+        -DCMAKE_SHARED_LINKER_FLAGS=-Wl,--build-id=none
       - cmake --build libwebp-build -j
       - mkdir -p android/app/src/main/jniLibs/arm64-v8a
       - cp libwebp-build/libsharpyuv.so libwebp-build/libwebp.so libwebp-build/libwebpdecoder.so
@@ -130,9 +132,9 @@ Builds:
       - mv /home/runner/work/Downloader/Downloader rs.in.dbase.downloader
     ndk: r28c
 
-  - versionName: 1.0.4
-    versionCode: 4011
-    commit: b215169650ab1f551c12231258c7a88b4165fb3d
+  - versionName: 1.0.5
+    versionCode: 4012
+    commit: 154b0e97f80563864041cc09c85daa04c87b61e2
     sudo:
       - mkdir -p /home/runner
       - chown vagrant /home/runner
@@ -174,6 +176,7 @@ Builds:
         -DWEBP_BUILD_ANIM_UTILS=OFF -DWEBP_BUILD_CWEBP=OFF -DWEBP_BUILD_DWEBP=OFF
         -DWEBP_BUILD_GIF2WEBP=OFF -DWEBP_BUILD_IMG2WEBP=OFF -DWEBP_BUILD_VWEBP=OFF
         -DWEBP_BUILD_WEBPINFO=OFF -DWEBP_BUILD_WEBPMUX=OFF -DWEBP_BUILD_EXTRAS=OFF
+        -DCMAKE_SHARED_LINKER_FLAGS=-Wl,--build-id=none
       - cmake --build libwebp-build -j
       - mkdir -p android/app/src/main/jniLibs/x86_64
       - cp libwebp-build/libsharpyuv.so libwebp-build/libwebp.so libwebp-build/libwebpdecoder.so
@@ -211,5 +214,5 @@ VercodeOperation:
   - 2000+%c
   - 4000+%c
 UpdateCheckData: pubspec.yaml|version:\s.+\+(\d+)|.|version:\s(.+)\+
-CurrentVersion: 1.0.4
-CurrentVersionCode: 4011
+CurrentVersion: 1.0.5
+CurrentVersionCode: 4012
