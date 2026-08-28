@@ -1,0 +1,5 @@
+* Clear message when a DNS filter (AdGuard, family shield) forces YouTube Restricted Mode
+* F-Droid build no longer sticks on the splash screen
+* Smaller release builds without Play Store leftovers
+* Device backups disabled: they broke the encrypted cookie store on reinstall
+* Dependency updates

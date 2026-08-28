@@ -8,6 +8,8 @@ versioning once releases begin.
 
 ## [Unreleased]
 
+## [1.0.2] - 2026-08-28
+
 ### Fixed
 
 - DNS-enforced YouTube Restricted Mode (AdGuard, family shields, work
