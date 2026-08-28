@@ -23,6 +23,9 @@ jobs:
         uses: subosito/flutter-action@v2
         with:
           channel: stable
+          # Pinned so F-Droid builds with the same Flutter (the fdroiddata
+          # recipe reads this value); bump deliberately on upgrades.
+          flutter-version: '3.47.1'
 
       - name: Install dependencies
         run: flutter pub get
