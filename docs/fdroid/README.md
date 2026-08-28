@@ -16,8 +16,11 @@ metadata lives on GitLab, in the
   the automatic yt-dlp update on startup, as the inclusion policy requires.
   The manual engine update in Settings stays and is declared as a
   `NonFreeNet` anti-feature (the same arrangement Seal uses).
-- **`docs/fdroid/rs.in.dbase.downloader.yml`** — draft of the fdroiddata
-  recipe (Flutter 3.47.1 srclib, fat APK, tag-based auto updates).
+- **`docs/fdroid/rs.in.dbase.downloader.yml`** — copy of the fdroiddata
+  recipe (flutter srclib checked out to the version pinned in
+  .github/workflows/flutter.yml, one per-ABI build block each, tag-based
+  auto updates). Version codes follow Flutter's --split-per-abi scheme:
+  1000*ABI + pubspec build number (armeabi-v7a=1, arm64-v8a=2, x86_64=4).
 
 ## Submitting (one-time, needs a gitlab.com account)
 
