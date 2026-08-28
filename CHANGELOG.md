@@ -8,6 +8,12 @@ versioning once releases begin.
 
 ## [Unreleased]
 
+### Fixed
+
+- F-Droid builds sat on the splash screen forever: the splash waited for a
+  startup engine check that those builds intentionally never start. The
+  splash now only waits when the startup update actually runs.
+
 ### Changed
 
 - Android release builds now run R8 with keep-everything rules that only

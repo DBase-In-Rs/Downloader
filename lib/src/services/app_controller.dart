@@ -18,7 +18,9 @@ class AppController extends ChangeNotifier {
     required this.backend,
     required this.sharedUrlService,
     QueueStore? queueStore,
-  }) : queueStore = queueStore ?? MemoryQueueStore() {
+    bool? updateEngineOnStartup,
+  }) : queueStore = queueStore ?? MemoryQueueStore(),
+       updateEngineOnStartup = updateEngineOnStartup ?? !kFdroidBuild {
     _backendSubscription = backend.events.listen(_handleBackendEvent);
     _sharedUrlSubscription = sharedUrlService.sharedTextStream.listen(
       receiveSharedText,
@@ -28,6 +30,11 @@ class AppController extends ChangeNotifier {
   final MediaBackend backend;
   final SharedUrlService sharedUrlService;
   final QueueStore queueStore;
+
+  /// Whether initialize() refreshes yt-dlp; false in F-Droid builds, where
+  /// unattended binary downloads are not allowed. The UI must not wait for
+  /// an engine check that never starts.
+  final bool updateEngineOnStartup;
 
   late final StreamSubscription<BackendEvent> _backendSubscription;
   late final StreamSubscription<String> _sharedUrlSubscription;
@@ -187,8 +194,10 @@ class AppController extends ChangeNotifier {
     // Keeping yt-dlp current is required for working extraction; providers
     // regularly break older releases. The native side serializes the update
     // with downloads, so this can run alongside queue startup.
-    if (!kFdroidBuild) {
+    if (updateEngineOnStartup) {
       unawaited(updateEngine());
+    }
+    if (!kFdroidBuild) {
       unawaited(_checkForAppUpdate());
     }
     await _pumpQueue();

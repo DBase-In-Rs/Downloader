@@ -69,12 +69,17 @@ class DBaseDownloaderHome extends StatefulWidget {
     required this.backend,
     required this.sharedUrlService,
     this.queueStore,
+    this.updateEngineOnStartup,
     super.key,
   });
 
   final MediaBackend backend;
   final SharedUrlService sharedUrlService;
   final QueueStore? queueStore;
+
+  /// Overrides the build-flag default; tests use this to cover the F-Droid
+  /// path where the startup engine update is skipped.
+  final bool? updateEngineOnStartup;
 
   @override
   State<DBaseDownloaderHome> createState() => _DBaseDownloaderHomeState();
@@ -91,6 +96,7 @@ class _DBaseDownloaderHomeState extends State<DBaseDownloaderHome> {
       backend: widget.backend,
       sharedUrlService: widget.sharedUrlService,
       queueStore: widget.queueStore,
+      updateEngineOnStartup: widget.updateEngineOnStartup,
     )..initialize();
   }
 
@@ -107,9 +113,12 @@ class _DBaseDownloaderHomeState extends State<DBaseDownloaderHome> {
       builder: (context, _) {
         // Hold the splash while the startup engine check/download runs; a
         // later manual check from Settings must not bring the splash back.
+        // Builds that skip the startup check (F-Droid) would stay idle
+        // forever, so they must not wait for it.
         final engineBusy =
-            _controller.engineUpdateState == EngineUpdateState.idle ||
-            _controller.engineUpdateState == EngineUpdateState.checking;
+            _controller.updateEngineOnStartup &&
+            (_controller.engineUpdateState == EngineUpdateState.idle ||
+                _controller.engineUpdateState == EngineUpdateState.checking);
         if (!_splashDismissed && !engineBusy) {
           _splashDismissed = true;
         }

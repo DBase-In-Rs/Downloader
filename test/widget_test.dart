@@ -23,6 +23,28 @@ void main() {
     expect(find.text('Settings'), findsOneWidget);
   });
 
+  testWidgets(
+    'dismisses the splash when the startup engine update is skipped',
+    (tester) async {
+      // F-Droid builds never call updateEngine() on startup, so the engine
+      // state stays idle; the splash must not wait for it (regression: the
+      // app used to sit on the splash screen forever).
+      await tester.pumpWidget(
+        MaterialApp(
+          home: DBaseDownloaderHome(
+            backend: FakeMediaBackend(),
+            sharedUrlService: const FakeSharedUrlService(),
+            updateEngineOnStartup: false,
+          ),
+        ),
+      );
+      await tester.pump();
+
+      expect(find.text('New Download'), findsOneWidget);
+      expect(find.text('Analyze'), findsOneWidget);
+    },
+  );
+
   testWidgets('analyzes a URL and queues a fake download', (tester) async {
     await tester.binding.setSurfaceSize(const Size(1200, 900));
     addTearDown(() => tester.binding.setSurfaceSize(null));
