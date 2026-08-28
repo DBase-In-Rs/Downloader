@@ -21,7 +21,9 @@ jobs:
         uses: actions/setup-java@v6
         with:
           distribution: temurin
-          java-version: "17"
+          # 21 matches the F-Droid buildserver JDK; a different javac emits
+          # slightly different dex and breaks reproducible-build verification.
+          java-version: "21"
 
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
@@ -50,6 +52,27 @@ jobs:
           flutter pub get
           flutter analyze
           flutter test
+
+      # The checked-in jniLibs are convenience copies for local builds; both
+      # this job and the F-Droid recipe rebuild them from source with the
+      # same NDK and flags so the two pipelines emit identical bytes.
+      - name: Rebuild bundled libwebp from source
+        run: |
+          NDK_VERSION=28.2.13676358
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "ndk;$NDK_VERSION" > /dev/null
+          git clone --depth=1 --branch v1.5.0 https://chromium.googlesource.com/webm/libwebp "$RUNNER_TEMP/libwebp"
+          for abi in armeabi-v7a arm64-v8a x86_64; do
+            cmake -S "$RUNNER_TEMP/libwebp" -B "$RUNNER_TEMP/libwebp-$abi" \
+              -DCMAKE_TOOLCHAIN_FILE="$ANDROID_HOME/ndk/$NDK_VERSION/build/cmake/android.toolchain.cmake" \
+              -DANDROID_ABI=$abi -DANDROID_PLATFORM=android-24 -DBUILD_SHARED_LIBS=ON \
+              -DWEBP_BUILD_ANIM_UTILS=OFF -DWEBP_BUILD_CWEBP=OFF -DWEBP_BUILD_DWEBP=OFF \
+              -DWEBP_BUILD_GIF2WEBP=OFF -DWEBP_BUILD_IMG2WEBP=OFF -DWEBP_BUILD_VWEBP=OFF \
+              -DWEBP_BUILD_WEBPINFO=OFF -DWEBP_BUILD_WEBPMUX=OFF -DWEBP_BUILD_EXTRAS=OFF > /dev/null
+            cmake --build "$RUNNER_TEMP/libwebp-$abi" -j > /dev/null
+            for lib in libsharpyuv libwebp libwebpdecoder libwebpdemux libwebpmux; do
+              cp "$RUNNER_TEMP/libwebp-$abi/$lib.so" "android/app/src/main/jniLibs/$abi/$lib.so"
+            done
+          done
 
       - name: Build split APKs
         run: |

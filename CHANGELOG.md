@@ -8,6 +8,19 @@ versioning once releases begin.
 
 ## [Unreleased]
 
+## [1.0.4] - 2026-08-28
+
+### Changed
+
+- Reproducible-build alignment with the F-Droid verifier, driven by a
+  byte-level diff of the two pipelines' APKs: release CI now builds with
+  JDK 21 (the F-Droid buildserver JDK; javac 17 emitted slightly different
+  dex) and rebuilds the bundled libwebp libraries from source on Linux
+  with the same NDK r28c invocation the recipe uses (the checked-in copies
+  stay as local-build conveniences). The fdroiddata recipe in docs/fdroid
+  relocates the build to the GitHub Actions workspace path so the Dart AOT
+  snapshot, which embeds the project path, matches too.
+
 ## [1.0.3] - 2026-08-28
 
 ### Changed
