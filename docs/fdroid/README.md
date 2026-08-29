@@ -19,8 +19,9 @@ metadata lives on GitLab, in the
 - **`docs/fdroid/rs.in.dbase.downloader.yml`** — copy of the fdroiddata
   recipe (flutter srclib checked out to the version pinned in
   .github/workflows/flutter.yml, one per-ABI build block each, tag-based
-  auto updates). Version codes follow Flutter's --split-per-abi scheme:
-  1000*ABI + pubspec build number (armeabi-v7a=1, arm64-v8a=2, x86_64=4).
+  auto updates). Version codes follow F-Droid's ABI split scheme:
+  pubspec build number * 10 + ABI code (armeabi-v7a=1, arm64-v8a=2,
+  x86_64=3).
 
 ## Submitting (one-time, needs a gitlab.com account)
 
@@ -41,7 +42,8 @@ needed per release beyond the fastlane changelog file.
 ## Release checklist additions
 
 - Add `fastlane/metadata/android/en-US/changelogs/<versionCode>.txt`
-  before tagging (versionCode is the `+N` part in `pubspec.yaml`).
+  before tagging for every split APK versionCode (pubspec build number * 10
+  + ABI code).
 - Do not reuse or move tags: F-Droid builds the exact commit a tag points
   to and stores its hash.
 

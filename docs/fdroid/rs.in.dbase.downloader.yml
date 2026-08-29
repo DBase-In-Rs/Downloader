@@ -3,8 +3,7 @@ AntiFeatures:
     en-US: The manual yt-dlp engine update in Settings downloads the latest yt-dlp
       release through the GitHub API.
 Categories:
-  - Internet
-  - Multimedia
+  - Download
 License: GPL-3.0-only
 AuthorName: Velimir Majstorov
 SourceCode: https://github.com/DBase-In-Rs/Downloader
@@ -20,9 +19,9 @@ Binaries:
   https://github.com/DBase-In-Rs/Downloader/releases/download/v%v/app-arm64-v8a-fdroid-release.apk
 
 Builds:
-  - versionName: 1.0.6
-    versionCode: 1013
-    commit: f3ecd0d008e404850674998de5c9d3b11946dced
+  - versionName: 1.0.7
+    versionCode: 141
+    commit: 95130b101bf8c6fea27ebfaf187e915f3a411b76
     sudo:
       - mkdir -p /home/runner
       - chown vagrant /home/runner
@@ -50,7 +49,7 @@ Builds:
       - pushd /home/runner/work/Downloader/Downloader
       - export PUB_CACHE=$(pwd)/.pub-cache
       - $$flutter$$/bin/flutter config --no-analytics
-      - $$flutter$$/bin/flutter pub get
+      - $$flutter$$/bin/flutter pub get --enforce-lockfile
       - popd
       - mv /home/runner/work/Downloader/Downloader rs.in.dbase.downloader
     scandelete:
@@ -76,9 +75,9 @@ Builds:
       - mv /home/runner/work/Downloader/Downloader rs.in.dbase.downloader
     ndk: r28c
 
-  - versionName: 1.0.6
-    versionCode: 2013
-    commit: f3ecd0d008e404850674998de5c9d3b11946dced
+  - versionName: 1.0.7
+    versionCode: 142
+    commit: 95130b101bf8c6fea27ebfaf187e915f3a411b76
     sudo:
       - mkdir -p /home/runner
       - chown vagrant /home/runner
@@ -106,7 +105,7 @@ Builds:
       - pushd /home/runner/work/Downloader/Downloader
       - export PUB_CACHE=$(pwd)/.pub-cache
       - $$flutter$$/bin/flutter config --no-analytics
-      - $$flutter$$/bin/flutter pub get
+      - $$flutter$$/bin/flutter pub get --enforce-lockfile
       - popd
       - mv /home/runner/work/Downloader/Downloader rs.in.dbase.downloader
     scandelete:
@@ -132,9 +131,9 @@ Builds:
       - mv /home/runner/work/Downloader/Downloader rs.in.dbase.downloader
     ndk: r28c
 
-  - versionName: 1.0.6
-    versionCode: 4013
-    commit: f3ecd0d008e404850674998de5c9d3b11946dced
+  - versionName: 1.0.7
+    versionCode: 143
+    commit: 95130b101bf8c6fea27ebfaf187e915f3a411b76
     sudo:
       - mkdir -p /home/runner
       - chown vagrant /home/runner
@@ -162,7 +161,7 @@ Builds:
       - pushd /home/runner/work/Downloader/Downloader
       - export PUB_CACHE=$(pwd)/.pub-cache
       - $$flutter$$/bin/flutter config --no-analytics
-      - $$flutter$$/bin/flutter pub get
+      - $$flutter$$/bin/flutter pub get --enforce-lockfile
       - popd
       - mv /home/runner/work/Downloader/Downloader rs.in.dbase.downloader
     scandelete:
@@ -195,9 +194,9 @@ MaintainerNotes: |-
   release check and the automatic yt-dlp update on app startup; the manual
   yt-dlp engine update in Settings remains and is covered by the NonFreeNet
   anti-feature. The Flutter version is read from the flutter-version pin in
-  .github/workflows/flutter.yml. Version codes follow Flutter's
-  --split-per-abi scheme: 1000*ABI + build number from pubspec.yaml
-  (armeabi-v7a=1, arm64-v8a=2, x86_64=4). The prebuilt libwebp libraries in
+  .github/workflows/flutter.yml. Version codes follow F-Droid's
+  ABI split scheme: build number from pubspec.yaml * 10 + ABI code
+  (armeabi-v7a=1, arm64-v8a=2, x86_64=3). The prebuilt libwebp libraries in
   android/app/src/main/jniLibs (16 KB-aligned replacements for the
   4 KB-aligned copies youtubedl-android's FFmpeg package extracts) are
   removed and rebuilt from source. For reproducibility the build is
@@ -210,9 +209,9 @@ MaintainerNotes: |-
 AutoUpdateMode: Version
 UpdateCheckMode: Tags ^v[0-9.]+$
 VercodeOperation:
-  - 1000+%c
-  - 2000+%c
-  - 4000+%c
+  - '%c * 10 + 1'
+  - '%c * 10 + 2'
+  - '%c * 10 + 3'
 UpdateCheckData: pubspec.yaml|version:\s.+\+(\d+)|.|version:\s(.+)\+
-CurrentVersion: 1.0.6
-CurrentVersionCode: 4013
+CurrentVersion: 1.0.7
+CurrentVersionCode: 143
