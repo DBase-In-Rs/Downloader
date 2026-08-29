@@ -8,6 +8,15 @@ versioning once releases begin.
 
 ## [Unreleased]
 
+## [1.0.7] - 2026-08-29
+
+### Changed
+
+- Android split APKs now use F-Droid's requested ABI version-code scheme:
+  `pubspec` build number * 10 + ABI code (`armeabi-v7a=1`,
+  `arm64-v8a=2`, `x86_64=3`). This keeps the ABI digit in the lowest
+  position for fdroiddata auto updates.
+
 ## [1.0.6] - 2026-08-28
 
 ### Changed

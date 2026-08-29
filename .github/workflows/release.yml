@@ -97,7 +97,7 @@ jobs:
           )
           for abi in armeabi-v7a arm64-v8a x86_64; do
             flutter clean > /dev/null
-            flutter pub get > /dev/null
+            flutter pub get --enforce-lockfile > /dev/null
             flutter build apk --release --split-per-abi \
               --target-platform="${platforms[$abi]}" --dart-define=FDROID_BUILD=true
             cp "build/app/outputs/flutter-apk/app-$abi-release.apk" \

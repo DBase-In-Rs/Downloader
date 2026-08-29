@@ -1,0 +1,2 @@
+* F-Droid ABI split version codes now follow the requested build*10+ABI scheme
+* No user-facing changes
