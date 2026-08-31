@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../models/download_models.dart';
 import '../services/app_controller.dart';
 import 'common.dart';
 
@@ -52,6 +53,9 @@ class QueuePage extends StatelessWidget {
                       return DownloadItemTile(
                         item: item,
                         onCancel: () => controller.cancelDownload(item.id),
+                        onRetry: item.status == DownloadStatus.failed
+                            ? () => controller.retryQueueItem(item.id)
+                            : null,
                       );
                     },
                   ),

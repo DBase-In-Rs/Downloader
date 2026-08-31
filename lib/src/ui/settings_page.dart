@@ -107,6 +107,10 @@ class SettingsPage extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 10),
+          _AutomationCard(controller: controller),
+          const SizedBox(height: 10),
+          _TuningCard(controller: controller),
+          const SizedBox(height: 10),
           const _SupportCard(),
           const SizedBox(height: 10),
           if (_isDesktopPlatform) ...[
@@ -260,7 +264,11 @@ class _CookieHelpDialog extends StatelessWidget {
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Icon(Icons.lightbulb_outline, size: 18, color: colors.primary),
+                    Icon(
+                      Icons.lightbulb_outline,
+                      size: 18,
+                      color: colors.primary,
+                    ),
                     const SizedBox(width: 8),
                     const Expanded(
                       child: Text(
@@ -308,10 +316,8 @@ class _ExtensionLink extends StatelessWidget {
         side: BorderSide(color: color.withValues(alpha: 0.6)),
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       ),
-      onPressed: () => launchUrl(
-        Uri.parse(url),
-        mode: LaunchMode.externalApplication,
-      ),
+      onPressed: () =>
+          launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication),
       icon: Icon(icon, size: 18),
       label: Text(label),
     );
@@ -898,6 +904,200 @@ class _PathRow extends StatelessWidget {
           tooltip: 'Reset to default',
           onPressed: value?.isNotEmpty == true ? onClear : null,
           icon: const Icon(Icons.restart_alt),
+        ),
+      ],
+    );
+  }
+}
+
+class _AutomationCard extends StatelessWidget {
+  const _AutomationCard({required this.controller});
+
+  final AppController controller;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Icon(Icons.bolt_outlined),
+                const SizedBox(width: 12),
+                Text(
+                  'Automation',
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+              ],
+            ),
+            SwitchListTile(
+              contentPadding: EdgeInsets.zero,
+              title: const Text('Detect links in clipboard'),
+              subtitle: const Text(
+                'When the app opens, offer to download a link found in the '
+                'clipboard. The clipboard is read only while the app is on '
+                'screen.',
+              ),
+              value: controller.clipboardWatch,
+              onChanged: controller.setClipboardWatch,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _TuningCard extends StatelessWidget {
+  const _TuningCard({required this.controller});
+
+  final AppController controller;
+
+  @override
+  Widget build(BuildContext context) {
+    final tuning = controller.tuning;
+
+    return Card(
+      clipBehavior: Clip.antiAlias,
+      child: ExpansionTile(
+        leading: const Icon(Icons.tune),
+        title: Text(
+          'Download Tuning',
+          style: Theme.of(context).textTheme.titleMedium,
+        ),
+        subtitle: Text(
+          'Pauses and retry limits for yt-dlp',
+          style: Theme.of(context).textTheme.bodySmall,
+        ),
+        shape: const Border(),
+        collapsedShape: const Border(),
+        childrenPadding: const EdgeInsets.fromLTRB(14, 0, 14, 14),
+        children: [
+          Align(
+            alignment: Alignment.centerLeft,
+            child: Text(
+              'Pauses and retry limits passed to yt-dlp. Longer pauses look '
+              'more like a person and help avoid rate-limiting when '
+              'downloading many items in a row.',
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+          ),
+          const SizedBox(height: 8),
+          _TuningSlider(
+            label: 'Retries',
+            value: tuning.retries.toDouble(),
+            max: 30,
+            display: '${tuning.retries}',
+            onChanged: (value) =>
+                controller.setTuning(tuning.copyWith(retries: value.round())),
+          ),
+          _TuningSlider(
+            label: 'Fragment retries',
+            value: tuning.fragmentRetries.toDouble(),
+            max: 30,
+            display: '${tuning.fragmentRetries}',
+            onChanged: (value) => controller.setTuning(
+              tuning.copyWith(fragmentRetries: value.round()),
+            ),
+          ),
+          _TuningSlider(
+            label: 'Sleep between requests',
+            value: tuning.sleepRequestsSeconds,
+            max: 10,
+            divisions: 20,
+            display: tuning.sleepRequestsSeconds == 0
+                ? 'Off'
+                : '${tuning.sleepRequestsSeconds} s',
+            onChanged: (value) => controller.setTuning(
+              tuning.copyWith(sleepRequestsSeconds: (value * 2).round() / 2),
+            ),
+          ),
+          _TuningSlider(
+            label: 'Min pause before download',
+            value: tuning.sleepIntervalSeconds.toDouble(),
+            max: 30,
+            display: tuning.sleepIntervalSeconds == 0
+                ? 'Off'
+                : '${tuning.sleepIntervalSeconds} s',
+            onChanged: (value) => controller.setTuning(
+              tuning.copyWith(sleepIntervalSeconds: value.round()),
+            ),
+          ),
+          _TuningSlider(
+            label: 'Max pause before download',
+            value: tuning.maxSleepIntervalSeconds.toDouble(),
+            max: 60,
+            enabled: tuning.sleepIntervalSeconds > 0,
+            display: tuning.maxSleepIntervalSeconds == 0
+                ? 'Off'
+                : '${tuning.maxSleepIntervalSeconds} s',
+            onChanged: (value) => controller.setTuning(
+              tuning.copyWith(maxSleepIntervalSeconds: value.round()),
+            ),
+          ),
+          _TuningSlider(
+            label: 'Pause between queue items',
+            value: tuning.queueGapSeconds.toDouble(),
+            max: 120,
+            display: tuning.queueGapSeconds == 0
+                ? 'Off'
+                : '${tuning.queueGapSeconds} s',
+            onChanged: (value) => controller.setTuning(
+              tuning.copyWith(queueGapSeconds: value.round()),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _TuningSlider extends StatelessWidget {
+  const _TuningSlider({
+    required this.label,
+    required this.value,
+    required this.max,
+    required this.display,
+    required this.onChanged,
+    this.divisions,
+    this.enabled = true,
+  });
+
+  final String label;
+  final double value;
+  final double max;
+  final String display;
+  final int? divisions;
+  final bool enabled;
+  final ValueChanged<double> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Expanded(
+          flex: 5,
+          child: Text(label, style: Theme.of(context).textTheme.bodyMedium),
+        ),
+        Expanded(
+          flex: 6,
+          child: Slider(
+            value: value.clamp(0, max),
+            max: max,
+            divisions: divisions ?? max.round(),
+            onChanged: enabled ? onChanged : null,
+          ),
+        ),
+        SizedBox(
+          width: 52,
+          child: Text(
+            display,
+            textAlign: TextAlign.end,
+            style: Theme.of(context).textTheme.bodySmall,
+          ),
         ),
       ],
     );

@@ -87,6 +87,56 @@ class PlatformMediaBackend implements MediaBackend {
   }
 
   @override
+  Future<RenamedOutput> renameOutput(
+    String location,
+    String newDisplayName,
+  ) async {
+    final result = await _methodChannel.invokeMapMethod<Object?, Object?>(
+      'renameOutput',
+      {'location': location, 'newName': newDisplayName},
+    );
+
+    if (result == null) {
+      throw StateError('Native backend returned no rename result.');
+    }
+
+    return RenamedOutput.fromMap(result);
+  }
+
+  @override
+  Future<Uint8List?> loadOutputThumbnail(String location, {int size = 256}) {
+    return _methodChannel.invokeMethod<Uint8List>('getOutputThumbnail', {
+      'location': location,
+      'size': size,
+    });
+  }
+
+  @override
+  Future<Uint8List> readOutputBytes(
+    String location, {
+    required int maxBytes,
+  }) async {
+    final bytes = await _methodChannel.invokeMethod<Uint8List>(
+      'readOutputBytes',
+      {'location': location, 'maxBytes': maxBytes},
+    );
+
+    if (bytes == null) {
+      throw StateError('Native backend returned no file content.');
+    }
+
+    return bytes;
+  }
+
+  @override
+  Future<void> writeOutputBytes(String location, Uint8List bytes) {
+    return _methodChannel.invokeMethod<void>('writeOutputBytes', {
+      'location': location,
+      'bytes': bytes,
+    });
+  }
+
+  @override
   void dispose() {}
 
   BackendEvent _eventFromPlatform(Object? payload) {
@@ -102,6 +152,7 @@ class PlatformMediaBackend implements MediaBackend {
       'completed' => DownloadCompletedEvent(
         id: stringValue(map['id']) ?? '',
         outputLocation: stringValue(map['outputLocation']) ?? '',
+        outputDisplayName: stringValue(map['outputDisplayName']),
       ),
       'failed' => DownloadFailedEvent(
         id: stringValue(map['id']) ?? '',

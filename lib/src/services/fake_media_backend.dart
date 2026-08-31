@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:typed_data';
 
 import '../models/download_models.dart';
 import 'media_backend.dart';
@@ -144,6 +145,8 @@ class FakeMediaBackend implements MediaBackend {
             id: request.id,
             outputLocation:
                 'Fake output/${request.title ?? request.id}.${request.outputKind.name}',
+            outputDisplayName:
+                '${request.title ?? request.id}.${request.outputKind.name}',
           ),
         );
       }
@@ -175,6 +178,30 @@ class FakeMediaBackend implements MediaBackend {
   Future<void> clearCookies() async {
     _cookieStatus = const CookieStatus.empty();
   }
+
+  @override
+  Future<RenamedOutput> renameOutput(
+    String location,
+    String newDisplayName,
+  ) async {
+    return RenamedOutput(location: location, displayName: newDisplayName);
+  }
+
+  @override
+  Future<Uint8List?> loadOutputThumbnail(String location, {int size = 256}) {
+    return Future.value(null);
+  }
+
+  @override
+  Future<Uint8List> readOutputBytes(
+    String location, {
+    required int maxBytes,
+  }) async {
+    return Uint8List(0);
+  }
+
+  @override
+  Future<void> writeOutputBytes(String location, Uint8List bytes) async {}
 
   @override
   void dispose() {

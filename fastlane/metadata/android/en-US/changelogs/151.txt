@@ -1,0 +1,7 @@
+* Auto-retry for random TikTok "rehydration" extractor errors
+* Failed downloads wait in the queue with a Retry button; Retry all in History
+* Duplicate protection: no double queue entries or repeated files
+* Real file names and thumbnails on History; rename saved files
+* MP3 tag editor (title/artist/album/comment)
+* Download tuning: retries, sleeps, pause between queue items
+* Shared/clipboard links open on Home and analyze automatically

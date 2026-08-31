@@ -51,6 +51,14 @@ class _HomePageState extends State<HomePage> {
                   )
                 : null,
           ),
+          if (widget.controller.clipboardSuggestion != null) ...[
+            const SizedBox(height: 12),
+            _ClipboardSuggestionCard(
+              url: widget.controller.clipboardSuggestion!,
+              onAccept: widget.controller.acceptClipboardSuggestion,
+              onDismiss: widget.controller.dismissClipboardSuggestion,
+            ),
+          ],
           const SizedBox(height: 16),
           _UrlInput(
             controller: _urlController,
@@ -111,6 +119,63 @@ class _HomePageState extends State<HomePage> {
 
     _urlController.text = value;
     _urlController.selection = TextSelection.collapsed(offset: value.length);
+  }
+}
+
+class _ClipboardSuggestionCard extends StatelessWidget {
+  const _ClipboardSuggestionCard({
+    required this.url,
+    required this.onAccept,
+    required this.onDismiss,
+  });
+
+  final String url;
+  final VoidCallback onAccept;
+  final VoidCallback onDismiss;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+
+    return Card(
+      color: colors.primaryContainer,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        child: Row(
+          children: [
+            Icon(Icons.content_paste_go, color: colors.onPrimaryContainer),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Link found in clipboard',
+                    style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                      color: colors.onPrimaryContainer,
+                    ),
+                  ),
+                  Text(
+                    url,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: colors.onPrimaryContainer,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            TextButton(onPressed: onAccept, child: const Text('Use link')),
+            IconButton(
+              tooltip: 'Dismiss',
+              onPressed: onDismiss,
+              icon: Icon(Icons.close, color: colors.onPrimaryContainer),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }
 

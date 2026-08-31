@@ -1,8 +1,10 @@
 import 'dart:async';
+import 'dart:typed_data';
 
 import 'package:dbase_downloader/src/models/download_models.dart';
 import 'package:dbase_downloader/src/models/media_providers.dart';
 import 'package:dbase_downloader/src/services/app_controller.dart';
+import 'package:dbase_downloader/src/services/app_settings_store.dart';
 import 'package:dbase_downloader/src/services/fake_media_backend.dart';
 import 'package:dbase_downloader/src/services/media_backend.dart';
 import 'package:dbase_downloader/src/services/queue_store.dart';
@@ -21,6 +23,11 @@ class ManualMediaBackend implements MediaBackend {
 
   @override
   Future<MediaInfo> getInfo(MediaInfoRequest request) async {
+    infoCalls++;
+    if (transientInfoFailures > 0) {
+      transientInfoFailures--;
+      throw Exception(transientExtractorMessage);
+    }
     final error = infoError;
     if (error != null) {
       throw error;
@@ -42,6 +49,8 @@ class ManualMediaBackend implements MediaBackend {
 
   PlaylistInfo? playlistResponse;
   Object? infoError;
+  int infoCalls = 0;
+  int transientInfoFailures = 0;
 
   @override
   Future<PlaylistInfo> getPlaylistInfo(MediaInfoRequest request) async {
@@ -60,8 +69,14 @@ class ManualMediaBackend implements MediaBackend {
     emitCanceled(id);
   }
 
-  void emitCompleted(String id) {
-    _events.add(DownloadCompletedEvent(id: id, outputLocation: 'out/$id'));
+  void emitCompleted(String id, {String? displayName}) {
+    _events.add(
+      DownloadCompletedEvent(
+        id: id,
+        outputLocation: 'out/$id',
+        outputDisplayName: displayName,
+      ),
+    );
   }
 
   void emitFailed(String id, String message) {
@@ -94,11 +109,52 @@ class ManualMediaBackend implements MediaBackend {
   @override
   Future<void> clearCookies() async {}
 
+  final renames = <(String, String)>[];
+
+  @override
+  Future<RenamedOutput> renameOutput(
+    String location,
+    String newDisplayName,
+  ) async {
+    renames.add((location, newDisplayName));
+    return RenamedOutput(
+      location: 'renamed/$newDisplayName',
+      displayName: newDisplayName,
+    );
+  }
+
+  @override
+  Future<Uint8List?> loadOutputThumbnail(String location, {int size = 256}) {
+    return Future.value(null);
+  }
+
+  Uint8List outputBytes = Uint8List(0);
+  Uint8List? writtenBytes;
+
+  @override
+  Future<Uint8List> readOutputBytes(
+    String location, {
+    required int maxBytes,
+  }) async {
+    return outputBytes;
+  }
+
+  @override
+  Future<void> writeOutputBytes(String location, Uint8List bytes) async {
+    writtenBytes = bytes;
+  }
+
   @override
   void dispose() {
     _events.close();
   }
 }
+
+const transientExtractorMessage =
+    'ERROR: [TikTok] 7564339453137833236: Unable to extract universal data '
+    'for rehydration; please report this issue on <url>, filling out the '
+    'appropriate issue template. Confirm you are on the latest version '
+    'using yt-dlp -U';
 
 Future<AppController> analyzedController(
   ManualMediaBackend backend, {
@@ -352,8 +408,9 @@ void main() {
     backend.emitFailed(backend.started.single.id, 'ERROR: Login required');
     await pumpEventQueue();
 
-    expect(controller.history.single.errorMessage, contains('Vimeo'));
-    expect(controller.history.single.errorMessage, contains('cookies.txt'));
+    expect(controller.queue.single.status, DownloadStatus.failed);
+    expect(controller.queue.single.errorMessage, contains('Vimeo'));
+    expect(controller.queue.single.errorMessage, contains('cookies.txt'));
   });
 
   test('playlist analysis selects all entries and enqueues them', () async {
@@ -468,9 +525,12 @@ void main() {
     backend.emitFailed(backend.started[0].id, 'boom');
     await pumpEventQueue();
 
+    // The failed item waits in the queue for a retry; the next one runs.
     expect(backend.started, hasLength(2));
-    expect(controller.queue.single.status, DownloadStatus.running);
-    expect(controller.history.single.status, DownloadStatus.failed);
+    expect(controller.queue, hasLength(2));
+    expect(controller.queue[0].status, DownloadStatus.failed);
+    expect(controller.queue[1].status, DownloadStatus.running);
+    expect(controller.history, isEmpty);
   });
 
   test('history persists across restarts and supports search/delete', () async {
@@ -645,6 +705,7 @@ void main() {
 
     final format = controller.visibleFormats.single;
     await controller.startDownload(format);
+    controller.setOutputKind(OutputKind.mp4);
     await controller.startDownload(format);
 
     expect(backend.started, hasLength(1));
@@ -680,7 +741,88 @@ void main() {
     expect(controller.queue.single.status, DownloadStatus.running);
   });
 
-  test('failed download moves to history and can be retried', () async {
+  test('transient extractor errors re-queue the download automatically', () async {
+    final backend = ManualMediaBackend();
+    final controller = await analyzedController(backend);
+    addTearDown(controller.dispose);
+    controller.transientRetryDelay = Duration.zero;
+
+    await controller.startDownload(controller.visibleFormats.single);
+    backend.emitFailed(backend.started.single.id, transientExtractorMessage);
+    await pumpEventQueue();
+
+    // Same item restarted instead of failing to history.
+    expect(backend.started, hasLength(2));
+    expect(backend.started[1].id, backend.started[0].id);
+    expect(controller.queue.single.status, DownloadStatus.running);
+    expect(controller.history, isEmpty);
+
+    backend.emitCompleted(backend.started.last.id);
+    await pumpEventQueue();
+
+    expect(controller.queue, isEmpty);
+    expect(controller.history.single.status, DownloadStatus.completed);
+  });
+
+  test('transient retries stop after the budget and explain the error', () async {
+    final backend = ManualMediaBackend();
+    final controller = await analyzedController(backend);
+    addTearDown(controller.dispose);
+    controller.transientRetryDelay = Duration.zero;
+
+    await controller.startDownload(controller.visibleFormats.single);
+    // Initial attempt + 3 automatic retries all fail.
+    for (var i = 0; i < 4; i++) {
+      backend.emitFailed(backend.started.last.id, transientExtractorMessage);
+      await pumpEventQueue();
+    }
+
+    expect(backend.started, hasLength(4));
+    final failed = controller.queue.single;
+    expect(failed.status, DownloadStatus.failed);
+    expect(failed.errorMessage, contains('incomplete page'));
+    expect(failed.errorMessage, contains('retry'));
+    expect(controller.history, isEmpty);
+  });
+
+  test('metadata extraction retries transient errors before failing', () async {
+    final backend = ManualMediaBackend()..transientInfoFailures = 2;
+    final controller = AppController(
+      backend: backend,
+      sharedUrlService: const FakeSharedUrlService(),
+    );
+    addTearDown(controller.dispose);
+    controller.transientRetryDelay = Duration.zero;
+    await controller.initialize();
+
+    controller.setUrlText('https://www.tiktok.com/@artist/video/123');
+    await controller.analyzeUrl();
+
+    expect(backend.infoCalls, 3);
+    expect(controller.extractionState, ExtractionState.loaded);
+    expect(controller.mediaInfo, isNotNull);
+  });
+
+  test('metadata transient failures beyond the budget surface a hint', () async {
+    final backend = ManualMediaBackend()..transientInfoFailures = 10;
+    final controller = AppController(
+      backend: backend,
+      sharedUrlService: const FakeSharedUrlService(),
+    );
+    addTearDown(controller.dispose);
+    controller.transientRetryDelay = Duration.zero;
+    await controller.initialize();
+
+    controller.setUrlText('https://www.tiktok.com/@artist/video/123');
+    await controller.analyzeUrl();
+
+    expect(backend.infoCalls, 4);
+    expect(controller.extractionState, ExtractionState.failed);
+    expect(controller.errorMessage, contains('TikTok'));
+    expect(controller.errorMessage, contains('incomplete page'));
+  });
+
+  test('failed download waits in the queue and can be retried', () async {
     final backend = ManualMediaBackend();
     final controller = await analyzedController(backend);
     addTearDown(controller.dispose);
@@ -689,16 +831,351 @@ void main() {
     backend.emitFailed(backend.started.single.id, 'Network error.');
     await pumpEventQueue();
 
-    expect(controller.queue, isEmpty);
-    final failed = controller.history.single;
+    final failed = controller.queue.single;
     expect(failed.status, DownloadStatus.failed);
     expect(failed.errorMessage, 'Network error.');
+    expect(controller.history, isEmpty);
 
-    await controller.retryDownload(failed);
+    await controller.retryQueueItem(failed.id);
 
     expect(backend.started, hasLength(2));
     expect(controller.queue.single.status, DownloadStatus.running);
-    expect(controller.queue.single.url, failed.url);
+    expect(controller.queue.single.errorMessage, isNull);
+  });
+
+  test('dismissing a failed queue item files it under history', () async {
+    final backend = ManualMediaBackend();
+    final controller = await analyzedController(backend);
+    addTearDown(controller.dispose);
+
+    await controller.startDownload(controller.visibleFormats.single);
+    backend.emitFailed(backend.started.single.id, 'Network error.');
+    await pumpEventQueue();
+
+    await controller.cancelDownload(controller.queue.single.id);
+
+    expect(controller.queue, isEmpty);
+    final dismissed = controller.history.single;
+    expect(dismissed.status, DownloadStatus.failed);
+    expect(dismissed.errorMessage, 'Network error.');
+  });
+
+  test('the same URL and output cannot wait in the queue twice', () async {
+    final backend = ManualMediaBackend();
+    final controller = await analyzedController(backend);
+    addTearDown(controller.dispose);
+
+    final format = controller.visibleFormats.single;
+    await controller.startDownload(format);
+    await controller.startDownload(format);
+
+    expect(controller.queue, hasLength(1));
+    expect(backend.started, hasLength(1));
+  });
+
+  test('repeated failures replace the older history duplicate', () async {
+    final backend = ManualMediaBackend();
+    final controller = await analyzedController(backend);
+    addTearDown(controller.dispose);
+
+    // Fail, dismiss, retry from history, fail, and dismiss again.
+    await controller.startDownload(controller.visibleFormats.single);
+    backend.emitFailed(backend.started.last.id, 'boom');
+    await pumpEventQueue();
+    await controller.cancelDownload(controller.queue.single.id);
+
+    await controller.retryDownload(controller.history.single);
+    backend.emitFailed(backend.started.last.id, 'boom again');
+    await pumpEventQueue();
+    await controller.cancelDownload(controller.queue.single.id);
+
+    expect(controller.history, hasLength(1));
+    expect(controller.history.single.errorMessage, 'boom again');
+  });
+
+  test('history duplicates are dropped on restore', () async {
+    final store = MemoryQueueStore();
+    const format = MediaFormat(
+      id: 'f',
+      extension: 'mp4',
+      kind: MediaKind.muxed,
+      qualityLabel: 'q',
+    );
+    DownloadQueueItem entry(String id, {String? url}) => DownloadQueueItem(
+      id: id,
+      url: url ?? 'https://example.com/same',
+      title: 't',
+      format: format,
+      outputKind: OutputKind.original,
+      status: DownloadStatus.failed,
+    );
+    await store.save(
+      QueueSnapshot(
+        items: const [],
+        paused: false,
+        history: [
+          entry('1'),
+          entry('2'),
+          entry('3', url: 'https://example.com/other'),
+        ],
+      ),
+    );
+
+    final controller = AppController(
+      backend: ManualMediaBackend(),
+      sharedUrlService: const FakeSharedUrlService(),
+      queueStore: store,
+    );
+    addTearDown(controller.dispose);
+    await controller.initialize();
+
+    expect(controller.history, hasLength(2));
+    expect(controller.history.first.id, '1');
+  });
+
+  test('retry all collapses duplicate history entries', () async {
+    final store = MemoryQueueStore();
+    const format = MediaFormat(
+      id: 'f',
+      extension: 'mp4',
+      kind: MediaKind.muxed,
+      qualityLabel: 'q',
+    );
+    // Two canceled entries for the same request must yield one retry.
+    // (Restore dedupes failed duplicates, so use distinct statuses here.)
+    await store.save(
+      QueueSnapshot(
+        items: const [],
+        paused: false,
+        history: [
+          DownloadQueueItem(
+            id: 'a',
+            url: 'https://example.com/one',
+            title: 'One',
+            format: format,
+            outputKind: OutputKind.original,
+            status: DownloadStatus.failed,
+          ),
+          DownloadQueueItem(
+            id: 'b',
+            url: 'https://example.com/one',
+            title: 'One',
+            format: format,
+            outputKind: OutputKind.original,
+            status: DownloadStatus.canceled,
+          ),
+        ],
+      ),
+    );
+
+    final backend = ManualMediaBackend();
+    final controller = AppController(
+      backend: backend,
+      sharedUrlService: const FakeSharedUrlService(),
+      queueStore: store,
+    );
+    addTearDown(controller.dispose);
+    await controller.initialize();
+    expect(controller.history, hasLength(2));
+
+    await controller.retryAllHistory();
+
+    expect(controller.queue, hasLength(1));
+    expect(controller.history, isEmpty);
+    expect(backend.started, hasLength(1));
+  });
+
+  test('retry all re-enqueues failed and canceled history items', () async {
+    final backend = ManualMediaBackend();
+    final controller = await analyzedController(backend);
+    addTearDown(controller.dispose);
+
+    final format = controller.visibleFormats.single;
+    await controller.startDownload(format);
+    controller.setOutputKind(OutputKind.mp4);
+    await controller.startDownload(format);
+    backend.emitFailed(backend.started.single.id, 'boom');
+    await pumpEventQueue();
+
+    // Dismiss the failed item and cancel the now-running second one.
+    final failedId = controller.queue
+        .firstWhere((item) => item.status == DownloadStatus.failed)
+        .id;
+    await controller.cancelDownload(failedId);
+    await pumpEventQueue();
+    final runningId = controller.queue.single.id;
+    await controller.cancelDownload(runningId);
+    await pumpEventQueue();
+
+    expect(controller.history, hasLength(2));
+
+    await controller.retryAllHistory();
+
+    expect(controller.history, isEmpty);
+    expect(controller.queue, hasLength(2));
+  });
+
+  test('completed downloads carry the saved display name', () async {
+    final backend = ManualMediaBackend();
+    final controller = await analyzedController(backend);
+    addTearDown(controller.dispose);
+
+    await controller.startDownload(controller.visibleFormats.single);
+    backend.emitCompleted(
+      backend.started.single.id,
+      displayName: 'Manual media.mp4',
+    );
+    await pumpEventQueue();
+
+    final done = controller.history.single;
+    expect(done.outputDisplayName, 'Manual media.mp4');
+    expect(friendlyOutputName(done), 'Manual media.mp4');
+  });
+
+  test('renaming keeps the extension and sanitizes the base name', () async {
+    final backend = ManualMediaBackend();
+    final controller = await analyzedController(backend);
+    addTearDown(controller.dispose);
+
+    await controller.startDownload(controller.visibleFormats.single);
+    backend.emitCompleted(
+      backend.started.single.id,
+      displayName: 'Original.mp4',
+    );
+    await pumpEventQueue();
+
+    final failure = await controller.renameOutput(
+      controller.history.single,
+      ' My: new/name ',
+    );
+
+    expect(failure, isNull);
+    expect(backend.renames.single.$2, 'My_ new_name.mp4');
+    expect(controller.history.single.outputDisplayName, 'My_ new_name.mp4');
+    expect(
+      controller.history.single.outputLocation,
+      'renamed/My_ new_name.mp4',
+    );
+  });
+
+  test('shared links land on Home and analyze automatically', () async {
+    final backend = ManualMediaBackend();
+    final controller = AppController(
+      backend: backend,
+      sharedUrlService: const FakeSharedUrlService(),
+    );
+    addTearDown(controller.dispose);
+    await controller.initialize();
+
+    controller.receiveSharedText(
+      'Check https://vm.tiktok.com/abc?utm_source=copy out',
+    );
+    await pumpEventQueue();
+
+    // The link behaves like a typed one: field filled, options shown.
+    expect(controller.urlText, 'https://vm.tiktok.com/abc');
+    expect(controller.section, AppSection.home);
+    expect(controller.extractionState, ExtractionState.loaded);
+    expect(controller.mediaInfo, isNotNull);
+    expect(controller.visibleFormats, isNotEmpty);
+    expect(backend.infoCalls, 1);
+    // Nothing downloads until the user picks a format.
+    expect(controller.queue, isEmpty);
+    expect(backend.started, isEmpty);
+  });
+
+  test('tuning settings reach the download request', () async {
+    final backend = ManualMediaBackend();
+    final controller = await analyzedController(backend);
+    addTearDown(controller.dispose);
+
+    await controller.setTuning(
+      controller.tuning.copyWith(retries: 5, sleepRequestsSeconds: 1.5),
+    );
+    await controller.startDownload(controller.visibleFormats.single);
+
+    expect(backend.started.single.tuning.retries, 5);
+    expect(backend.started.single.tuning.sleepRequestsSeconds, 1.5);
+  });
+
+  test('clipboard link is offered once and can be accepted', () async {
+    final backend = ManualMediaBackend();
+    final controller = AppController(
+      backend: backend,
+      sharedUrlService: const FakeSharedUrlService(),
+      clipboardReader: () async => 'Copied https://youtu.be/clip123 today',
+    );
+    addTearDown(controller.dispose);
+    await controller.initialize();
+    await pumpEventQueue();
+
+    expect(controller.clipboardSuggestion, 'https://youtu.be/clip123');
+
+    controller.acceptClipboardSuggestion();
+    expect(controller.clipboardSuggestion, isNull);
+    expect(controller.urlText, 'https://youtu.be/clip123');
+    expect(controller.section, AppSection.home);
+
+    // The same clipboard content is not offered again.
+    await controller.checkClipboardForLink();
+    expect(controller.clipboardSuggestion, isNull);
+  });
+
+  test('clipboard watch can be turned off', () async {
+    final backend = ManualMediaBackend();
+    final controller = AppController(
+      backend: backend,
+      sharedUrlService: const FakeSharedUrlService(),
+      settingsStore: MemoryAppSettingsStore(
+        const AppSettings(clipboardWatch: false),
+      ),
+      clipboardReader: () async => 'https://youtu.be/clip123',
+    );
+    addTearDown(controller.dispose);
+    await controller.initialize();
+    await pumpEventQueue();
+
+    expect(controller.clipboardSuggestion, isNull);
+  });
+
+  test('file name helpers sanitize and split correctly', () {
+    expect(sanitizeFileBaseName('  a<b>:c/d  '), 'a_b_c_d');
+    expect(sanitizeFileBaseName('name...'), 'name');
+    expect(sanitizeFileBaseName('   '), '');
+
+    const item = DownloadQueueItem(
+      id: '1',
+      url: 'https://example.com',
+      title: 't',
+      format: MediaFormat(
+        id: 'f',
+        extension: 'mp3',
+        kind: MediaKind.audio,
+        qualityLabel: 'q',
+      ),
+      outputKind: OutputKind.mp3,
+      status: DownloadStatus.completed,
+      outputLocation: 'content://media/123',
+      outputDisplayName: 'song.mp3',
+    );
+    expect(outputFileExtension(item), 'mp3');
+    expect(friendlyOutputName(item), 'song.mp3');
+
+    const bare = DownloadQueueItem(
+      id: '2',
+      url: 'https://example.com',
+      title: 't',
+      format: MediaFormat(
+        id: 'f',
+        extension: 'mp4',
+        kind: MediaKind.muxed,
+        qualityLabel: 'q',
+      ),
+      outputKind: OutputKind.mp4,
+      status: DownloadStatus.completed,
+      outputLocation: 'content://media/456',
+    );
+    expect(friendlyOutputName(bare), 'Saved to media library');
   });
 
   test('canceling a waiting item does not call the backend', () async {
@@ -708,6 +1185,7 @@ void main() {
 
     final format = controller.visibleFormats.single;
     await controller.startDownload(format);
+    controller.setOutputKind(OutputKind.mp4);
     await controller.startDownload(format);
 
     final waitingId = controller.queue[1].id;
@@ -726,6 +1204,7 @@ void main() {
 
     final format = controller.visibleFormats.single;
     await controller.startDownload(format);
+    controller.setOutputKind(OutputKind.mp4);
     await controller.startDownload(format);
     expect(controller.queue, hasLength(2));
     controller.dispose();

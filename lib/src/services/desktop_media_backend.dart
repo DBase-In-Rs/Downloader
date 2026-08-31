@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 
 import '../models/download_models.dart';
 import 'media_backend.dart';
@@ -103,10 +104,7 @@ class DesktopMediaBackend implements MediaBackend {
       '--restrict-filenames',
       '--trim-filenames',
       '180',
-      '--retries',
-      '10',
-      '--fragment-retries',
-      '10',
+      ...tuningArgs(request.tuning),
       '-f',
       request.formatId,
       '-o',
@@ -190,7 +188,11 @@ class DesktopMediaBackend implements MediaBackend {
 
           final saved = await _moveToOutputDirectory(output, config);
           _emit(
-            DownloadCompletedEvent(id: request.id, outputLocation: saved.path),
+            DownloadCompletedEvent(
+              id: request.id,
+              outputLocation: saved.path,
+              outputDisplayName: saved.uri.pathSegments.last,
+            ),
           );
         } catch (error) {
           _emit(
@@ -292,6 +294,57 @@ class DesktopMediaBackend implements MediaBackend {
         // Marker is advisory only.
       }
     }
+  }
+
+  @override
+  Future<RenamedOutput> renameOutput(
+    String location,
+    String newDisplayName,
+  ) async {
+    final file = File(location);
+    if (!await file.exists()) {
+      throw Exception('The file no longer exists at this location.');
+    }
+
+    final target = File(
+      '${file.parent.path}${Platform.pathSeparator}$newDisplayName',
+    );
+    if (await target.exists()) {
+      throw Exception('A file with that name already exists.');
+    }
+
+    final renamed = await file.rename(target.path);
+    return RenamedOutput(
+      location: renamed.path,
+      displayName: renamed.uri.pathSegments.last,
+    );
+  }
+
+  @override
+  Future<Uint8List?> loadOutputThumbnail(String location, {int size = 256}) {
+    // Desktop has no cheap thumbnail source; the UI falls back to an icon.
+    return Future.value(null);
+  }
+
+  @override
+  Future<Uint8List> readOutputBytes(
+    String location, {
+    required int maxBytes,
+  }) async {
+    final file = File(location);
+    if (!await file.exists()) {
+      throw Exception('The file no longer exists at this location.');
+    }
+    if (await file.length() > maxBytes) {
+      throw Exception('The file is too large to edit on this device.');
+    }
+
+    return file.readAsBytes();
+  }
+
+  @override
+  Future<void> writeOutputBytes(String location, Uint8List bytes) async {
+    await File(location).writeAsBytes(bytes, flush: true);
   }
 
   File _cookieFile() => File('$_configDir${Platform.pathSeparator}cookies.txt');
@@ -644,6 +697,29 @@ Duration? _etaFromText(String? text) {
     1 => Duration(seconds: parts[0]!),
     _ => null,
   };
+}
+
+/// yt-dlp retry/politeness arguments for the user's tuning settings; sleep
+/// options are added only when enabled so defaults match older releases.
+List<String> tuningArgs(DownloadTuning tuning) {
+  return [
+    '--retries',
+    '${tuning.retries}',
+    '--fragment-retries',
+    '${tuning.fragmentRetries}',
+    if (tuning.sleepRequestsSeconds > 0) ...[
+      '--sleep-requests',
+      '${tuning.sleepRequestsSeconds}',
+    ],
+    if (tuning.sleepIntervalSeconds > 0) ...[
+      '--sleep-interval',
+      '${tuning.sleepIntervalSeconds}',
+      if (tuning.maxSleepIntervalSeconds > tuning.sleepIntervalSeconds) ...[
+        '--max-sleep-interval',
+        '${tuning.maxSleepIntervalSeconds}',
+      ],
+    ],
+  ];
 }
 
 String sanitizeProcessError(String raw) {

@@ -1049,6 +1049,48 @@ symlink that Windows treats as an untrusted mount point).
       symlink from PATH, or configure the runtime path).
 - [ ] Document the dependency in the README install sections.
 
+## Milestone 12 - Reliability And Quality Of Life
+
+Goal: survive flaky providers without user babysitting and make finished
+downloads manageable in-app.
+
+### Sprint 12.1 - Transient-Error Auto-Retry (done)
+
+TikTok randomly serves its page without the embedded data blob, producing
+"Unable to extract universal data for rehydration" from an up-to-date
+yt-dlp (~50% of attempts locally; not DNS/AdGuard related - reproduced on a
+different network). Retrying the whole extraction usually succeeds.
+
+- [x] Auto-retry transient extractor errors up to 3 times (downloads and
+      URL analysis) with a short pause; friendly message when exhausted.
+- [x] Failed downloads stay in the Queue with a Retry button instead of
+      moving to History; dismiss files them under History.
+- [x] "Retry all" in History re-enqueues failed/canceled items in the
+      current filtered view.
+
+### Sprint 12.2 - Output Management (done)
+
+- [x] Completed events carry the saved display name; UI shows it instead of
+      the opaque content:// URI (old entries fall back to a generic label).
+- [x] Rename finished outputs: MediaStore DISPLAY_NAME update,
+      DocumentsContract.renameDocument for SAF folders, File.rename on
+      desktop/pre-Q; extension preserved, names sanitized.
+- [x] Thumbnails on History cards via ContentResolver.loadThumbnail
+      (Android Q+), cached per session; icon fallback elsewhere.
+- [x] MP3 tag editor (title/artist/album/comment) on a pure-Dart ID3v2.3
+      writer - no prebuilt native libs, F-Droid-safe; preserves unrelated
+      frames such as cover art. MP4/M4A atoms are a future sprint.
+
+### Sprint 12.3 - Pacing, Share, And Clipboard (done)
+
+- [x] Download Tuning settings mapped to yt-dlp: --retries,
+      --fragment-retries, --sleep-requests, --sleep-interval /
+      --max-sleep-interval, plus an app-side pause between queue items.
+- [x] "Quick download on share": a URL shared into the app enqueues
+      immediately with the current output preset.
+- [x] Clipboard link detection on app resume (foreground-only by OS
+      design), one-tap accept, opt-out in Settings.
+
 ## Milestone 10 - Hardening, Policy, And Release
 
 Goal: prepare public releases with source and compliance.

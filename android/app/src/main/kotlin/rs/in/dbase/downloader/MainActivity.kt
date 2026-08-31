@@ -3,6 +3,7 @@ package rs.`in`.dbase.downloader
 import android.content.Context
 import android.content.Intent
 import android.content.ContentValues
+import android.graphics.Bitmap
 import android.net.Uri
 import android.os.Build
 import android.os.Environment
@@ -10,6 +11,9 @@ import android.os.Handler
 import android.os.Looper
 import android.provider.DocumentsContract
 import android.provider.MediaStore
+import android.provider.OpenableColumns
+import android.util.Size
+import java.io.ByteArrayOutputStream
 import com.yausername.ffmpeg.FFmpeg
 import com.yausername.youtubedl_android.YoutubeDL
 import com.yausername.youtubedl_android.YoutubeDLRequest
@@ -114,8 +118,112 @@ class MainActivity : FlutterActivity() {
                             null,
                         )
                     } else {
-                        startDownload(id, url, formatId, outputKind)
+                        val tuning = DownloadTuning(
+                            retries = call.argument<Int>("retries") ?: 10,
+                            fragmentRetries = call.argument<Int>("fragmentRetries") ?: 10,
+                            sleepRequestsSeconds =
+                                call.argument<Number>("sleepRequestsSeconds")?.toDouble() ?: 0.0,
+                            sleepIntervalSeconds =
+                                call.argument<Int>("sleepIntervalSeconds") ?: 0,
+                            maxSleepIntervalSeconds =
+                                call.argument<Int>("maxSleepIntervalSeconds") ?: 0,
+                        )
+                        startDownload(id, url, formatId, outputKind, tuning)
                         result.success(null)
+                    }
+                }
+
+                "renameOutput" -> {
+                    val location = call.argument<String>("location")
+                    val newName = call.argument<String>("newName")
+                    if (location.isNullOrBlank() || newName.isNullOrBlank()) {
+                        result.error(
+                            "invalid_rename_request",
+                            "Location and new name are required.",
+                            null,
+                        )
+                    } else {
+                        controlExecutor.execute {
+                            try {
+                                val renamed = renameOutputFile(location, newName)
+                                mainHandler.post {
+                                    result.success(
+                                        mapOf(
+                                            "location" to renamed.first,
+                                            "displayName" to renamed.second,
+                                        ),
+                                    )
+                                }
+                            } catch (error: Throwable) {
+                                mainHandler.post {
+                                    result.error(
+                                        "rename_failed",
+                                        sanitizeNativeError(error),
+                                        null,
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+
+                "getOutputThumbnail" -> {
+                    val location = call.argument<String>("location")
+                    val size = call.argument<Int>("size") ?: 256
+                    if (location.isNullOrBlank()) {
+                        result.success(null)
+                    } else {
+                        controlExecutor.execute {
+                            val bytes = outputThumbnail(location, size)
+                            mainHandler.post { result.success(bytes) }
+                        }
+                    }
+                }
+
+                "readOutputBytes" -> {
+                    val location = call.argument<String>("location")
+                    val maxBytes = call.argument<Number>("maxBytes")?.toLong()
+                        ?: (80L * 1024 * 1024)
+                    if (location.isNullOrBlank()) {
+                        result.error("invalid_location", "Output location is required.", null)
+                    } else {
+                        controlExecutor.execute {
+                            try {
+                                val bytes = readOutputBytes(location, maxBytes)
+                                mainHandler.post { result.success(bytes) }
+                            } catch (error: Throwable) {
+                                mainHandler.post {
+                                    result.error(
+                                        "read_failed",
+                                        sanitizeNativeError(error),
+                                        null,
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+
+                "writeOutputBytes" -> {
+                    val location = call.argument<String>("location")
+                    val bytes = call.argument<ByteArray>("bytes")
+                    if (location.isNullOrBlank() || bytes == null) {
+                        result.error("invalid_write_request", "Location and bytes are required.", null)
+                    } else {
+                        controlExecutor.execute {
+                            try {
+                                writeOutputBytes(location, bytes)
+                                mainHandler.post { result.success(null) }
+                            } catch (error: Throwable) {
+                                mainHandler.post {
+                                    result.error(
+                                        "write_failed",
+                                        sanitizeNativeError(error),
+                                        null,
+                                    )
+                                }
+                            }
+                        }
                     }
                 }
 
@@ -421,6 +529,16 @@ class MainActivity : FlutterActivity() {
             "Only media saved through the system storage can be opened here."
         }
 
+        // A deleted or moved file leaves a dangling entry; probing first
+        // gives a clear message instead of a broken player screen.
+        val exists = runCatching {
+            contentResolver.openAssetFileDescriptor(uri, "r")?.use { true } ?: false
+        }.getOrDefault(false)
+        require(exists) {
+            "This file no longer exists on the device - it was deleted or " +
+                "moved. Remove this entry from history."
+        }
+
         val mimeType = contentResolver.getType(uri) ?: "*/*"
         return Intent(action).apply {
             if (action == Intent.ACTION_SEND) {
@@ -699,6 +817,7 @@ class MainActivity : FlutterActivity() {
         url: String,
         formatId: String,
         outputKind: String,
+        tuning: DownloadTuning,
     ) {
         markDownloadStarted(id)
 
@@ -720,7 +839,7 @@ class MainActivity : FlutterActivity() {
 
                 val workingDir = File(cacheDir, "downloads/$id").apply { mkdirs() }
                 outputDir = workingDir
-                val request = downloadRequest(url, formatId, outputKind, workingDir)
+                val request = downloadRequest(url, formatId, outputKind, workingDir, tuning)
 
                 // The plain cookie file must stay OUTSIDE the working
                 // directory: output detection picks the newest file there,
@@ -754,8 +873,8 @@ class MainActivity : FlutterActivity() {
                     ?: throw IllegalStateException("Download finished without an output file.")
 
                 if (!wasCanceled(id)) {
-                    val outputLocation = saveOutputFile(outputFile, outputKind)
-                    emitCompleted(id, outputLocation)
+                    val (outputLocation, displayName) = saveOutputFile(outputFile, outputKind)
+                    emitCompleted(id, outputLocation, displayName)
                 }
             } catch (error: YoutubeDL.CanceledException) {
                 markCanceled(id)
@@ -789,16 +908,27 @@ class MainActivity : FlutterActivity() {
         formatId: String,
         outputKind: String,
         outputDir: File,
+        tuning: DownloadTuning,
     ): YoutubeDLRequest {
         val request = YoutubeDLRequest(url)
             .addOption("--no-playlist")
             .addOption("--newline")
             .addOption("--restrict-filenames")
             .addOption("--trim-filenames", 180)
-            .addOption("--retries", 10)
-            .addOption("--fragment-retries", 10)
+            .addOption("--retries", tuning.retries)
+            .addOption("--fragment-retries", tuning.fragmentRetries)
             .addOption("-f", formatId)
             .addOption("-o", File(outputDir, "%(title)s.%(ext)s").absolutePath)
+
+        if (tuning.sleepRequestsSeconds > 0) {
+            request.addOption("--sleep-requests", tuning.sleepRequestsSeconds)
+        }
+        if (tuning.sleepIntervalSeconds > 0) {
+            request.addOption("--sleep-interval", tuning.sleepIntervalSeconds)
+            if (tuning.maxSleepIntervalSeconds > tuning.sleepIntervalSeconds) {
+                request.addOption("--max-sleep-interval", tuning.maxSleepIntervalSeconds)
+            }
+        }
 
         when (outputKind) {
             "mp3" -> request
@@ -867,13 +997,14 @@ class MainActivity : FlutterActivity() {
         }
     }
 
-    private fun emitCompleted(id: String, outputLocation: String) {
+    private fun emitCompleted(id: String, outputLocation: String, displayName: String?) {
         mainHandler.post {
             downloaderEvents?.success(
                 mapOf(
                     "type" to "completed",
                     "id" to id,
                     "outputLocation" to outputLocation,
+                    "outputDisplayName" to displayName,
                 ),
             )
         }
@@ -1006,18 +1137,156 @@ class MainActivity : FlutterActivity() {
             .take(240)
     }
 
-    private fun saveOutputFile(file: File, outputKind: String): String {
+    private fun saveOutputFile(file: File, outputKind: String): Pair<String, String> {
         outputTreeUri()?.let { tree ->
             // If the chosen folder became unavailable (deleted, unmounted),
             // fall back to the default MediaStore path instead of failing.
-            runCatching { return saveToDocumentTree(file, outputKind, tree).toString() }
+            runCatching {
+                val saved = saveToDocumentTree(file, outputKind, tree)
+                return saved.toString() to
+                    (queryDisplayName(saved) ?: displayNameFor(file, outputKind))
+            }
         }
 
         return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            saveOutputFileToMediaStore(file, outputKind).toString()
+            val saved = saveOutputFileToMediaStore(file, outputKind)
+            saved.toString() to
+                (queryDisplayName(saved) ?: displayNameFor(file, outputKind))
         } else {
-            saveOutputFileToAppExternalStorage(file, outputKind).absolutePath
+            val saved = saveOutputFileToAppExternalStorage(file, outputKind)
+            saved.absolutePath to saved.name
         }
+    }
+
+    /// Display name recorded by the storage backend, which may differ from
+    /// the requested one when duplicates get " (1)" suffixes.
+    private fun queryDisplayName(uri: Uri): String? {
+        return runCatching {
+            contentResolver.query(
+                uri,
+                arrayOf(OpenableColumns.DISPLAY_NAME),
+                null,
+                null,
+                null,
+            )?.use { cursor ->
+                if (cursor.moveToFirst()) cursor.getString(0) else null
+            }
+        }.getOrNull()
+    }
+
+    private fun renameOutputFile(location: String, newName: String): Pair<String, String> {
+        require(!newName.contains(Regex("[\\\\/:*?\"<>|]"))) { "Invalid file name." }
+
+        if (!location.startsWith("content://")) {
+            val source = File(location)
+            if (!source.isFile) {
+                throw IllegalStateException("The file no longer exists at this location.")
+            }
+            val target = File(source.parentFile, newName)
+            if (target.exists()) {
+                throw IllegalStateException("A file with that name already exists.")
+            }
+            if (!source.renameTo(target)) {
+                throw IllegalStateException("Could not rename this file.")
+            }
+            return target.absolutePath to target.name
+        }
+
+        val uri = Uri.parse(location)
+        return if (DocumentsContract.isDocumentUri(this, uri)) {
+            val renamed = DocumentsContract.renameDocument(contentResolver, uri, newName)
+                ?: throw IllegalStateException("Could not rename this file.")
+            renamed.toString() to (queryDisplayName(renamed) ?: newName)
+        } else {
+            val values = ContentValues().apply {
+                put(MediaStore.MediaColumns.DISPLAY_NAME, newName)
+            }
+            val updated = contentResolver.update(uri, values, null, null)
+            if (updated <= 0) {
+                throw IllegalStateException("Could not rename this file.")
+            }
+            location to (queryDisplayName(uri) ?: newName)
+        }
+    }
+
+    private fun outputThumbnail(location: String, size: Int): ByteArray? {
+        return runCatching {
+            val bitmap = (if (location.startsWith("content://")) {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                    contentResolver.loadThumbnail(
+                        Uri.parse(location),
+                        Size(size, size),
+                        null,
+                    )
+                } else {
+                    null
+                }
+            } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                android.media.ThumbnailUtils.createVideoThumbnail(
+                    File(location),
+                    Size(size, size),
+                    null,
+                )
+            } else {
+                null
+            }) ?: return null
+
+            val stream = ByteArrayOutputStream()
+            bitmap.compress(Bitmap.CompressFormat.JPEG, 82, stream)
+            bitmap.recycle()
+            stream.toByteArray()
+        }.getOrNull()
+    }
+
+    private fun readOutputBytes(location: String, maxBytes: Long): ByteArray {
+        if (!location.startsWith("content://")) {
+            val file = File(location)
+            if (!file.isFile) {
+                throw IllegalStateException("The file no longer exists at this location.")
+            }
+            if (file.length() > maxBytes) {
+                throw IllegalStateException("The file is too large to edit on this device.")
+            }
+            return file.readBytes()
+        }
+
+        val uri = Uri.parse(location)
+        contentResolver.openAssetFileDescriptor(uri, "r")?.use { descriptor ->
+            if (descriptor.length != -1L && descriptor.length > maxBytes) {
+                throw IllegalStateException("The file is too large to edit on this device.")
+            }
+        }
+
+        val input = contentResolver.openInputStream(uri)
+            ?: throw IllegalStateException("The file no longer exists at this location.")
+        input.use { stream ->
+            val buffer = ByteArrayOutputStream()
+            val chunk = ByteArray(64 * 1024)
+            var total = 0L
+            while (true) {
+                val read = stream.read(chunk)
+                if (read == -1) {
+                    break
+                }
+                total += read
+                if (total > maxBytes) {
+                    throw IllegalStateException("The file is too large to edit on this device.")
+                }
+                buffer.write(chunk, 0, read)
+            }
+            return buffer.toByteArray()
+        }
+    }
+
+    private fun writeOutputBytes(location: String, bytes: ByteArray) {
+        if (!location.startsWith("content://")) {
+            File(location).writeBytes(bytes)
+            return
+        }
+
+        val output = contentResolver.openOutputStream(Uri.parse(location), "wt")
+            ?: throw IllegalStateException("Could not write to this file.")
+        output.use { it.write(bytes) }
     }
 
     private fun saveOutputFileToMediaStore(file: File, outputKind: String): Uri {
@@ -1173,4 +1442,13 @@ private data class ProgressMetrics(
     val downloadedBytes: Long? = null,
     val totalBytes: Long? = null,
     val speedBytesPerSecond: Long? = null,
+)
+
+/** User-tunable yt-dlp politeness and retry options from the Dart side. */
+private data class DownloadTuning(
+    val retries: Int = 10,
+    val fragmentRetries: Int = 10,
+    val sleepRequestsSeconds: Double = 0.0,
+    val sleepIntervalSeconds: Int = 0,
+    val maxSleepIntervalSeconds: Int = 0,
 )

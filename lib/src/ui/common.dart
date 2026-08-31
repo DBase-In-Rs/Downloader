@@ -1,7 +1,10 @@
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 
 import '../models/download_models.dart';
 import '../models/media_providers.dart';
+import '../services/app_controller.dart' show friendlyOutputName;
 
 class PageSurface extends StatelessWidget {
   const PageSurface({required this.child, super.key});
@@ -91,6 +94,9 @@ class DownloadItemTile extends StatelessWidget {
     this.onOpen,
     this.onReveal,
     this.onShare,
+    this.onRename,
+    this.onEditTags,
+    this.thumbnail,
     super.key,
   });
 
@@ -104,11 +110,23 @@ class DownloadItemTile extends StatelessWidget {
   final VoidCallback? onOpen;
   final VoidCallback? onReveal;
   final VoidCallback? onShare;
+  final VoidCallback? onRename;
+  final VoidCallback? onEditTags;
+
+  /// Preview image bytes for the finished output; the status icon is shown
+  /// while loading or when no preview exists.
+  final Future<Uint8List?>? thumbnail;
 
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
-    final progress = item.progress;
+    // Finished items keep their last progress event in the model; showing
+    // it would look like the download is still running.
+    final active =
+        item.status == DownloadStatus.running ||
+        item.status == DownloadStatus.pending ||
+        item.status == DownloadStatus.paused;
+    final progress = active ? item.progress : null;
     final percent = progress?.percent?.clamp(0.0, 1.0).toDouble();
     final provider = providerDisplayName(
       providerId: item.providerId,
@@ -126,7 +144,11 @@ class DownloadItemTile extends StatelessWidget {
             children: [
               Row(
                 children: [
-                  Icon(_statusIcon(item.status), color: colors.primary),
+                  _LeadingVisual(
+                    icon: _statusIcon(item.status),
+                    color: colors.primary,
+                    thumbnail: thumbnail,
+                  ),
                   const SizedBox(width: 10),
                   Expanded(
                     child: Column(
@@ -175,7 +197,11 @@ class DownloadItemTile extends StatelessWidget {
                       icon: const Icon(Icons.delete_outline),
                     ),
                   ],
-                  if (onOpen != null || onReveal != null || onShare != null)
+                  if (onOpen != null ||
+                      onReveal != null ||
+                      onShare != null ||
+                      onRename != null ||
+                      onEditTags != null)
                     PopupMenuButton<VoidCallback>(
                       tooltip: 'File actions',
                       onSelected: (action) => action(),
@@ -202,6 +228,22 @@ class DownloadItemTile extends StatelessWidget {
                             child: const ListTile(
                               leading: Icon(Icons.share),
                               title: Text('Share'),
+                            ),
+                          ),
+                        if (onRename != null)
+                          PopupMenuItem(
+                            value: onRename!,
+                            child: const ListTile(
+                              leading: Icon(Icons.drive_file_rename_outline),
+                              title: Text('Rename'),
+                            ),
+                          ),
+                        if (onEditTags != null)
+                          PopupMenuItem(
+                            value: onEditTags!,
+                            child: const ListTile(
+                              leading: Icon(Icons.sell_outlined),
+                              title: Text('Edit tags'),
                             ),
                           ),
                       ],
@@ -239,11 +281,23 @@ class DownloadItemTile extends StatelessWidget {
               ],
               if (item.outputLocation != null) ...[
                 const SizedBox(height: 10),
-                Text(
-                  item.outputLocation!,
-                  style: Theme.of(context).textTheme.bodySmall,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
+                Row(
+                  children: [
+                    Icon(
+                      Icons.insert_drive_file_outlined,
+                      size: 16,
+                      color: colors.onSurfaceVariant,
+                    ),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Text(
+                        friendlyOutputName(item),
+                        style: Theme.of(context).textTheme.bodySmall,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ],
@@ -254,9 +308,12 @@ class DownloadItemTile extends StatelessWidget {
   }
 
   bool _cancelable(DownloadStatus status) {
+    // A failed item stays in the queue for retries; the close button
+    // dismisses it into history.
     return status == DownloadStatus.pending ||
         status == DownloadStatus.paused ||
-        status == DownloadStatus.running;
+        status == DownloadStatus.running ||
+        status == DownloadStatus.failed;
   }
 
   IconData _statusIcon(DownloadStatus status) {
@@ -268,6 +325,48 @@ class DownloadItemTile extends StatelessWidget {
       DownloadStatus.failed => Icons.error,
       DownloadStatus.canceled => Icons.cancel,
     };
+  }
+}
+
+class _LeadingVisual extends StatelessWidget {
+  const _LeadingVisual({
+    required this.icon,
+    required this.color,
+    this.thumbnail,
+  });
+
+  final IconData icon;
+  final Color color;
+  final Future<Uint8List?>? thumbnail;
+
+  @override
+  Widget build(BuildContext context) {
+    final thumbnail = this.thumbnail;
+    if (thumbnail == null) {
+      return Icon(icon, color: color);
+    }
+
+    return FutureBuilder<Uint8List?>(
+      future: thumbnail,
+      builder: (context, snapshot) {
+        final bytes = snapshot.data;
+        if (bytes == null || bytes.isEmpty) {
+          return Icon(icon, color: color);
+        }
+
+        return ClipRRect(
+          borderRadius: BorderRadius.circular(6),
+          child: Image.memory(
+            bytes,
+            width: 48,
+            height: 48,
+            fit: BoxFit.cover,
+            gaplessPlayback: true,
+            errorBuilder: (_, _, _) => Icon(icon, color: color),
+          ),
+        );
+      },
+    );
   }
 }
 

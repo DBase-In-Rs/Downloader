@@ -95,6 +95,9 @@ void main() {
 
     final field = tester.widget<TextField>(find.byType(TextField));
     expect(field.controller?.text, 'https://youtu.be/test');
+
+    // Shared links auto-analyze; let the fake backend finish its work.
+    await tester.pump(const Duration(milliseconds: 400));
   });
 
   testWidgets('shows support and about cards in Settings', (tester) async {

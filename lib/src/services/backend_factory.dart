@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 
+import 'app_settings_store.dart';
 import 'desktop_media_backend.dart';
 import 'desktop_settings.dart';
 import 'fake_media_backend.dart';
@@ -41,4 +42,12 @@ QueueStore createQueueStore() {
   }
 
   return SharedPreferencesQueueStore();
+}
+
+AppSettingsStore createAppSettingsStore() {
+  if (kIsWeb) {
+    return MemoryAppSettingsStore();
+  }
+
+  return SharedPreferencesAppSettingsStore();
 }

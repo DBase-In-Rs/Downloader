@@ -1,12 +1,15 @@
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 
 import '../build_flags.dart';
 import '../models/download_models.dart';
 import '../models/media_providers.dart';
+import 'app_settings_store.dart';
 import 'app_update_service.dart';
+import 'id3_tags.dart';
 import 'media_backend.dart';
 import 'queue_store.dart';
 import 'shared_url_service.dart';
@@ -18,9 +21,13 @@ class AppController extends ChangeNotifier {
     required this.backend,
     required this.sharedUrlService,
     QueueStore? queueStore,
+    AppSettingsStore? settingsStore,
     bool? updateEngineOnStartup,
+    Future<String?> Function()? clipboardReader,
   }) : queueStore = queueStore ?? MemoryQueueStore(),
-       updateEngineOnStartup = updateEngineOnStartup ?? !kFdroidBuild {
+       settingsStore = settingsStore ?? MemoryAppSettingsStore(),
+       updateEngineOnStartup = updateEngineOnStartup ?? !kFdroidBuild,
+       _clipboardReader = clipboardReader ?? _systemClipboardText {
     _backendSubscription = backend.events.listen(_handleBackendEvent);
     _sharedUrlSubscription = sharedUrlService.sharedTextStream.listen(
       receiveSharedText,
@@ -30,6 +37,8 @@ class AppController extends ChangeNotifier {
   final MediaBackend backend;
   final SharedUrlService sharedUrlService;
   final QueueStore queueStore;
+  final AppSettingsStore settingsStore;
+  final Future<String?> Function() _clipboardReader;
 
   /// Whether initialize() refreshes yt-dlp; false in F-Droid builds, where
   /// unattended binary downloads are not allowed. The UI must not wait for
@@ -56,10 +65,20 @@ class AppController extends ChangeNotifier {
   int _idSequence = 0;
   String _historyQuery = '';
   String? _historyProviderFilter;
+  AppSettings _settings = const AppSettings();
+  String? _clipboardSuggestion;
+  String? _lastClipboardOffer;
   final List<DownloadQueueItem> _queue = [];
   final List<DownloadQueueItem> _history = [];
 
+  /// Delay before re-running a request that hit a transient extractor
+  /// error; gives the provider a beat to serve a full page again.
+  @visibleForTesting
+  Duration transientRetryDelay = const Duration(seconds: 2);
+
   static const _historyLimit = 200;
+  static const _maxTransientRetries = 3;
+  static const _maxTagEditBytes = 80 * 1024 * 1024;
 
   AppSection get section => _section;
 
@@ -94,6 +113,13 @@ class AppController extends ChangeNotifier {
   String? get engineUpdateMessage => _engineUpdateMessage;
 
   bool get queuePaused => _queuePaused;
+
+  DownloadTuning get tuning => _settings.tuning;
+
+  bool get clipboardWatch => _settings.clipboardWatch;
+
+  /// URL found in the clipboard that the user has not acted on yet.
+  String? get clipboardSuggestion => _clipboardSuggestion;
 
   List<DownloadQueueItem> get queue => List.unmodifiable(_queue);
 
@@ -183,6 +209,7 @@ class AppController extends ChangeNotifier {
   }
 
   Future<void> initialize() async {
+    _settings = await settingsStore.load();
     _cookieStatus = await backend.getCookieStatus();
     await _restoreQueue();
     final sharedText = await sharedUrlService.getInitialSharedText();
@@ -201,6 +228,84 @@ class AppController extends ChangeNotifier {
       unawaited(_checkForAppUpdate());
     }
     await _pumpQueue();
+    unawaited(checkClipboardForLink());
+  }
+
+  Future<void> setTuning(DownloadTuning tuning) async {
+    _settings = _settings.copyWith(tuning: tuning);
+    notifyListeners();
+    await settingsStore.save(_settings);
+  }
+
+  Future<void> setClipboardWatch(bool enabled) async {
+    _settings = _settings.copyWith(clipboardWatch: enabled);
+    if (!enabled) {
+      _clipboardSuggestion = null;
+    }
+    notifyListeners();
+    await settingsStore.save(_settings);
+  }
+
+  /// Offers a download for a link sitting in the clipboard. Called when the
+  /// app comes to the foreground; platforms only allow clipboard reads while
+  /// the app has focus.
+  Future<void> checkClipboardForLink() async {
+    if (!_settings.clipboardWatch) {
+      return;
+    }
+
+    String? text;
+    try {
+      text = await _clipboardReader();
+    } catch (_) {
+      return;
+    }
+
+    final url = text == null ? null : extractFirstUrl(text);
+    if (url == null) {
+      return;
+    }
+
+    final normalized = normalizeMediaUrl(url);
+    if (!isValidUrl(normalized) ||
+        normalized == _lastClipboardOffer ||
+        normalized == _urlText) {
+      return;
+    }
+
+    _lastClipboardOffer = normalized;
+    _clipboardSuggestion = normalized;
+    notifyListeners();
+  }
+
+  void acceptClipboardSuggestion() {
+    final url = _clipboardSuggestion;
+    if (url == null) {
+      return;
+    }
+
+    _clipboardSuggestion = null;
+    receiveSharedText(url);
+  }
+
+  void dismissClipboardSuggestion() {
+    if (_clipboardSuggestion == null) {
+      return;
+    }
+
+    _clipboardSuggestion = null;
+    notifyListeners();
+  }
+
+  static Future<String?> _systemClipboardText() async {
+    // hasStrings checks the clipboard description only, so the system
+    // "app read the clipboard" notice appears just when text is present.
+    if (!await Clipboard.hasStrings()) {
+      return null;
+    }
+
+    final data = await Clipboard.getData(Clipboard.kTextPlain);
+    return data?.text;
   }
 
   Future<void> _checkForAppUpdate() async {
@@ -326,10 +431,15 @@ class AppController extends ChangeNotifier {
       return;
     }
 
+    // A shared or clipboard link behaves like a typed one: it lands on
+    // Home and analysis starts right away so the format options appear.
     _urlText = normalizeMediaUrl(url);
     _section = AppSection.home;
     _errorMessage = null;
     notifyListeners();
+    if (isValidUrl(_urlText)) {
+      unawaited(analyzeUrl());
+    }
   }
 
   Future<void> analyzeUrl() async {
@@ -356,10 +466,14 @@ class AppController extends ChangeNotifier {
 
     try {
       if (isLikelyPlaylistUrl(url)) {
-        final playlist = await backend.getPlaylistInfo(request);
+        final playlist = await _withTransientRetry(
+          () => backend.getPlaylistInfo(request),
+        );
         if (playlist.entries.isEmpty) {
           // Not a real playlist; fall back to single-item analysis.
-          _mediaInfo = _withResolvedProvider(await backend.getInfo(request));
+          _mediaInfo = _withResolvedProvider(
+            await _withTransientRetry(() => backend.getInfo(request)),
+          );
           _applyProviderDefaults(currentProvider);
         } else {
           _playlistInfo = _withResolvedPlaylistProvider(playlist);
@@ -370,7 +484,9 @@ class AppController extends ChangeNotifier {
         }
       } else {
         try {
-          _mediaInfo = _withResolvedProvider(await backend.getInfo(request));
+          _mediaInfo = _withResolvedProvider(
+            await _withTransientRetry(() => backend.getInfo(request)),
+          );
           _applyProviderDefaults(currentProvider);
         } catch (error) {
           // Pure playlist URLs (albums, channels, profiles) are not covered
@@ -403,6 +519,24 @@ class AppController extends ChangeNotifier {
     } catch (_) {
       // The single-item error is the more useful one to surface.
       return null;
+    }
+  }
+
+  /// Re-runs [action] up to [_maxTransientRetries] extra times when it fails
+  /// with a transient extractor error; any other failure is rethrown as-is.
+  Future<T> _withTransientRetry<T>(Future<T> Function() action) async {
+    var attempt = 0;
+    while (true) {
+      try {
+        return await action();
+      } catch (error) {
+        if (!isTransientExtractionError(error) ||
+            attempt >= _maxTransientRetries) {
+          rethrow;
+        }
+        attempt++;
+        await Future<void>.delayed(transientRetryDelay);
+      }
     }
   }
 
@@ -474,6 +608,9 @@ class AppController extends ChangeNotifier {
   }
 
   Future<void> retryDownload(DownloadQueueItem source) async {
+    // A retried history entry moves back to the queue instead of piling up
+    // duplicate rows in history.
+    _history.removeWhere((item) => item.id == source.id);
     await _enqueue(
       url: source.url,
       title: source.title,
@@ -485,6 +622,42 @@ class AppController extends ChangeNotifier {
         url: source.url,
       ),
     );
+  }
+
+  /// Re-enqueues every failed or canceled item in the current history view
+  /// (search and provider filters apply). Duplicate entries for the same
+  /// URL and output are collapsed into a single retry.
+  Future<void> retryAllHistory() async {
+    final retryable = filteredHistory
+        .where(
+          (item) =>
+              item.status == DownloadStatus.failed ||
+              item.status == DownloadStatus.canceled,
+        )
+        .toList();
+    final seen = <String>{};
+    for (final item in retryable) {
+      if (seen.add('${item.url}|${item.outputKind.name}')) {
+        await retryDownload(item);
+      } else {
+        _history.removeWhere((entry) => entry.id == item.id);
+      }
+    }
+    notifyListeners();
+    await _persistQueue();
+  }
+
+  /// Puts a failed queue item back in the waiting line.
+  Future<void> retryQueueItem(String id) async {
+    final index = _queue.indexWhere((item) => item.id == id);
+    if (index == -1 || _queue[index].status != DownloadStatus.failed) {
+      return;
+    }
+
+    _queue[index] = _queue[index].resetForRetry(paused: _queuePaused);
+    notifyListeners();
+    await _persistQueue();
+    await _pumpQueue();
   }
 
   Future<void> pauseQueue() async {
@@ -519,6 +692,12 @@ class AppController extends ChangeNotifier {
     if (_queue[index].status == DownloadStatus.running) {
       // The backend confirms with a canceled event that finishes the item.
       await backend.cancelDownload(id);
+      return;
+    }
+
+    if (_queue[index].status == DownloadStatus.failed) {
+      // Dismissing a failed item files it under history with its error.
+      _finishQueueItem(id, (current) => current);
       return;
     }
 
@@ -582,13 +761,25 @@ class AppController extends ChangeNotifier {
     unawaited(_persistQueue());
   }
 
+  var _disposed = false;
+
   @override
   void dispose() {
+    _disposed = true;
     _backendSubscription.cancel();
     _sharedUrlSubscription.cancel();
     backend.dispose();
     sharedUrlService.dispose();
     super.dispose();
+  }
+
+  /// Fire-and-forget flows (auto-analyze of shared links, engine updates)
+  /// may finish after the controller is gone; notifying then would throw.
+  @override
+  void notifyListeners() {
+    if (!_disposed) {
+      super.notifyListeners();
+    }
   }
 
   Future<void> _enqueue({
@@ -598,6 +789,17 @@ class AppController extends ChangeNotifier {
     required OutputKind outputKind,
     MediaProviderInfo? provider,
   }) async {
+    // The same URL and output must not wait in the queue twice - retrying
+    // duplicated history entries used to download the same file two times.
+    final alreadyQueued = _queue.any(
+      (item) => item.url == url && item.outputKind == outputKind,
+    );
+    if (alreadyQueued) {
+      _section = AppSection.queue;
+      notifyListeners();
+      return;
+    }
+
     // A timestamp alone can collide when two items are enqueued within the
     // same clock tick, so a session-local sequence keeps ids unique.
     final resolvedProvider = provider ?? dynamicMediaProvider(url: url);
@@ -648,6 +850,7 @@ class AppController extends ChangeNotifier {
           formatId: effectiveFormatSelector(item.format, item.outputKind),
           outputKind: item.outputKind,
           title: item.title,
+          tuning: _settings.tuning,
         ),
       );
     } catch (error) {
@@ -656,13 +859,7 @@ class AppController extends ChangeNotifier {
         providerName: item.providerName,
         url: item.url,
       );
-      _finishQueueItem(
-        item.id,
-        (current) => current.copyWith(
-          status: DownloadStatus.failed,
-          errorMessage: _friendlyError(error, provider: provider),
-        ),
-      );
+      _failQueueItem(item.id, _friendlyError(error, provider: provider));
     }
   }
 
@@ -678,16 +875,38 @@ class AppController extends ChangeNotifier {
       ..addAll(snapshot.items.where(_isWaitingOrRunning).map(_restoredItem));
     _history
       ..clear()
-      ..addAll(snapshot.history.take(_historyLimit));
+      ..addAll(_dedupedHistory(snapshot.history).take(_historyLimit));
+  }
+
+  /// Keeps only the newest failed/canceled history entry per URL and output
+  /// kind; repeated failures used to pile up as duplicates. Completed
+  /// entries are never dropped - each one points at a real saved file.
+  List<DownloadQueueItem> _dedupedHistory(List<DownloadQueueItem> items) {
+    final seen = <String>{};
+    return items.where((item) {
+      if (item.status != DownloadStatus.failed &&
+          item.status != DownloadStatus.canceled) {
+        return true;
+      }
+      return seen.add(
+        '${item.url}|${item.outputKind.name}|${item.status.name}',
+      );
+    }).toList();
   }
 
   bool _isWaitingOrRunning(DownloadQueueItem item) {
     return item.status == DownloadStatus.pending ||
         item.status == DownloadStatus.paused ||
-        item.status == DownloadStatus.running;
+        item.status == DownloadStatus.running ||
+        item.status == DownloadStatus.failed;
   }
 
   DownloadQueueItem _restoredItem(DownloadQueueItem item) {
+    // Failed items keep waiting in the queue for a retry across restarts.
+    if (item.status == DownloadStatus.failed) {
+      return item;
+    }
+
     // Native downloads do not survive an app restart, so a persisted running
     // item is re-queued instead of restored as running.
     return item.copyWith(
@@ -727,23 +946,25 @@ class AppController extends ChangeNotifier {
             progress: progress,
           ),
         );
-      case DownloadCompletedEvent(:final id, :final outputLocation):
+      case DownloadCompletedEvent(
+        :final id,
+        :final outputLocation,
+        :final outputDisplayName,
+      ):
         _finishQueueItem(
           id,
           (current) => current.copyWith(
             status: DownloadStatus.completed,
             outputLocation: outputLocation,
+            outputDisplayName: outputDisplayName,
           ),
         );
       case DownloadFailedEvent(:final id, :final message):
+        if (_scheduleTransientRetry(id, message)) {
+          return;
+        }
         final provider = _queueProviderFor(id);
-        _finishQueueItem(
-          id,
-          (current) => current.copyWith(
-            status: DownloadStatus.failed,
-            errorMessage: _friendlyError(message, provider: provider),
-          ),
-        );
+        _failQueueItem(id, _friendlyError(message, provider: provider));
         unawaited(_refreshCookieStatus());
       case DownloadCanceledEvent(:final id):
         _finishQueueItem(
@@ -754,6 +975,37 @@ class AppController extends ChangeNotifier {
         _errorMessage = message;
         notifyListeners();
     }
+  }
+
+  /// Re-queues a download that failed with a transient extractor error, up
+  /// to [_maxTransientRetries] times per item. Returns false when the error
+  /// is not transient or the retry budget is spent, so the failure is
+  /// surfaced normally.
+  bool _scheduleTransientRetry(String id, String message) {
+    if (!isTransientExtractionError(message)) {
+      return false;
+    }
+
+    final index = _queue.indexWhere((item) => item.id == id);
+    if (index == -1) {
+      return false;
+    }
+
+    final item = _queue[index];
+    if (item.autoRetryCount >= _maxTransientRetries) {
+      return false;
+    }
+
+    _queue[index] = item.copyWith(
+      status: _queuePaused ? DownloadStatus.paused : DownloadStatus.pending,
+      autoRetryCount: item.autoRetryCount + 1,
+    );
+    notifyListeners();
+    unawaited(_persistQueue());
+    unawaited(
+      Future<void>.delayed(transientRetryDelay).then((_) => _pumpQueue()),
+    );
+    return true;
   }
 
   void _replaceQueueItem(
@@ -780,13 +1032,167 @@ class AppController extends ChangeNotifier {
 
     final finished = update(_queue.removeAt(index))
         .copyWith(finishedAt: DateTime.now());
+    // Repeated failures/cancellations of the same request replace the older
+    // history entry instead of piling up duplicates.
+    if (finished.status == DownloadStatus.failed ||
+        finished.status == DownloadStatus.canceled) {
+      _history.removeWhere(
+        (entry) =>
+            entry.status == finished.status &&
+            entry.url == finished.url &&
+            entry.outputKind == finished.outputKind,
+      );
+    }
     _history.insert(0, finished);
     if (_history.length > _historyLimit) {
       _history.removeRange(_historyLimit, _history.length);
     }
     notifyListeners();
     unawaited(_persistQueue());
-    unawaited(_pumpQueue());
+    _schedulePump();
+  }
+
+  /// Marks a queue item as failed but keeps it in the queue awaiting a
+  /// manual retry; the next waiting item still gets its turn.
+  void _failQueueItem(String id, String message) {
+    final index = _queue.indexWhere((item) => item.id == id);
+    if (index == -1) {
+      return;
+    }
+
+    _queue[index] = _queue[index].copyWith(
+      status: DownloadStatus.failed,
+      errorMessage: message,
+    );
+    notifyListeners();
+    unawaited(_persistQueue());
+    _schedulePump();
+  }
+
+  /// Starts the next waiting item, honoring the configured pause between
+  /// queue items.
+  void _schedulePump() {
+    final gap = _settings.tuning.queueGapSeconds;
+    if (gap <= 0) {
+      unawaited(_pumpQueue());
+      return;
+    }
+
+    unawaited(
+      Future<void>.delayed(Duration(seconds: gap)).then((_) => _pumpQueue()),
+    );
+  }
+
+  /// Renames a finished output. [newBaseName] excludes the extension, which
+  /// is preserved. Returns a user-facing error message, or null on success.
+  Future<String?> renameOutput(
+    DownloadQueueItem item,
+    String newBaseName,
+  ) async {
+    final location = item.outputLocation;
+    if (location == null) {
+      return 'This item has no saved file.';
+    }
+
+    final sanitized = sanitizeFileBaseName(newBaseName);
+    if (sanitized.isEmpty) {
+      return 'Enter a file name.';
+    }
+
+    final extension = outputFileExtension(item);
+    final displayName = extension == null ? sanitized : '$sanitized.$extension';
+
+    try {
+      final renamed = await backend.renameOutput(location, displayName);
+      _updateStoredItem(
+        item.id,
+        (current) => current.copyWith(
+          outputLocation: renamed.location,
+          outputDisplayName: renamed.displayName,
+        ),
+      );
+      return null;
+    } catch (error) {
+      return _friendlyError(error);
+    }
+  }
+
+  /// Whether the finished output is an MP3 whose tags this app can edit.
+  bool canEditTags(DownloadQueueItem item) {
+    if (item.status != DownloadStatus.completed ||
+        item.outputLocation == null) {
+      return false;
+    }
+
+    final name = (item.outputDisplayName ?? item.outputLocation!)
+        .toLowerCase();
+    return name.endsWith('.mp3') || item.outputKind == OutputKind.mp3;
+  }
+
+  /// Current tags of a finished MP3, or null when they cannot be read.
+  Future<AudioTags?> readOutputTags(DownloadQueueItem item) async {
+    final location = item.outputLocation;
+    if (location == null) {
+      return null;
+    }
+
+    try {
+      final bytes = await backend.readOutputBytes(
+        location,
+        maxBytes: _maxTagEditBytes,
+      );
+      return looksLikeMp3(bytes) ? readId3Tags(bytes) : null;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Writes [tags] into a finished MP3. Returns a user-facing error message,
+  /// or null on success.
+  Future<String?> writeOutputTags(
+    DownloadQueueItem item,
+    AudioTags tags,
+  ) async {
+    final location = item.outputLocation;
+    if (location == null) {
+      return 'This item has no saved file.';
+    }
+
+    try {
+      final bytes = await backend.readOutputBytes(
+        location,
+        maxBytes: _maxTagEditBytes,
+      );
+      if (!looksLikeMp3(bytes)) {
+        return 'Tag editing is only supported for MP3 files.';
+      }
+
+      await backend.writeOutputBytes(location, applyId3Tags(bytes, tags));
+      return null;
+    } catch (error) {
+      return _friendlyError(error);
+    }
+  }
+
+  /// Applies [update] to a queue or history entry with the given id.
+  void _updateStoredItem(
+    String id,
+    DownloadQueueItem Function(DownloadQueueItem current) update,
+  ) {
+    final queueIndex = _queue.indexWhere((item) => item.id == id);
+    if (queueIndex != -1) {
+      _queue[queueIndex] = update(_queue[queueIndex]);
+    }
+
+    final historyIndex = _history.indexWhere((item) => item.id == id);
+    if (historyIndex != -1) {
+      _history[historyIndex] = update(_history[historyIndex]);
+    }
+
+    if (queueIndex != -1 || historyIndex != -1) {
+      notifyListeners();
+      unawaited(_persistQueue());
+    }
   }
 
   MediaProviderInfo? _queueProviderFor(String id) {
@@ -811,6 +1217,14 @@ class AppController extends ChangeNotifier {
     final message = error.toString().replaceFirst('Exception: ', '').trim();
     final lower = message.toLowerCase();
     final providerName = provider?.displayName ?? 'this site';
+
+    // Reaching here means the automatic retries were already exhausted.
+    if (isTransientExtractionError(message)) {
+      return '$providerName briefly served an incomplete page (anti-bot '
+          'check); this happens at random and is not a problem with your '
+          'device or network. The app already retried a few times - wait a '
+          'moment and retry once more.';
+    }
 
     if (lower.contains('unsupported url') ||
         lower.contains('no suitable extractor') ||
@@ -917,11 +1331,70 @@ String effectiveFormatSelector(MediaFormat format, OutputKind outputKind) {
   };
 }
 
+/// True for yt-dlp failures where the provider randomly served an incomplete
+/// page and an immediate re-run usually succeeds. Seen on TikTok, which
+/// intermittently returns its web page without the embedded JSON payload
+/// ("universal data for rehydration") regardless of network or DNS setup.
+bool isTransientExtractionError(Object error) {
+  final lower = error.toString().toLowerCase();
+  return lower.contains('unable to extract universal data for rehydration') ||
+      lower.contains('unable to extract webpage video data') ||
+      lower.contains('unexpected response from webpage request');
+}
+
 bool isValidUrl(String value) {
   final uri = Uri.tryParse(value);
   return uri != null &&
       (uri.scheme == 'http' || uri.scheme == 'https') &&
       uri.host.isNotEmpty;
+}
+
+/// Strips characters that are illegal in file names on Android and Windows.
+String sanitizeFileBaseName(String value) {
+  return value
+      .replaceAll(RegExp(r'[\\/:*?"<>|]+'), '_')
+      .replaceAll(RegExp(r'\s+'), ' ')
+      .trim()
+      .replaceAll(RegExp(r'[. ]+$'), '')
+      .split('')
+      .take(180)
+      .join();
+}
+
+/// File extension of a finished output, from its display name or location.
+String? outputFileExtension(DownloadQueueItem item) {
+  final source = item.outputDisplayName ?? item.outputLocation;
+  if (source == null) {
+    return null;
+  }
+
+  final name = source.split(RegExp(r'[\\/]+')).last;
+  final dot = name.lastIndexOf('.');
+  if (dot <= 0 || dot == name.length - 1) {
+    return null;
+  }
+
+  final extension = name.substring(dot + 1);
+  return RegExp(r'^[A-Za-z0-9]{1,5}$').hasMatch(extension) ? extension : null;
+}
+
+/// User-facing name for a finished output; raw content:// URIs mean nothing
+/// to people, so they get a generic label.
+String friendlyOutputName(DownloadQueueItem item) {
+  final display = item.outputDisplayName;
+  if (display != null && display.isNotEmpty) {
+    return display;
+  }
+
+  final location = item.outputLocation ?? '';
+  if (location.startsWith('content://')) {
+    return 'Saved to media library';
+  }
+
+  final segments = location
+      .split(RegExp(r'[\\/]+'))
+      .where((segment) => segment.isNotEmpty);
+  return segments.isEmpty ? location : segments.last;
 }
 
 String? extractFirstUrl(String text) {

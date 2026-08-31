@@ -8,6 +8,39 @@ versioning once releases begin.
 
 ## [Unreleased]
 
+## [1.0.8] - 2026-08-31
+
+### Added
+
+- Automatic retry (up to 3 attempts) for transient extractor errors such as
+  TikTok's "Unable to extract universal data for rehydration", which appears
+  at random when TikTok serves a page without its embedded data. Applies to
+  both downloads and URL analysis; the final failure message now explains
+  the error instead of quoting yt-dlp.
+- Failed downloads now stay in the Queue awaiting a retry (button on the
+  item) instead of moving to History; dismissing one files it under History.
+- "Retry all" button in History re-enqueues every failed/canceled item in
+  the current filtered view.
+- Finished items show the saved file name instead of the raw content:// URI,
+  plus a thumbnail preview on History cards (Android).
+- Rename for finished downloads (History item menu); the extension is kept
+  and illegal characters are cleaned up.
+- MP3 tag editor (title/artist/album/comment) built on a dependency-free
+  ID3v2.3 writer, so F-Droid builds need no prebuilt libraries. Embedded
+  cover art and other frames survive edits.
+- Download Tuning settings: yt-dlp retries, fragment retries,
+  `--sleep-requests`, `--sleep-interval`/`--max-sleep-interval`, and a pause
+  between queue items to avoid provider rate-limiting on long queues.
+- Shared links now behave like typed ones: they land on Home and analysis
+  starts automatically so the format options appear without extra taps.
+- "Detect links in clipboard" setting: offers a copied link when the app
+  comes to the foreground (the clipboard is only readable while the app is
+  on screen); accepting it runs the same auto-analysis.
+- Duplicate protection: the same URL and output can no longer wait in the
+  queue twice, "Retry all" collapses duplicated history entries into one
+  retry, repeated failures replace the older history entry, and stored
+  history is deduplicated on startup.
+
 ## [1.0.7] - 2026-08-29
 
 ### Changed

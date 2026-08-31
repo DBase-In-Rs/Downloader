@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'models/download_models.dart';
 import 'services/app_controller.dart';
+import 'services/app_settings_store.dart';
 import 'services/media_backend.dart';
 import 'services/queue_store.dart';
 import 'services/shared_url_service.dart';
@@ -19,12 +20,14 @@ class DBaseDownloaderApp extends StatelessWidget {
     required this.backend,
     required this.sharedUrlService,
     this.queueStore,
+    this.settingsStore,
     super.key,
   });
 
   final MediaBackend backend;
   final SharedUrlService sharedUrlService;
   final QueueStore? queueStore;
+  final AppSettingsStore? settingsStore;
 
   @override
   Widget build(BuildContext context) {
@@ -59,6 +62,7 @@ class DBaseDownloaderApp extends StatelessWidget {
         backend: backend,
         sharedUrlService: sharedUrlService,
         queueStore: queueStore,
+        settingsStore: settingsStore,
       ),
     );
   }
@@ -69,6 +73,7 @@ class DBaseDownloaderHome extends StatefulWidget {
     required this.backend,
     required this.sharedUrlService,
     this.queueStore,
+    this.settingsStore,
     this.updateEngineOnStartup,
     super.key,
   });
@@ -76,6 +81,7 @@ class DBaseDownloaderHome extends StatefulWidget {
   final MediaBackend backend;
   final SharedUrlService sharedUrlService;
   final QueueStore? queueStore;
+  final AppSettingsStore? settingsStore;
 
   /// Overrides the build-flag default; tests use this to cover the F-Droid
   /// path where the startup engine update is skipped.
@@ -87,6 +93,7 @@ class DBaseDownloaderHome extends StatefulWidget {
 
 class _DBaseDownloaderHomeState extends State<DBaseDownloaderHome> {
   late final AppController _controller;
+  late final AppLifecycleListener _lifecycleListener;
   var _splashDismissed = false;
 
   @override
@@ -96,12 +103,19 @@ class _DBaseDownloaderHomeState extends State<DBaseDownloaderHome> {
       backend: widget.backend,
       sharedUrlService: widget.sharedUrlService,
       queueStore: widget.queueStore,
+      settingsStore: widget.settingsStore,
       updateEngineOnStartup: widget.updateEngineOnStartup,
     )..initialize();
+    // Clipboard checks only work while the app has focus, so returning to
+    // the foreground is the moment to look for a copied link.
+    _lifecycleListener = AppLifecycleListener(
+      onResume: _controller.checkClipboardForLink,
+    );
   }
 
   @override
   void dispose() {
+    _lifecycleListener.dispose();
     _controller.dispose();
     super.dispose();
   }

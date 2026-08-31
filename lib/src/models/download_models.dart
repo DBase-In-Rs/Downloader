@@ -227,6 +227,7 @@ class DownloadRequest {
     required this.formatId,
     required this.outputKind,
     this.title,
+    this.tuning = const DownloadTuning(),
   });
 
   final String id;
@@ -234,6 +235,7 @@ class DownloadRequest {
   final String formatId;
   final OutputKind outputKind;
   final String? title;
+  final DownloadTuning tuning;
 
   Map<String, Object?> toMap() {
     return {
@@ -242,7 +244,107 @@ class DownloadRequest {
       'formatId': formatId,
       'outputKind': outputKind.name,
       'title': title,
+      ...tuning.toMap(),
     };
+  }
+}
+
+/// User-tunable politeness and retry knobs passed to yt-dlp. Defaults match
+/// the previously hardcoded behavior, so an untouched config changes nothing.
+class DownloadTuning {
+  const DownloadTuning({
+    this.retries = 10,
+    this.fragmentRetries = 10,
+    this.sleepRequestsSeconds = 0,
+    this.sleepIntervalSeconds = 0,
+    this.maxSleepIntervalSeconds = 0,
+    this.queueGapSeconds = 0,
+  });
+
+  /// yt-dlp --retries.
+  final int retries;
+
+  /// yt-dlp --fragment-retries.
+  final int fragmentRetries;
+
+  /// yt-dlp --sleep-requests: pause between metadata requests (0 = off).
+  final double sleepRequestsSeconds;
+
+  /// yt-dlp --sleep-interval: minimum pause before each download (0 = off).
+  final int sleepIntervalSeconds;
+
+  /// yt-dlp --max-sleep-interval; only used when [sleepIntervalSeconds] > 0
+  /// and this value is larger, which makes the pause a random range.
+  final int maxSleepIntervalSeconds;
+
+  /// Pause between finished queue items before the next one starts; helps
+  /// avoid provider rate-limiting on long queues (0 = off).
+  final int queueGapSeconds;
+
+  DownloadTuning copyWith({
+    int? retries,
+    int? fragmentRetries,
+    double? sleepRequestsSeconds,
+    int? sleepIntervalSeconds,
+    int? maxSleepIntervalSeconds,
+    int? queueGapSeconds,
+  }) {
+    return DownloadTuning(
+      retries: retries ?? this.retries,
+      fragmentRetries: fragmentRetries ?? this.fragmentRetries,
+      sleepRequestsSeconds: sleepRequestsSeconds ?? this.sleepRequestsSeconds,
+      sleepIntervalSeconds: sleepIntervalSeconds ?? this.sleepIntervalSeconds,
+      maxSleepIntervalSeconds:
+          maxSleepIntervalSeconds ?? this.maxSleepIntervalSeconds,
+      queueGapSeconds: queueGapSeconds ?? this.queueGapSeconds,
+    );
+  }
+
+  Map<String, Object?> toMap() {
+    return {
+      'retries': retries,
+      'fragmentRetries': fragmentRetries,
+      'sleepRequestsSeconds': sleepRequestsSeconds,
+      'sleepIntervalSeconds': sleepIntervalSeconds,
+      'maxSleepIntervalSeconds': maxSleepIntervalSeconds,
+      'queueGapSeconds': queueGapSeconds,
+    };
+  }
+
+  factory DownloadTuning.fromMap(Map<Object?, Object?> map) {
+    const defaults = DownloadTuning();
+    return DownloadTuning(
+      retries: intValue(map['retries']) ?? defaults.retries,
+      fragmentRetries:
+          intValue(map['fragmentRetries']) ?? defaults.fragmentRetries,
+      sleepRequestsSeconds:
+          doubleValue(map['sleepRequestsSeconds']) ??
+          defaults.sleepRequestsSeconds,
+      sleepIntervalSeconds:
+          intValue(map['sleepIntervalSeconds']) ??
+          defaults.sleepIntervalSeconds,
+      maxSleepIntervalSeconds:
+          intValue(map['maxSleepIntervalSeconds']) ??
+          defaults.maxSleepIntervalSeconds,
+      queueGapSeconds:
+          intValue(map['queueGapSeconds']) ?? defaults.queueGapSeconds,
+    );
+  }
+}
+
+/// Result of renaming a finished output: the (possibly new) location plus
+/// the display name the platform actually stored.
+class RenamedOutput {
+  const RenamedOutput({required this.location, required this.displayName});
+
+  final String location;
+  final String displayName;
+
+  factory RenamedOutput.fromMap(Map<Object?, Object?> map) {
+    return RenamedOutput(
+      location: stringValue(map['location']) ?? '',
+      displayName: stringValue(map['displayName']) ?? '',
+    );
   }
 }
 
@@ -302,8 +404,10 @@ class DownloadQueueItem {
     this.providerName,
     this.progress,
     this.outputLocation,
+    this.outputDisplayName,
     this.errorMessage,
     this.finishedAt,
+    this.autoRetryCount = 0,
   });
 
   final String id;
@@ -316,8 +420,16 @@ class DownloadQueueItem {
   final String? providerName;
   final DownloadProgress? progress;
   final String? outputLocation;
+
+  /// File name shown to the user instead of the raw location (which is an
+  /// opaque content:// URI on Android).
+  final String? outputDisplayName;
   final String? errorMessage;
   final DateTime? finishedAt;
+
+  /// How many times this item was re-queued automatically after a
+  /// transient extractor error.
+  final int autoRetryCount;
 
   DownloadQueueItem copyWith({
     DownloadStatus? status,
@@ -325,8 +437,10 @@ class DownloadQueueItem {
     String? providerName,
     DownloadProgress? progress,
     String? outputLocation,
+    String? outputDisplayName,
     String? errorMessage,
     DateTime? finishedAt,
+    int? autoRetryCount,
   }) {
     return DownloadQueueItem(
       id: id,
@@ -339,8 +453,25 @@ class DownloadQueueItem {
       providerName: providerName ?? this.providerName,
       progress: progress ?? this.progress,
       outputLocation: outputLocation ?? this.outputLocation,
+      outputDisplayName: outputDisplayName ?? this.outputDisplayName,
       errorMessage: errorMessage ?? this.errorMessage,
       finishedAt: finishedAt ?? this.finishedAt,
+      autoRetryCount: autoRetryCount ?? this.autoRetryCount,
+    );
+  }
+
+  /// Fresh copy for a manual retry of a failed item: waiting state, no
+  /// progress, error, or output from the previous attempt.
+  DownloadQueueItem resetForRetry({required bool paused}) {
+    return DownloadQueueItem(
+      id: id,
+      url: url,
+      title: title,
+      format: format,
+      outputKind: outputKind,
+      status: paused ? DownloadStatus.paused : DownloadStatus.pending,
+      providerId: providerId,
+      providerName: providerName,
     );
   }
 
@@ -358,10 +489,12 @@ class DownloadQueueItem {
       providerId: stringValue(map['providerId']) ?? provider.id,
       providerName: stringValue(map['providerName']) ?? provider.displayName,
       outputLocation: stringValue(map['outputLocation']),
+      outputDisplayName: stringValue(map['outputDisplayName']),
       errorMessage: stringValue(map['errorMessage']),
       finishedAt: finishedAtMillis == null
           ? null
           : DateTime.fromMillisecondsSinceEpoch(finishedAtMillis),
+      autoRetryCount: intValue(map['autoRetryCount']) ?? 0,
     );
   }
 
@@ -376,8 +509,10 @@ class DownloadQueueItem {
       'providerId': providerId,
       'providerName': providerName,
       'outputLocation': outputLocation,
+      'outputDisplayName': outputDisplayName,
       'errorMessage': errorMessage,
       'finishedAtMillis': finishedAt?.millisecondsSinceEpoch,
+      'autoRetryCount': autoRetryCount,
     };
   }
 }
