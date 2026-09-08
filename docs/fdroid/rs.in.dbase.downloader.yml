@@ -19,9 +19,9 @@ Binaries:
   https://github.com/DBase-In-Rs/Downloader/releases/download/v%v/app-arm64-v8a-fdroid-release.apk
 
 Builds:
-  - versionName: 1.0.9
-    versionCode: 161
-    commit: 5e4c92841a9af60954688b74a5d2f7f436aff45f
+  - versionName: 1.0.10
+    versionCode: 171
+    commit: ccd63314e5e94ee4ce6f0910117efbdf0f977ada
     sudo:
       - mkdir -p /home/runner
       - chown vagrant /home/runner
@@ -75,9 +75,9 @@ Builds:
       - mv /home/runner/work/Downloader/Downloader rs.in.dbase.downloader
     ndk: r28c
 
-  - versionName: 1.0.9
-    versionCode: 162
-    commit: 5e4c92841a9af60954688b74a5d2f7f436aff45f
+  - versionName: 1.0.10
+    versionCode: 172
+    commit: ccd63314e5e94ee4ce6f0910117efbdf0f977ada
     sudo:
       - mkdir -p /home/runner
       - chown vagrant /home/runner
@@ -131,9 +131,9 @@ Builds:
       - mv /home/runner/work/Downloader/Downloader rs.in.dbase.downloader
     ndk: r28c
 
-  - versionName: 1.0.9
-    versionCode: 163
-    commit: 5e4c92841a9af60954688b74a5d2f7f436aff45f
+  - versionName: 1.0.10
+    versionCode: 173
+    commit: ccd63314e5e94ee4ce6f0910117efbdf0f977ada
     sudo:
       - mkdir -p /home/runner
       - chown vagrant /home/runner
@@ -213,5 +213,5 @@ VercodeOperation:
   - '%c * 10 + 2'
   - '%c * 10 + 3'
 UpdateCheckData: pubspec.yaml|version:\s.+\+(\d+)|.|version:\s(.+)\+
-CurrentVersion: 1.0.9
-CurrentVersionCode: 163
+CurrentVersion: 1.0.10
+CurrentVersionCode: 173
