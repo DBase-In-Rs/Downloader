@@ -88,12 +88,13 @@ this section whenever a method, event, or payload field changes.
 - `getOutputWaveform {location, width, height}` -> PNG bytes or null.
   Uses FFmpeg `showwavespic`; returns null when the file has no audio stream
   or waveform generation fails.
-- `trimOutput {location, startSeconds, endSeconds, outputBaseName,
+- `trimOutput {id, location, startSeconds, endSeconds, outputBaseName,
   outputKind}` -> `{location, displayName, outputKind, hasAudio, hasVideo}`.
-  Uses FFmpeg; video outputs are saved as MP4, audio outputs follow MP3/M4A
-  or original audio extension. Saves through the selected SAF tree, else
-  MediaStore (Android 10+), else app external files. Errors:
-  `invalid_trim_request`, `trim_failed`.
+  Uses FFmpeg with `-progress pipe:1`, streaming `trimProgress` events keyed
+  by `id` on the events channel. Video outputs are saved as MP4, audio
+  outputs follow MP3/M4A or original audio extension. Saves through the
+  selected SAF tree, else MediaStore (Android 10+), else app external files.
+  Errors: `invalid_trim_request`, `trim_failed`.
 - `setAsRingtone {location}` -> null. Android-only MP3 action. If
   `Settings.System.canWrite()` is false, opens
   `Settings.ACTION_MANAGE_WRITE_SETTINGS` and returns
@@ -112,6 +113,8 @@ EventChannel `rs.in.dbase.downloader/events`, all events carry `type` + `id`:
   Android).
 - `failed`: `message` (only yt-dlp ERROR lines, redacted).
 - `canceled`.
+- `trimProgress`: `fraction` (0..1, or null when the encoder has not reported
+  a position yet); `id` correlates with the `trimOutput` request.
 
 Share intake: MethodChannel `rs.in.dbase.downloader/share` with
 `getInitialSharedText` (consumed once) and EventChannel

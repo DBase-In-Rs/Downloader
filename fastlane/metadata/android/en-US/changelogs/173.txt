@@ -1,0 +1,5 @@
+* Trim editor: real ffmpeg progress (percent + bar) while saving
+* Cinema mode: fullscreen video with skip and scrub controls
+* Rewind/forward 10s buttons in the trim transport
+* Video preview is letterboxed instead of cropped
+* Unsupported video formats keep the editor usable for trimming

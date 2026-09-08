@@ -106,3 +106,13 @@ class BackendMessageEvent extends BackendEvent {
 
   final String message;
 }
+
+/// Streamed progress of an in-flight trim, keyed by [TrimOutputRequest.id].
+/// [fraction] is 0..1, or null when the encoder has not reported a position
+/// yet (indeterminate).
+class TrimProgressEvent extends BackendEvent {
+  const TrimProgressEvent({required this.id, this.fraction});
+
+  final String id;
+  final double? fraction;
+}

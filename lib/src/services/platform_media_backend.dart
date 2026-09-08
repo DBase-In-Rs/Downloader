@@ -215,6 +215,10 @@ class PlatformMediaBackend implements MediaBackend {
         message: stringValue(map['message']) ?? 'Download failed.',
       ),
       'canceled' => DownloadCanceledEvent(stringValue(map['id']) ?? ''),
+      'trimProgress' => TrimProgressEvent(
+        id: stringValue(map['id']) ?? '',
+        fraction: doubleValue(map['fraction']),
+      ),
       'message' => BackendMessageEvent(stringValue(map['message']) ?? ''),
       _ => BackendMessageEvent('Unhandled native event: ${type ?? 'unknown'}'),
     };

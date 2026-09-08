@@ -438,7 +438,7 @@ class DesktopMediaBackend implements MediaBackend {
       final tempOutput = File(
         '${workingDir.path}${Platform.pathSeparator}$baseName.$extension',
       );
-      final result = await Process.run(ffmpeg, [
+      final process = await Process.start(ffmpeg, [
         '-hide_banner',
         '-y',
         '-ss',
@@ -448,11 +448,44 @@ class DesktopMediaBackend implements MediaBackend {
         '-t',
         _ffmpegTime(request.duration),
         ..._trimCodecArgs(outputKind, probe),
+        '-progress',
+        'pipe:1',
         tempOutput.path,
-      ]).timeout(const Duration(minutes: 15));
+      ]);
+      _emit(TrimProgressEvent(id: request.id, fraction: null));
+      final totalUs = request.duration.inMicroseconds;
+      process.stdout
+          .transform(utf8.decoder)
+          .transform(const LineSplitter())
+          .listen((line) {
+            final match = _ffmpegOutTimeRegex.firstMatch(line);
+            if (match != null && totalUs > 0) {
+              final us = int.tryParse(match.group(1)!);
+              if (us != null) {
+                _emit(
+                  TrimProgressEvent(
+                    id: request.id,
+                    fraction: (us / totalUs).clamp(0.0, 1.0),
+                  ),
+                );
+              }
+            }
+          });
+      final stderrBuffer = StringBuffer();
+      process.stderr
+          .transform(utf8.decoder)
+          .transform(const LineSplitter())
+          .listen(stderrBuffer.writeln);
+      final exitCode = await process.exitCode.timeout(
+        const Duration(minutes: 30),
+        onTimeout: () {
+          process.kill();
+          return -1;
+        },
+      );
 
-      if (result.exitCode != 0 || !await tempOutput.exists()) {
-        throw Exception(sanitizeProcessError(result.stderr.toString()));
+      if (exitCode != 0 || !await tempOutput.exists()) {
+        throw Exception(sanitizeProcessError(stderrBuffer.toString()));
       }
 
       final saved = await _moveToOutputDirectory(tempOutput, config);
@@ -923,6 +956,9 @@ String? _playlistEntryUrl(Map<String, dynamic> entry) {
 
   return null;
 }
+
+/// `-progress pipe:1` output line: microseconds of output encoded so far.
+final _ffmpegOutTimeRegex = RegExp(r'out_time_us=(\d+)');
 
 final _progressLineRegex = RegExp(
   r'\[download\]\s+(?<percent>[0-9.]+)%'

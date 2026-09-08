@@ -284,6 +284,7 @@ class MainActivity : FlutterActivity() {
                 }
 
                 "trimOutput" -> {
+                    val trimId = call.argument<String>("id") ?: ""
                     val location = call.argument<String>("location")
                     val startSeconds = call.argument<Number>("startSeconds")?.toDouble()
                     val endSeconds = call.argument<Number>("endSeconds")?.toDouble()
@@ -305,6 +306,7 @@ class MainActivity : FlutterActivity() {
                             try {
                                 ensureYoutubeDlInitialized()
                                 val trimmed = trimOutput(
+                                    trimId,
                                     location,
                                     startSeconds,
                                     endSeconds,
@@ -1490,6 +1492,7 @@ class MainActivity : FlutterActivity() {
     }
 
     private fun trimOutput(
+        trimId: String,
         location: String,
         startSeconds: Double,
         endSeconds: Double,
@@ -1520,7 +1523,9 @@ class MainActivity : FlutterActivity() {
             val actualOutputKind = if (probe.hasVideo) "mp4" else outputKind
             val extension = trimExtension(actualOutputKind, source, probe)
             val output = uniqueFile(workingDir, "${safeBaseName(outputBaseName)}.$extension")
-            val result = runNativeProcess(
+            val totalUs = ((endSeconds - startSeconds) * 1_000_000).toLong()
+            emitTrimProgress(trimId, null)
+            val result = runFfmpegWithProgress(
                 listOf(
                     ffmpegTool("ffmpeg"),
                     "-hide_banner",
@@ -1531,8 +1536,11 @@ class MainActivity : FlutterActivity() {
                     source.absolutePath,
                     "-t",
                     ffmpegTime(endSeconds - startSeconds),
-                ) + trimCodecArgs(actualOutputKind, probe) + output.absolutePath,
+                ) + trimCodecArgs(actualOutputKind, probe) +
+                    listOf("-progress", "pipe:1", output.absolutePath),
                 EDIT_TIMEOUT_SECONDS,
+                trimId,
+                totalUs,
             )
 
             if (result.exitCode != 0 || !output.isFile) {
@@ -1727,16 +1735,7 @@ class MainActivity : FlutterActivity() {
         // (libavcodec, librubberband, ...) and the C++ runtime lives in the
         // python package (libc++_shared.so) - the same layout youtubedl-android
         // links against when yt-dlp shells out to ffmpeg.
-        val packagesDir = File(
-            applicationContext.noBackupFilesDir,
-            "youtubedl-android/packages",
-        )
-        val libraryPath = listOf(
-            File(packagesDir, "ffmpeg/usr/lib").absolutePath,
-            File(packagesDir, "python/usr/lib").absolutePath,
-            applicationInfo.nativeLibraryDir,
-        ).filter { it.isNotBlank() }.joinToString(File.pathSeparator)
-        builder.environment()["LD_LIBRARY_PATH"] = libraryPath
+        builder.environment()["LD_LIBRARY_PATH"] = ffmpegLibraryPath()
         val process = builder.start()
         val finished = process.waitFor(timeoutSeconds, TimeUnit.SECONDS)
         if (!finished) {
@@ -1749,6 +1748,80 @@ class MainActivity : FlutterActivity() {
             stdout = process.inputStream.bufferedReader().readText(),
             stderr = process.errorStream.bufferedReader().readText(),
         )
+    }
+
+    /**
+     * Runs an ffmpeg command that writes `-progress pipe:1` key/value output to
+     * stdout, streaming trim progress to the Flutter events channel. stderr is
+     * drained on a separate thread to avoid pipe-buffer deadlock.
+     */
+    private fun runFfmpegWithProgress(
+        command: List<String>,
+        timeoutSeconds: Long,
+        trimId: String,
+        totalUs: Long,
+    ): NativeProcessResult {
+        val builder = ProcessBuilder(command)
+        builder.environment()["LD_LIBRARY_PATH"] = ffmpegLibraryPath()
+        val process = builder.start()
+
+        val stderrBuffer = StringBuilder()
+        val stderrThread = Thread {
+            process.errorStream.bufferedReader().forEachLine { line ->
+                synchronized(stderrBuffer) { stderrBuffer.append(line).append('\n') }
+            }
+        }.apply { isDaemon = true; start() }
+
+        val stdoutThread = Thread {
+            process.inputStream.bufferedReader().forEachLine { line ->
+                val match = FFMPEG_OUT_TIME_REGEX.find(line)
+                if (match != null && totalUs > 0) {
+                    val us = match.groupValues[1].toLongOrNull()
+                    if (us != null) {
+                        val fraction = (us.toDouble() / totalUs).coerceIn(0.0, 1.0)
+                        emitTrimProgress(trimId, fraction)
+                    }
+                }
+            }
+        }.apply { isDaemon = true; start() }
+
+        val finished = process.waitFor(timeoutSeconds, TimeUnit.SECONDS)
+        if (!finished) {
+            process.destroyForcibly()
+            throw IllegalStateException("ffmpeg timed out.")
+        }
+        stdoutThread.join(1000)
+        stderrThread.join(1000)
+
+        return NativeProcessResult(
+            exitCode = process.exitValue(),
+            stdout = "",
+            stderr = synchronized(stderrBuffer) { stderrBuffer.toString() },
+        )
+    }
+
+    private fun ffmpegLibraryPath(): String {
+        val packagesDir = File(
+            applicationContext.noBackupFilesDir,
+            "youtubedl-android/packages",
+        )
+        return listOf(
+            File(packagesDir, "ffmpeg/usr/lib").absolutePath,
+            File(packagesDir, "python/usr/lib").absolutePath,
+            applicationInfo.nativeLibraryDir,
+        ).filter { it.isNotBlank() }.joinToString(File.pathSeparator)
+    }
+
+    private fun emitTrimProgress(trimId: String, fraction: Double?) {
+        mainHandler.post {
+            downloaderEvents?.success(
+                mapOf(
+                    "type" to "trimProgress",
+                    "id" to trimId,
+                    "fraction" to fraction,
+                ),
+            )
+        }
     }
 
     private fun trimCodecArgs(outputKind: String, probe: OutputProbe): List<String> {
@@ -1967,6 +2040,7 @@ class MainActivity : FlutterActivity() {
             "libwebpdemux.so",
             "libwebpmux.so",
         )
+        private val FFMPEG_OUT_TIME_REGEX = Regex("""out_time_us=(\d+)""")
         private val progressMetricsRegex = Regex(
             """of\s+~?\s*(?<totalValue>[0-9.]+)\s*(?<totalUnit>[KMGT]?i?B|[KMGT]?B)\s+at\s+(?<speedValue>[0-9.]+)\s*(?<speedUnit>[KMGT]?i?B|[KMGT]?B)/s""",
         )

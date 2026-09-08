@@ -1,6 +1,6 @@
 import 'dart:async';
-import 'dart:typed_data';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../models/download_models.dart';
@@ -31,6 +31,15 @@ class _TrimEditorPageState extends State<TrimEditorPage> {
 
   TrimPreviewPlayer? _player;
   bool _hasVideo = false;
+
+  /// Live video/audio playback is available. False when the device cannot
+  /// decode this format (e.g. 4K VP9 on Android) - trimming still works.
+  bool _playbackReady = false;
+
+  /// The video decoded but is unsupported, so only the waveform + time fields
+  /// are shown for trimming.
+  bool _videoUnavailable = false;
+  bool _cinema = false;
   Future<Uint8List?>? _waveform;
   EditableOutput? _output;
   Duration _duration = Duration.zero;
@@ -44,6 +53,8 @@ class _TrimEditorPageState extends State<TrimEditorPage> {
   String? _error;
   String? _startInputError;
   String? _endInputError;
+
+  static const _skipStep = Duration(seconds: 10);
 
   @override
   void initState() {
@@ -102,6 +113,18 @@ class _TrimEditorPageState extends State<TrimEditorPage> {
               setState(() => _playing = playing);
             }
           }),
+        )
+        ..add(
+          player.errorStream.listen((_) {
+            // A decode error (e.g. 4K VP9 the device can't handle) leaves the
+            // editor usable for trimming via the waveform and time fields.
+            if (mounted) {
+              setState(() {
+                _videoUnavailable = _hasVideo;
+                _playbackReady = false;
+              });
+            }
+          }),
         );
 
       final duration = output.duration;
@@ -116,7 +139,21 @@ class _TrimEditorPageState extends State<TrimEditorPage> {
       });
       _syncTimeControllers(force: true);
 
-      await player.open(output.previewLocation, play: false);
+      try {
+        await player.open(output.previewLocation, play: false);
+        if (mounted) {
+          setState(() => _playbackReady = true);
+        }
+      } catch (error) {
+        // Preparing/probing succeeded, so keep the editor open for trimming
+        // even when this device cannot decode the media for live preview.
+        if (mounted) {
+          setState(() {
+            _videoUnavailable = _hasVideo;
+            _playbackReady = false;
+          });
+        }
+      }
     } catch (error) {
       if (mounted) {
         setState(() => _error = _friendlyError(error));
@@ -164,9 +201,16 @@ class _TrimEditorPageState extends State<TrimEditorPage> {
     super.dispose();
   }
 
+  bool get _canPlay => _playbackReady && !_videoUnavailable && _player != null;
+
   @override
   Widget build(BuildContext context) {
     final output = _output;
+
+    if (_cinema && output != null && _canPlay && output.hasVideo) {
+      return _cinemaScaffold(output);
+    }
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Trim media'),
@@ -190,50 +234,52 @@ class _TrimEditorPageState extends State<TrimEditorPage> {
             : LayoutBuilder(
                 builder: (context, constraints) {
                   final wide = constraints.maxWidth >= 900;
-                  final content = wide
-                      ? Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Expanded(flex: 3, child: _preview(output)),
-                            const SizedBox(width: 16),
-                            SizedBox(width: 360, child: _controls(output)),
-                          ],
-                        )
-                      : ListView(
-                          padding: const EdgeInsets.all(16),
-                          children: [
-                            _preview(output),
-                            const SizedBox(height: 16),
-                            _controls(output),
-                          ],
-                        );
-
                   if (wide) {
                     return Padding(
                       padding: const EdgeInsets.all(16),
-                      child: content,
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(
+                            flex: 3,
+                            child: _preview(output, expand: true),
+                          ),
+                          const SizedBox(width: 16),
+                          SizedBox(
+                            width: 360,
+                            child: SingleChildScrollView(
+                              child: _controls(output),
+                            ),
+                          ),
+                        ],
+                      ),
                     );
                   }
-                  return content;
+                  return ListView(
+                    padding: const EdgeInsets.all(16),
+                    children: [
+                      _preview(output, expand: false),
+                      const SizedBox(height: 16),
+                      _controls(output),
+                    ],
+                  );
                 },
               ),
       ),
     );
   }
 
-  Widget _preview(EditableOutput output) {
-    final player = _player;
+  /// [expand] true lets the video fill remaining height (wide layout, a
+  /// bounded Column); false gives it a fixed height (narrow scrolling layout).
+  Widget _preview(EditableOutput output, {required bool expand}) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        if (output.hasVideo && _hasVideo && player != null) ...[
-          ClipRRect(
-            borderRadius: BorderRadius.circular(8),
-            child: AspectRatio(
-              aspectRatio: 16 / 9,
-              child: player.videoView(),
-            ),
-          ),
+        if (output.hasVideo) ...[
+          if (expand)
+            Expanded(child: _videoBox())
+          else
+            SizedBox(height: 240, child: _videoBox()),
           const SizedBox(height: 14),
         ],
         _WaveformTimeline(
@@ -249,6 +295,123 @@ class _TrimEditorPageState extends State<TrimEditorPage> {
     );
   }
 
+  Widget _videoBox() {
+    final player = _player;
+    Widget child;
+    if (_videoUnavailable) {
+      child = const _EditorMessage(
+        icon: Icons.videocam_off_outlined,
+        text:
+            "Live video preview isn't available for this format on this "
+            'device (e.g. 4K VP9). You can still trim using the waveform and '
+            'the start/end time fields below.',
+        dark: true,
+      );
+    } else if (player == null || !_playbackReady) {
+      child = const Center(
+        child: SizedBox(
+          width: 28,
+          height: 28,
+          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+        ),
+      );
+    } else {
+      child = Stack(
+        fit: StackFit.expand,
+        children: [
+          player.videoView(),
+          Positioned(
+            top: 6,
+            right: 6,
+            child: IconButton(
+              tooltip: 'Cinema mode',
+              onPressed: () => setState(() => _cinema = true),
+              icon: const Icon(Icons.fullscreen, color: Colors.white),
+              style: IconButton.styleFrom(
+                backgroundColor: Colors.black.withValues(alpha: 0.35),
+              ),
+            ),
+          ),
+        ],
+      );
+    }
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(8),
+      child: ColoredBox(color: Colors.black, child: child),
+    );
+  }
+
+  Widget _cinemaScaffold(EditableOutput output) {
+    final player = _player!;
+    final percent = _duration > Duration.zero
+        ? (_position.inMilliseconds / _duration.inMilliseconds).clamp(0.0, 1.0)
+        : 0.0;
+    return Scaffold(
+      backgroundColor: Colors.black,
+      body: Stack(
+        fit: StackFit.expand,
+        children: [
+          player.videoView(),
+          SafeArea(
+            child: Align(
+              alignment: Alignment.topLeft,
+              child: IconButton(
+                tooltip: 'Exit cinema mode',
+                onPressed: () => setState(() => _cinema = false),
+                icon: const Icon(Icons.fullscreen_exit, color: Colors.white),
+              ),
+            ),
+          ),
+          Align(
+            alignment: Alignment.bottomCenter,
+            child: SafeArea(
+              child: Container(
+                margin: const EdgeInsets.all(12),
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+                decoration: BoxDecoration(
+                  color: Colors.black.withValues(alpha: 0.45),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Row(
+                  children: [
+                    IconButton(
+                      onPressed: () => _seek(_position - _skipStep),
+                      icon: const Icon(Icons.replay_10, color: Colors.white),
+                    ),
+                    IconButton(
+                      onPressed: _togglePlayAll,
+                      icon: Icon(
+                        _playing ? Icons.pause : Icons.play_arrow,
+                        color: Colors.white,
+                      ),
+                    ),
+                    IconButton(
+                      onPressed: () => _seek(_position + _skipStep),
+                      icon: const Icon(Icons.forward_10, color: Colors.white),
+                    ),
+                    Expanded(
+                      child: Slider(
+                        value: percent.toDouble(),
+                        onChanged: (value) => _seekToFraction(value),
+                      ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.only(right: 8),
+                      child: Text(
+                        formatPreciseDuration(_position),
+                        style: const TextStyle(color: Colors.white),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _controls(EditableOutput output) {
     final selectionDuration = _end > _start ? _end - _start : Duration.zero;
     return Column(
@@ -259,21 +422,48 @@ class _TrimEditorPageState extends State<TrimEditorPage> {
           runSpacing: 8,
           children: [
             FilledButton.icon(
-              onPressed: _togglePlayAll,
+              onPressed: _canPlay ? _togglePlayAll : null,
               icon: Icon(
                 _playing && !_selectionMode ? Icons.pause : Icons.play_arrow,
               ),
               label: Text(_playing && !_selectionMode ? 'Pause' : 'Play all'),
             ),
             OutlinedButton.icon(
-              onPressed: _playSelection,
+              onPressed: _canPlay ? _playSelection : null,
               icon: const Icon(Icons.play_circle_outline),
               label: const Text('Play selection'),
             ),
             OutlinedButton.icon(
-              onPressed: _toggleLoopSelection,
+              onPressed: _canPlay ? _toggleLoopSelection : null,
               icon: Icon(_loopSelection ? Icons.repeat_on : Icons.repeat),
               label: Text(_loopSelection ? 'Looping' : 'Loop selection'),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            IconButton.filledTonal(
+              tooltip: 'Back 10s',
+              onPressed: _canPlay ? () => _seek(_position - _skipStep) : null,
+              icon: const Icon(Icons.replay_10),
+            ),
+            IconButton.filledTonal(
+              tooltip: 'Forward 10s',
+              onPressed: _canPlay ? () => _seek(_position + _skipStep) : null,
+              icon: const Icon(Icons.forward_10),
+            ),
+            IconButton.filledTonal(
+              tooltip: 'Jump to start',
+              onPressed: _canPlay ? () => _seek(_start) : null,
+              icon: const Icon(Icons.skip_previous),
+            ),
+            IconButton.filledTonal(
+              tooltip: 'Jump to end',
+              onPressed: _canPlay ? () => _seek(_end) : null,
+              icon: const Icon(Icons.skip_next),
             ),
           ],
         ),
@@ -291,16 +481,6 @@ class _TrimEditorPageState extends State<TrimEditorPage> {
               onPressed: _setEndFromPosition,
               icon: const Icon(Icons.last_page),
               label: const Text('Set end'),
-            ),
-            IconButton.filledTonal(
-              tooltip: 'Jump to start',
-              onPressed: () => _seek(_start),
-              icon: const Icon(Icons.skip_previous),
-            ),
-            IconButton.filledTonal(
-              tooltip: 'Jump to end',
-              onPressed: () => _seek(_end),
-              icon: const Icon(Icons.skip_next),
             ),
           ],
         ),
@@ -327,17 +507,14 @@ class _TrimEditorPageState extends State<TrimEditorPage> {
           ),
         ),
         const SizedBox(height: 10),
-        FilledButton.icon(
-          onPressed: _saving ? null : _saveTrim,
-          icon: _saving
-              ? const SizedBox(
-                  width: 18,
-                  height: 18,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                )
-              : const Icon(Icons.save),
-          label: Text(_saving ? 'Saving...' : 'Save clip'),
-        ),
+        if (_saving)
+          _SaveProgress(progress: widget.controller.trimProgress)
+        else
+          FilledButton.icon(
+            onPressed: _saveTrim,
+            icon: const Icon(Icons.save),
+            label: const Text('Save clip'),
+          ),
       ],
     );
   }
@@ -856,25 +1033,80 @@ class _SelectionPainter extends CustomPainter {
 }
 
 class _EditorMessage extends StatelessWidget {
-  const _EditorMessage({required this.icon, required this.text});
+  const _EditorMessage({
+    required this.icon,
+    required this.text,
+    this.dark = false,
+  });
 
   final IconData icon;
   final String text;
 
+  /// Rendered on a black video box, so use light-on-dark colors.
+  final bool dark;
+
   @override
   Widget build(BuildContext context) {
+    final color = dark
+        ? Colors.white70
+        : Theme.of(context).colorScheme.outline;
     return Center(
       child: Padding(
-        padding: const EdgeInsets.all(32),
+        padding: const EdgeInsets.all(24),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, size: 42, color: Theme.of(context).colorScheme.outline),
+            Icon(icon, size: 42, color: color),
             const SizedBox(height: 12),
-            Text(text, textAlign: TextAlign.center),
+            Text(
+              text,
+              textAlign: TextAlign.center,
+              style: dark ? const TextStyle(color: Colors.white70) : null,
+            ),
           ],
         ),
       ),
+    );
+  }
+}
+
+/// Save-in-progress control showing the ffmpeg encode percentage (or an
+/// indeterminate bar until the encoder reports a position).
+class _SaveProgress extends StatelessWidget {
+  const _SaveProgress({required this.progress});
+
+  final ValueListenable<double?> progress;
+
+  @override
+  Widget build(BuildContext context) {
+    return ValueListenableBuilder<double?>(
+      valueListenable: progress,
+      builder: (context, value, _) {
+        final label = value == null
+            ? 'Processing...'
+            : 'Processing ${(value * 100).clamp(0, 100).toStringAsFixed(0)}%';
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              children: [
+                const SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+                const SizedBox(width: 10),
+                Text(label),
+              ],
+            ),
+            const SizedBox(height: 8),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(4),
+              child: LinearProgressIndicator(value: value, minHeight: 6),
+            ),
+          ],
+        );
+      },
     );
   }
 }

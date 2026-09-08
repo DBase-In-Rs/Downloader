@@ -63,6 +63,12 @@ class AppController extends ChangeNotifier {
   String? _engineUpdateMessage;
   bool _queuePaused = false;
   int _idSequence = 0;
+
+  /// Live progress (0..1, or null = indeterminate) of the trim currently
+  /// being saved; the trim editor listens to this.
+  final ValueNotifier<double?> trimProgress = ValueNotifier<double?>(null);
+  String? _activeTrimId;
+
   String _historyQuery = '';
   String? _historyProviderFilter;
   AppSettings _settings = const AppSettings();
@@ -984,6 +990,10 @@ class AppController extends ChangeNotifier {
       case BackendMessageEvent(:final message):
         _errorMessage = message;
         notifyListeners();
+      case TrimProgressEvent(:final id, :final fraction):
+        if (id == _activeTrimId) {
+          trimProgress.value = fraction;
+        }
     }
   }
 
@@ -1252,9 +1262,13 @@ class AppController extends ChangeNotifier {
       return 'Enter a file name.';
     }
 
+    final trimId = '${DateTime.now().microsecondsSinceEpoch}-${_idSequence++}';
+    _activeTrimId = trimId;
+    trimProgress.value = null;
     try {
       final trimmed = await backend.trimOutput(
         TrimOutputRequest(
+          id: trimId,
           location: editable.previewLocation,
           start: start,
           end: end,
@@ -1294,6 +1308,9 @@ class AppController extends ChangeNotifier {
       return null;
     } catch (error) {
       return _friendlyError(error);
+    } finally {
+      _activeTrimId = null;
+      trimProgress.value = null;
     }
   }
 

@@ -21,6 +21,10 @@ abstract class TrimPreviewPlayer {
   Stream<Duration> get durationStream;
   Stream<bool> get playingStream;
 
+  /// Emits a human-readable message when the backend hits a playback error
+  /// (e.g. a codec the device cannot decode, such as 4K VP9 on Android).
+  Stream<String> get errorStream;
+
   /// Opens a local file for preview. [fileLocation] is a filesystem path.
   Future<void> open(String fileLocation, {bool play = false});
 
@@ -28,7 +32,8 @@ abstract class TrimPreviewPlayer {
   Future<void> pause();
   Future<void> seek(Duration position);
 
-  /// The video surface; audio-only files return an empty box.
+  /// The video surface, letterboxed (no crop). Audio-only files return an
+  /// empty box.
   Widget videoView();
 
   Future<void> dispose();
@@ -48,7 +53,17 @@ TrimPreviewPlayer createTrimPreviewPlayer() {
 /// media_kit-backed player for Windows/Linux desktop.
 class _MediaKitTrimPreviewPlayer implements TrimPreviewPlayer {
   final mk.Player _player = mk.Player();
-  late final mkv.VideoController _videoController = mkv.VideoController(_player);
+  // The VideoController must exist BEFORE Player.open so mpv has a video
+  // output attached when the media loads; creating it lazily (on first
+  // videoView build, after open) leaves the preview black while audio plays.
+  // Capping to 1080p also avoids large-frame issues on some GPUs.
+  late final mkv.VideoController _videoController = mkv.VideoController(
+    _player,
+    configuration: const mkv.VideoControllerConfiguration(
+      width: 1920,
+      height: 1080,
+    ),
+  );
 
   @override
   Stream<Duration> get positionStream => _player.stream.position;
@@ -60,7 +75,13 @@ class _MediaKitTrimPreviewPlayer implements TrimPreviewPlayer {
   Stream<bool> get playingStream => _player.stream.playing;
 
   @override
+  Stream<String> get errorStream => _player.stream.error;
+
+  @override
   Future<void> open(String fileLocation, {bool play = false}) {
+    // Force the VideoController (and its texture) into existence before the
+    // media loads, so mpv renders video frames instead of a black surface.
+    _videoController;
     return _player.open(
       mk.Media(Uri.file(fileLocation).toString()),
       play: play,
@@ -77,7 +98,11 @@ class _MediaKitTrimPreviewPlayer implements TrimPreviewPlayer {
   Future<void> seek(Duration position) => _player.seek(position);
 
   @override
-  Widget videoView() => mkv.Video(controller: _videoController);
+  Widget videoView() => mkv.Video(
+    controller: _videoController,
+    fit: BoxFit.contain,
+    fill: Colors.black,
+  );
 
   @override
   Future<void> dispose() => _player.dispose();
@@ -90,9 +115,11 @@ class _VideoPlayerTrimPreviewPlayer implements TrimPreviewPlayer {
   final _position = StreamController<Duration>.broadcast();
   final _duration = StreamController<Duration>.broadcast();
   final _playing = StreamController<bool>.broadcast();
+  final _error = StreamController<String>.broadcast();
   Timer? _ticker;
   Duration _lastDuration = Duration.zero;
   bool _lastPlaying = false;
+  bool _errorReported = false;
 
   @override
   Stream<Duration> get positionStream => _position.stream;
@@ -102,6 +129,9 @@ class _VideoPlayerTrimPreviewPlayer implements TrimPreviewPlayer {
 
   @override
   Stream<bool> get playingStream => _playing.stream;
+
+  @override
+  Stream<String> get errorStream => _error.stream;
 
   @override
   Future<void> open(String fileLocation, {bool play = false}) async {
@@ -127,7 +157,15 @@ class _VideoPlayerTrimPreviewPlayer implements TrimPreviewPlayer {
 
   void _onValue() {
     final c = _controller;
-    if (c == null || !c.value.isInitialized) {
+    if (c == null) {
+      return;
+    }
+    if (c.value.hasError && !_errorReported) {
+      _errorReported = true;
+      _error.add(c.value.errorDescription ?? 'Playback failed.');
+      return;
+    }
+    if (!c.value.isInitialized) {
       return;
     }
     if (c.value.duration != _lastDuration) {
@@ -162,7 +200,13 @@ class _VideoPlayerTrimPreviewPlayer implements TrimPreviewPlayer {
     if (controller == null || !controller.value.isInitialized) {
       return const SizedBox.shrink();
     }
-    return VideoPlayer(controller);
+    final aspect = controller.value.aspectRatio;
+    return Center(
+      child: AspectRatio(
+        aspectRatio: aspect > 0 ? aspect : 16 / 9,
+        child: VideoPlayer(controller),
+      ),
+    );
   }
 
   @override
@@ -173,5 +217,6 @@ class _VideoPlayerTrimPreviewPlayer implements TrimPreviewPlayer {
     await _position.close();
     await _duration.close();
     await _playing.close();
+    await _error.close();
   }
 }

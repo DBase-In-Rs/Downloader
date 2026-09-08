@@ -397,6 +397,7 @@ class EditableOutput {
 
 class TrimOutputRequest {
   const TrimOutputRequest({
+    required this.id,
     required this.location,
     required this.start,
     required this.end,
@@ -404,6 +405,8 @@ class TrimOutputRequest {
     required this.outputKind,
   });
 
+  /// Correlates streamed progress events with this trim.
+  final String id;
   final String location;
   final Duration start;
   final Duration end;
@@ -414,6 +417,7 @@ class TrimOutputRequest {
 
   Map<String, Object?> toMap() {
     return {
+      'id': id,
       'location': location,
       'startSeconds': secondsFromDuration(start),
       'endSeconds': secondsFromDuration(end),

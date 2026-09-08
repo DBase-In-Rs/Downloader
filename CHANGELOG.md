@@ -8,6 +8,31 @@ versioning once releases begin.
 
 ## [Unreleased]
 
+## [1.0.10] - 2026-09-08
+
+### Added
+
+- Trim editor now shows real ffmpeg encode **progress** (percent + bar) while
+  saving, on Android, Windows, and Linux, instead of an indeterminate spinner
+  - so long re-encodes no longer look frozen.
+- **Cinema mode** in the trim editor: a fullscreen video view with play/pause,
+  10-second skip, and a scrub bar.
+- Rewind/forward **skip buttons** (10s back/forward) in the trim transport.
+
+### Changed
+
+- Trim video preview is **letterboxed (BoxFit.contain)** instead of cropped to
+  16:9, and the wide (desktop) layout no longer overflows.
+
+### Fixed
+
+- Desktop (Windows/Linux) trim video preview showed a black frame while audio
+  played, because the video output was attached after the media loaded. The
+  video now renders correctly.
+- When the device cannot decode a format for live preview (e.g. 4K VP9 on
+  Android), the trim editor no longer errors out; it keeps the waveform and
+  time fields usable so the clip can still be trimmed, with a clear notice.
+
 ## [1.0.9] - 2026-09-08
 
 ### Added
