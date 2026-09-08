@@ -6,6 +6,7 @@ import '../services/id3_tags.dart';
 import '../services/output_actions_service.dart';
 import '../services/output_thumbnails.dart';
 import 'common.dart';
+import 'trim_editor_page.dart';
 
 class HistoryPage extends StatelessWidget {
   HistoryPage({required this.controller, super.key});
@@ -117,6 +118,12 @@ class HistoryPage extends StatelessWidget {
                         onEditTags: controller.canEditTags(item)
                             ? () => _editTags(context, item)
                             : null,
+                        onTrim: controller.canTrimOutput(item)
+                            ? () => _trimOutput(context, item)
+                            : null,
+                        onSetAsRingtone: controller.canSetAsRingtone(item)
+                            ? () => _setAsRingtone(context, item)
+                            : null,
                       );
                     },
                   ),
@@ -134,9 +141,8 @@ class HistoryPage extends StatelessWidget {
     final currentName = friendlyOutputName(item);
     final extension = outputFileExtension(item);
     final baseName =
-        extension != null && currentName.toLowerCase().endsWith(
-          '.${extension.toLowerCase()}',
-        )
+        extension != null &&
+            currentName.toLowerCase().endsWith('.${extension.toLowerCase()}')
         ? currentName.substring(0, currentName.length - extension.length - 1)
         : currentName;
 
@@ -179,9 +185,24 @@ class HistoryPage extends StatelessWidget {
     }
 
     final failure = await controller.writeOutputTags(item, updated);
-    messenger.showSnackBar(
-      SnackBar(content: Text(failure ?? 'Tags saved.')),
+    messenger.showSnackBar(SnackBar(content: Text(failure ?? 'Tags saved.')));
+  }
+
+  Future<void> _trimOutput(BuildContext context, DownloadQueueItem item) {
+    return Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => TrimEditorPage(controller: controller, item: item),
+      ),
     );
+  }
+
+  Future<void> _setAsRingtone(
+    BuildContext context,
+    DownloadQueueItem item,
+  ) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final failure = await controller.setAsRingtone(item);
+    messenger.showSnackBar(SnackBar(content: Text(failure ?? 'Ringtone set.')));
   }
 }
 

@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:typed_data';
 
 import 'package:dbase_downloader/src/models/download_models.dart';
 import 'package:dbase_downloader/src/models/media_providers.dart';
@@ -9,6 +8,7 @@ import 'package:dbase_downloader/src/services/fake_media_backend.dart';
 import 'package:dbase_downloader/src/services/media_backend.dart';
 import 'package:dbase_downloader/src/services/queue_store.dart';
 import 'package:dbase_downloader/src/services/shared_url_service.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 class ManualMediaBackend implements MediaBackend {
@@ -69,11 +69,11 @@ class ManualMediaBackend implements MediaBackend {
     emitCanceled(id);
   }
 
-  void emitCompleted(String id, {String? displayName}) {
+  void emitCompleted(String id, {String? displayName, String? location}) {
     _events.add(
       DownloadCompletedEvent(
         id: id,
-        outputLocation: 'out/$id',
+        outputLocation: location ?? 'out/$id',
         outputDisplayName: displayName,
       ),
     );
@@ -142,6 +142,56 @@ class ManualMediaBackend implements MediaBackend {
   @override
   Future<void> writeOutputBytes(String location, Uint8List bytes) async {
     writtenBytes = bytes;
+  }
+
+  final trimRequests = <TrimOutputRequest>[];
+  final ringtoneLocations = <String>[];
+
+  @override
+  Future<EditableOutput> prepareOutputForEditing(String location) async {
+    return EditableOutput(
+      location: location,
+      previewLocation: location,
+      displayName: location.split('/').last,
+      duration: const Duration(minutes: 2),
+      hasAudio: true,
+      hasVideo: location.endsWith('.mp4'),
+    );
+  }
+
+  @override
+  Future<void> releaseEditableOutput(EditableOutput output) async {}
+
+  @override
+  Future<Uint8List?> loadOutputWaveform(
+    String location, {
+    int width = 1200,
+    int height = 220,
+  }) async {
+    return null;
+  }
+
+  @override
+  Future<TrimmedOutput> trimOutput(TrimOutputRequest request) async {
+    trimRequests.add(request);
+    final extension = switch (request.outputKind) {
+      OutputKind.mp3 => 'mp3',
+      OutputKind.m4a => 'm4a',
+      OutputKind.mp4 => 'mp4',
+      OutputKind.original => 'media',
+    };
+    return TrimmedOutput(
+      location: 'trimmed/${request.outputBaseName}.$extension',
+      displayName: '${request.outputBaseName}.$extension',
+      outputKind: request.outputKind,
+      hasAudio: true,
+      hasVideo: request.outputKind == OutputKind.mp4,
+    );
+  }
+
+  @override
+  Future<void> setAsRingtone(String location) async {
+    ringtoneLocations.add(location);
   }
 
   @override
@@ -741,49 +791,55 @@ void main() {
     expect(controller.queue.single.status, DownloadStatus.running);
   });
 
-  test('transient extractor errors re-queue the download automatically', () async {
-    final backend = ManualMediaBackend();
-    final controller = await analyzedController(backend);
-    addTearDown(controller.dispose);
-    controller.transientRetryDelay = Duration.zero;
+  test(
+    'transient extractor errors re-queue the download automatically',
+    () async {
+      final backend = ManualMediaBackend();
+      final controller = await analyzedController(backend);
+      addTearDown(controller.dispose);
+      controller.transientRetryDelay = Duration.zero;
 
-    await controller.startDownload(controller.visibleFormats.single);
-    backend.emitFailed(backend.started.single.id, transientExtractorMessage);
-    await pumpEventQueue();
-
-    // Same item restarted instead of failing to history.
-    expect(backend.started, hasLength(2));
-    expect(backend.started[1].id, backend.started[0].id);
-    expect(controller.queue.single.status, DownloadStatus.running);
-    expect(controller.history, isEmpty);
-
-    backend.emitCompleted(backend.started.last.id);
-    await pumpEventQueue();
-
-    expect(controller.queue, isEmpty);
-    expect(controller.history.single.status, DownloadStatus.completed);
-  });
-
-  test('transient retries stop after the budget and explain the error', () async {
-    final backend = ManualMediaBackend();
-    final controller = await analyzedController(backend);
-    addTearDown(controller.dispose);
-    controller.transientRetryDelay = Duration.zero;
-
-    await controller.startDownload(controller.visibleFormats.single);
-    // Initial attempt + 3 automatic retries all fail.
-    for (var i = 0; i < 4; i++) {
-      backend.emitFailed(backend.started.last.id, transientExtractorMessage);
+      await controller.startDownload(controller.visibleFormats.single);
+      backend.emitFailed(backend.started.single.id, transientExtractorMessage);
       await pumpEventQueue();
-    }
 
-    expect(backend.started, hasLength(4));
-    final failed = controller.queue.single;
-    expect(failed.status, DownloadStatus.failed);
-    expect(failed.errorMessage, contains('incomplete page'));
-    expect(failed.errorMessage, contains('retry'));
-    expect(controller.history, isEmpty);
-  });
+      // Same item restarted instead of failing to history.
+      expect(backend.started, hasLength(2));
+      expect(backend.started[1].id, backend.started[0].id);
+      expect(controller.queue.single.status, DownloadStatus.running);
+      expect(controller.history, isEmpty);
+
+      backend.emitCompleted(backend.started.last.id);
+      await pumpEventQueue();
+
+      expect(controller.queue, isEmpty);
+      expect(controller.history.single.status, DownloadStatus.completed);
+    },
+  );
+
+  test(
+    'transient retries stop after the budget and explain the error',
+    () async {
+      final backend = ManualMediaBackend();
+      final controller = await analyzedController(backend);
+      addTearDown(controller.dispose);
+      controller.transientRetryDelay = Duration.zero;
+
+      await controller.startDownload(controller.visibleFormats.single);
+      // Initial attempt + 3 automatic retries all fail.
+      for (var i = 0; i < 4; i++) {
+        backend.emitFailed(backend.started.last.id, transientExtractorMessage);
+        await pumpEventQueue();
+      }
+
+      expect(backend.started, hasLength(4));
+      final failed = controller.queue.single;
+      expect(failed.status, DownloadStatus.failed);
+      expect(failed.errorMessage, contains('incomplete page'));
+      expect(failed.errorMessage, contains('retry'));
+      expect(controller.history, isEmpty);
+    },
+  );
 
   test('metadata extraction retries transient errors before failing', () async {
     final backend = ManualMediaBackend()..transientInfoFailures = 2;
@@ -803,24 +859,27 @@ void main() {
     expect(controller.mediaInfo, isNotNull);
   });
 
-  test('metadata transient failures beyond the budget surface a hint', () async {
-    final backend = ManualMediaBackend()..transientInfoFailures = 10;
-    final controller = AppController(
-      backend: backend,
-      sharedUrlService: const FakeSharedUrlService(),
-    );
-    addTearDown(controller.dispose);
-    controller.transientRetryDelay = Duration.zero;
-    await controller.initialize();
+  test(
+    'metadata transient failures beyond the budget surface a hint',
+    () async {
+      final backend = ManualMediaBackend()..transientInfoFailures = 10;
+      final controller = AppController(
+        backend: backend,
+        sharedUrlService: const FakeSharedUrlService(),
+      );
+      addTearDown(controller.dispose);
+      controller.transientRetryDelay = Duration.zero;
+      await controller.initialize();
 
-    controller.setUrlText('https://www.tiktok.com/@artist/video/123');
-    await controller.analyzeUrl();
+      controller.setUrlText('https://www.tiktok.com/@artist/video/123');
+      await controller.analyzeUrl();
 
-    expect(backend.infoCalls, 4);
-    expect(controller.extractionState, ExtractionState.failed);
-    expect(controller.errorMessage, contains('TikTok'));
-    expect(controller.errorMessage, contains('incomplete page'));
-  });
+      expect(backend.infoCalls, 4);
+      expect(controller.extractionState, ExtractionState.failed);
+      expect(controller.errorMessage, contains('TikTok'));
+      expect(controller.errorMessage, contains('incomplete page'));
+    },
+  );
 
   test('failed download waits in the queue and can be retried', () async {
     final backend = ManualMediaBackend();
@@ -1056,6 +1115,90 @@ void main() {
       controller.history.single.outputLocation,
       'renamed/My_ new_name.mp4',
     );
+  });
+
+  test('trimmed audio is saved as a new history item', () async {
+    final backend = ManualMediaBackend();
+    final controller = await analyzedController(backend);
+    addTearDown(controller.dispose);
+
+    await controller.startDownload(controller.visibleFormats.single);
+    backend.emitCompleted(
+      backend.started.single.id,
+      displayName: 'Song.mp3',
+      location: 'out/song.mp3',
+    );
+    await pumpEventQueue();
+
+    final source = controller.history.single;
+    final editable = await controller.prepareOutputForEditing(source);
+    final failure = await controller.saveTrimmedOutput(
+      source: source,
+      editable: editable,
+      start: const Duration(seconds: 10),
+      end: const Duration(seconds: 15),
+      outputBaseName: ' Ring:tone ',
+    );
+
+    expect(failure, isNull);
+    expect(backend.trimRequests.single.outputKind, OutputKind.mp3);
+    expect(backend.trimRequests.single.start, const Duration(seconds: 10));
+    expect(controller.history, hasLength(2));
+    expect(controller.history.first.outputDisplayName, 'Ring_tone.mp3');
+    expect(controller.history.first.status, DownloadStatus.completed);
+    expect(controller.history.last.outputDisplayName, 'Song.mp3');
+  });
+
+  test('video trim is saved as MP4 even for original output', () async {
+    final backend = ManualMediaBackend();
+    final controller = await analyzedController(backend);
+    addTearDown(controller.dispose);
+
+    controller.setOutputKind(OutputKind.original);
+    await controller.startDownload(controller.visibleFormats.single);
+    backend.emitCompleted(
+      backend.started.single.id,
+      displayName: 'Source.webm',
+      location: 'out/source.mp4',
+    );
+    await pumpEventQueue();
+
+    final source = controller.history.single;
+    final editable = await controller.prepareOutputForEditing(source);
+    final failure = await controller.saveTrimmedOutput(
+      source: source,
+      editable: editable,
+      start: const Duration(seconds: 2),
+      end: const Duration(seconds: 8),
+      outputBaseName: 'Clip',
+    );
+
+    expect(failure, isNull);
+    expect(backend.trimRequests.single.outputKind, OutputKind.mp4);
+    expect(controller.history.first.outputDisplayName, 'Clip.mp4');
+  });
+
+  test('Android MP3 outputs can be set as ringtone', () async {
+    debugDefaultTargetPlatformOverride = TargetPlatform.android;
+    addTearDown(() => debugDefaultTargetPlatformOverride = null);
+    final backend = ManualMediaBackend();
+    final controller = await analyzedController(backend);
+    addTearDown(controller.dispose);
+
+    await controller.startDownload(controller.visibleFormats.single);
+    backend.emitCompleted(
+      backend.started.single.id,
+      displayName: 'Song.mp3',
+      location: 'content://media/audio/1',
+    );
+    await pumpEventQueue();
+
+    final item = controller.history.single;
+    expect(controller.canSetAsRingtone(item), isTrue);
+    final failure = await controller.setAsRingtone(item);
+
+    expect(failure, isNull);
+    expect(backend.ringtoneLocations, ['content://media/audio/1']);
   });
 
   test('shared links land on Home and analyze automatically', () async {

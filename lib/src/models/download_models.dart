@@ -348,6 +348,107 @@ class RenamedOutput {
   }
 }
 
+class EditableOutput {
+  const EditableOutput({
+    required this.location,
+    required this.previewLocation,
+    required this.displayName,
+    required this.duration,
+    required this.hasAudio,
+    required this.hasVideo,
+    this.temporaryPreview = false,
+  });
+
+  final String location;
+  final String previewLocation;
+  final String displayName;
+  final Duration duration;
+  final bool hasAudio;
+  final bool hasVideo;
+
+  /// Whether [previewLocation] is a backend-owned temp file that should be
+  /// deleted once the editor is closed.
+  final bool temporaryPreview;
+
+  factory EditableOutput.fromMap(Map<Object?, Object?> map) {
+    return EditableOutput(
+      location: stringValue(map['location']) ?? '',
+      previewLocation: stringValue(map['previewLocation']) ?? '',
+      displayName: stringValue(map['displayName']) ?? 'media',
+      duration: durationFromSeconds(map['durationSeconds']) ?? Duration.zero,
+      hasAudio: map['hasAudio'] == true,
+      hasVideo: map['hasVideo'] == true,
+      temporaryPreview: map['temporaryPreview'] == true,
+    );
+  }
+
+  Map<String, Object?> toMap() {
+    return {
+      'location': location,
+      'previewLocation': previewLocation,
+      'displayName': displayName,
+      'durationSeconds': secondsFromDuration(duration),
+      'hasAudio': hasAudio,
+      'hasVideo': hasVideo,
+      'temporaryPreview': temporaryPreview,
+    };
+  }
+}
+
+class TrimOutputRequest {
+  const TrimOutputRequest({
+    required this.location,
+    required this.start,
+    required this.end,
+    required this.outputBaseName,
+    required this.outputKind,
+  });
+
+  final String location;
+  final Duration start;
+  final Duration end;
+  final String outputBaseName;
+  final OutputKind outputKind;
+
+  Duration get duration => end - start;
+
+  Map<String, Object?> toMap() {
+    return {
+      'location': location,
+      'startSeconds': secondsFromDuration(start),
+      'endSeconds': secondsFromDuration(end),
+      'outputBaseName': outputBaseName,
+      'outputKind': outputKind.name,
+    };
+  }
+}
+
+class TrimmedOutput {
+  const TrimmedOutput({
+    required this.location,
+    required this.displayName,
+    required this.outputKind,
+    required this.hasAudio,
+    required this.hasVideo,
+  });
+
+  final String location;
+  final String displayName;
+  final OutputKind outputKind;
+  final bool hasAudio;
+  final bool hasVideo;
+
+  factory TrimmedOutput.fromMap(Map<Object?, Object?> map) {
+    return TrimmedOutput(
+      location: stringValue(map['location']) ?? '',
+      displayName: stringValue(map['displayName']) ?? 'media',
+      outputKind: outputKindFromString(stringValue(map['outputKind'])),
+      hasAudio: map['hasAudio'] == true,
+      hasVideo: map['hasVideo'] == true,
+    );
+  }
+}
+
 class DownloadProgress {
   const DownloadProgress({
     required this.id,
@@ -741,12 +842,18 @@ double? doubleValue(Object? value) {
 }
 
 Duration? durationFromSeconds(Object? value) {
-  final seconds = intValue(value);
+  final seconds = doubleValue(value);
   if (seconds == null) {
     return null;
   }
 
-  return Duration(seconds: seconds);
+  return Duration(
+    microseconds: (seconds * Duration.microsecondsPerSecond).round(),
+  );
+}
+
+double secondsFromDuration(Duration duration) {
+  return duration.inMicroseconds / Duration.microsecondsPerSecond;
 }
 
 Map<Object?, Object?> mapValue(Object? value) {

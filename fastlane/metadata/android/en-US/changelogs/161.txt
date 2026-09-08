@@ -1,0 +1,4 @@
+* Trim audio/video clips: preview, select a range, and save as a new file
+* Set any saved MP3 as your ringtone
+* Rebuilt the trim preview so the app ships with no prebuilt media blobs
+* Fixed on-device trimming (ffprobe/ffmpeg now run correctly)

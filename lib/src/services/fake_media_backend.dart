@@ -204,6 +204,51 @@ class FakeMediaBackend implements MediaBackend {
   Future<void> writeOutputBytes(String location, Uint8List bytes) async {}
 
   @override
+  Future<EditableOutput> prepareOutputForEditing(String location) async {
+    return EditableOutput(
+      location: location,
+      previewLocation: location,
+      displayName: location.split(RegExp(r'[\\/]+')).last,
+      duration: const Duration(minutes: 3, seconds: 42),
+      hasAudio: true,
+      hasVideo: location.toLowerCase().endsWith('.mp4'),
+    );
+  }
+
+  @override
+  Future<void> releaseEditableOutput(EditableOutput output) async {}
+
+  @override
+  Future<Uint8List?> loadOutputWaveform(
+    String location, {
+    int width = 1200,
+    int height = 220,
+  }) async {
+    return null;
+  }
+
+  @override
+  Future<TrimmedOutput> trimOutput(TrimOutputRequest request) async {
+    final extension = switch (request.outputKind) {
+      OutputKind.mp3 => 'mp3',
+      OutputKind.m4a => 'm4a',
+      OutputKind.mp4 => 'mp4',
+      OutputKind.original => 'media',
+    };
+    final displayName = '${request.outputBaseName}.$extension';
+    return TrimmedOutput(
+      location: 'Fake output/$displayName',
+      displayName: displayName,
+      outputKind: request.outputKind,
+      hasAudio: true,
+      hasVideo: request.outputKind == OutputKind.mp4,
+    );
+  }
+
+  @override
+  Future<void> setAsRingtone(String location) async {}
+
+  @override
   void dispose() {
     for (final timer in _timers.values) {
       timer.cancel();

@@ -1,8 +1,8 @@
 # DBase Video & Music Downloader Plan
 
 Status: 1.0.0 stable released on 2026-08-27 for Android, Windows, and Linux
-(CI-built, installer + apt repo live, winget manifest submitted); remaining
-work is tracked in Milestones 10-11
+(CI-built, installer + apt repo live, winget manifest submitted, F-Droid recipe
+submitted); remaining work is tracked below.
 
 Canonical app/package id: `rs.in.dbase.downloader`
 
@@ -93,7 +93,8 @@ Tasks:
 - [x] Align iOS/macOS bundle identifiers when generated.
 - [x] Align Windows app display metadata where current template supports it.
 - [x] Add Android `ACTION_SEND` `text/plain` share intent.
-- [ ] Align Windows installer/package identity when packaging is configured.
+- [x] Align Windows installer/package identity when packaging is configured
+      (Inno installer and winget id `DBaseInRs.Downloader`).
 
 Acceptance criteria:
 
@@ -260,8 +261,9 @@ Verification on 2026-08-26:
 Tasks:
 
 - [x] Choose Android FFmpeg artifact.
-- [ ] Document exact FFmpeg Android artifact LGPL/GPL state and build flags for
-      public release.
+- [x] Document exact FFmpeg Android artifact LGPL/GPL state and build flags for
+      public release (GPL 7.1.1 runtime-verified in
+      THIRD_PARTY_NOTICES.md).
 - [x] Implement audio conversion to MP3.
 - [x] Implement M4A keep/remux path.
 - [x] Implement MP4 keep/remux path.
@@ -945,7 +947,8 @@ Tasks:
       through WSLg, and the desktop smoke test completed a real YouTube
       MP3 download end to end (metadata, progress, FFmpeg conversion,
       file saved).
-- [ ] Add Linux package identity/distribution notes.
+- [x] Add Linux package identity/distribution notes (.deb package, apt
+      repository, and README install/update commands).
 
 Acceptance criteria:
 
@@ -1091,6 +1094,234 @@ different network). Retrying the whole extraction usually succeeds.
 - [x] Clipboard link detection on app resume (foreground-only by OS
       design), one-tap accept, opt-out in Settings.
 
+### Sprint 12.4 - Audio And Video Trim Editor (in progress)
+
+Goal: let users turn any completed audio/video output into a shorter saved
+clip, with enough preview control to confirm the cut before writing a file.
+
+Tasks:
+
+- [x] Add shared media-edit contracts for inspecting a saved output,
+      preparing it for preview, rendering an audio waveform, trimming a
+      selected time range, and setting Android ringtones.
+- [x] Use FFmpeg/ffprobe for trim operations on Android, Windows, and Linux,
+      without reading large media files into Dart memory.
+- [x] Add a History action to open a trim editor for completed audio and video
+      outputs.
+- [x] Add playback controls for the whole file and for the selected range:
+      play/pause, seek, set-start-from-current-position,
+      set-end-from-current-position, play selection once, and loop selection.
+- [x] Show selected start, end, and duration while handles are dragged.
+- [x] Save the trimmed output as a new file with collision-safe naming, then
+      record it as a separate completed History item so the original remains
+      untouched.
+- [x] For Android MP3 outputs, allow "Set as ringtone" even when the file was
+      not edited. Request the WRITE_SETTINGS special access only when the user
+      invokes that action, mark the MediaStore row as a ringtone, and call
+      RingtoneManager with the selected content URI.
+- [x] Keep desktop behavior to audio/video trimming only; ringtone actions are
+      Android-only.
+- [x] Update AGENTS.md channel schema, README, CHANGELOG, and
+      THIRD_PARTY_NOTICES for the new backend methods, player packages,
+      ringtone permission, and FFmpeg reuse.
+
+Implementation notes on 2026-09-08:
+
+- Added media_kit/media_kit_video/media_kit_libs_video for shared local
+  playback preview. Android debug and Windows debug builds pass, but the
+  native playback artifacts require a final release-license/source audit.
+- Android `content://` outputs are copied to an app-cache preview file before
+  playback/editing; trim itself runs against a local file path and saves a new
+  output through the existing SAF/MediaStore fallback path.
+- `flutter pub outdated` showed direct dependencies up-to-date; `flutter pub
+  upgrade` refreshed four compatible transitive lockfile entries before the
+  media_kit packages were added.
+- Automated verification passed: `flutter analyze`, `flutter test`,
+  `flutter build apk --debug`, and `flutter build windows --debug`.
+- Manual QA still required before commit/tag/release: Windows trim playback
+  and save, Android emulator trim playback and save, Android MP3 ringtone with
+  WRITE_SETTINGS denied/granted, and at least one large-file trim check.
+
+Acceptance criteria:
+
+- A completed MP3 can be opened, previewed, trimmed, saved as a new MP3, and
+  the result appears in History.
+- A completed MP4/video can be opened, previewed, trimmed, saved as a new
+  video file, and the result appears in History.
+- Selection playback works both once and on repeat, and the user can switch
+  back to full-file playback.
+- Android can set any completed MP3/audio output as the default ringtone after
+  the user grants WRITE_SETTINGS special access.
+- Existing tag editing, rename, open/share/show actions, queue behavior, and
+  provider/download flows keep working.
+- `flutter analyze` and `flutter test` pass before handoff; Windows and
+  Android emulator manual trim/ringtone checks remain required before commit,
+  push, tag, or release.
+
+### Sprint 12.5 - Release 1.0.9 Plan And F-Droid Blocker (decided 2026-09-08)
+
+Context: 1.0.9 working tree adds the trim editor + "Set as ringtone"
+(WRITE_SETTINGS). For the trim editor's live video preview it pulled in
+`media_kit` / `media_kit_video` / `media_kit_libs_video`. `flutter analyze`
+is clean; the earlier 1.0.8 work is already committed (d5704b0) and released.
+
+CRITICAL F-Droid blocker (verified): `media_kit_libs_android_video`'s Gradle
+`downloadDependencies` task downloads prebuilt libmpv/ffmpeg `.jar`/`.so`
+blobs from GitHub at build time
+(`media-kit/libmpv-android-video-build/releases/v1.1.7/default-*.jar`, MD5
+pinned). This violates F-Droid on three counts: prebuilt binary blobs (same
+reason libwebp is built from source in the recipe), network access during the
+build, and no from-source reproducibility without building the whole
+mpv+ffmpeg stack. `media_kit` is used ONLY for the trim editor preview
+(`Player`/`VideoController` in `lib/src/ui/trim_editor_page.dart` + init in
+`lib/main.dart`); the actual trim runs through `backend.trimOutput` (native
+FFmpeg), so the dependency is removable without losing trim functionality.
+
+Safety of tag/push (assessed): pushing `main` and tagging `v1.0.9` does NOT
+retroactively break the two open submissions. The F-Droid recipe pins
+commit d5704b0 + versionCodes 151/152/153 (1.0.8) and does not follow main;
+the winget PR #425232 pins 1.0.8 with a fixed URL+SHA. media_kit is fine on
+GitHub CI (network available, prebuilt libs allowed) and on winget. The only
+danger is bumping the F-Droid recipe to 1.0.9 while media_kit is present -
+the MR pipeline scanner would fail and could jeopardize the still-under-review
+MR !47102.
+
+Decision (2026-09-08): make the trim preview F-Droid-safe so ALL THREE
+channels ship 1.0.9 together. Full detailed plan in Sprint 12.6.
+
+### Sprint 12.6 - F-Droid-Safe Trim Preview And 1.0.9 Release (approved 2026-09-08)
+
+Goal: Android APK carries ZERO prebuilt libmpv/mpv/ffmpeg blobs and runs no
+build-time download task, so F-Droid scanner + reproducible build pass, while
+desktop (Windows/Linux) keeps the full live trim preview and the trim feature
+works everywhere. Then release 1.0.9 to GitHub, F-Droid, and winget together,
+legally clean for US/EU distribution.
+
+Root-cause recap: `media_kit_libs_video` (meta) pulls
+`media_kit_libs_android_video`, whose Gradle `downloadDependencies` task fetches
+prebuilt libmpv `.jar`/`.so` from GitHub at build time (three F-Droid
+violations: prebuilt blob, build-time network, non-reproducible).
+`media_kit_video` itself depends on NO `media_kit_libs_*` package, so dropping
+the meta and adding only the desktop libs removes the Android blob cleanly.
+media_kit coupling lives only in `lib/src/ui/trim_editor_page.dart` (Player,
+VideoController, Video) and `lib/main.dart` (MediaKit.ensureInitialized).
+
+Architecture - platform-split behind an abstraction:
+- New `lib/src/ui/preview_player.dart` with `TrimPreviewPlayer` interface:
+  open(fileUri), play(), pause(), seek(Duration), dispose(); streams
+  position/duration/playing; and `Widget videoView()` (empty for audio-only).
+- Android/iOS/web/macOS impl: `video_player` (Android = AndroidX Media3 /
+  ExoPlayer resolved from Google Maven = free, reproducible, no blobs; plays
+  both audio and video). 
+- Windows/Linux impl: `media_kit` + `media_kit_video`, using ONLY
+  `media_kit_libs_windows_video` + `media_kit_libs_linux`.
+- Factory selects impl by `defaultTargetPlatform`.
+
+Dependency changes (pubspec.yaml):
+- Remove: `media_kit_libs_video`.
+- Add: `media_kit_libs_windows_video`, `media_kit_libs_linux`, `video_player`.
+- Keep: `media_kit`, `media_kit_video` (desktop). `wakelock_plus` stays (free).
+- `MediaKit.ensureInitialized()` guarded to desktop only in main.dart, so
+  media_kit never touches native on Android even though its plugin registers.
+
+Files touched:
+- pubspec.yaml / pubspec.lock
+- lib/src/ui/preview_player.dart (new)
+- lib/src/ui/trim_editor_page.dart (use abstraction)
+- lib/main.dart (desktop-only media_kit init)
+- Linux packaging (.deb Depends: libmpv2 | libmpv1) + README Linux note
+
+Hard acceptance GATE (all must pass before any commit):
+1. `flutter build apk --release --split-per-abi`: unzip each APK, confirm NO
+   media_kit libmpv/mpv `.so` (only youtubedl-android libs + our libwebp).
+2. Android Gradle log: no `media_kit_libs_android_video` / downloadDependencies.
+3. `fdroid scanner` on the release APK in the fdroiddata clone = 0 problems.
+4. Android emulator (Pixel_10): app launches (media_kit unused, no crash),
+   trim preview plays audio AND video, selection play/loop/save work.
+5. Windows debug build: media_kit trim preview + save still work.
+6. `flutter analyze` clean; `flutter test` green (+ preview-player factory test).
+
+Fallback if gate 1 or 4 fails (media_kit still taints Android): drop media_kit
+entirely, use video_player on mobile, and on Windows/Linux show preview without
+live video (waveform + timecodes + ffmpeg thumbnail strip; trim still via
+ffmpeg). Report to user before switching.
+
+Compliance & legal (must be clean for US/EU distribution, F-Droid + winget):
+- License: keep GPL-3.0-only, LICENSE present, source link in About + winget.
+- THIRD_PARTY_NOTICES: ensure entries for yt-dlp (Unlicense), FFmpeg
+  (LGPL/GPL), youtubedl-android, media_kit (MIT), mpv/libmpv (LGPLv2.1+),
+  video_player + AndroidX Media3/ExoPlayer (Apache-2.0), wakelock_plus,
+  Jackson, etc. Verify LGPL relink/notice obligations are satisfied.
+- Permissions justification (F-Droid + Play later): FOREGROUND_SERVICE(+DATA_SYNC)
+  for the download service, POST_NOTIFICATIONS for progress, WRITE_EXTERNAL_STORAGE
+  (maxSdk 28) legacy save, WRITE_SETTINGS requested only on the ringtone action.
+  Document each; confirm no anti-feature is triggered undocumented.
+- Privacy: no analytics/telemetry; cookies stay on device (encrypted);
+  network only to the media provider via yt-dlp + GitHub for engine/app update.
+  Add/point to a short PRIVACY policy statement (README/site) for store pages.
+- Copyright/DMCA usage disclaimer: app downloads user-supplied URLs; add a
+  "respect copyright / only download content you have rights to" note in
+  README + store descriptions to reduce liability. NOTE: this is not legal
+  advice; flag a human-lawyer review before Play Store submission.
+
+Rollout after green gate + compliance (external steps HELD for explicit user
+go, since they touch live MR/PR):
+- [ ] commit 1.0.9 working tree, tag v1.0.9 -> GitHub Release CI (all assets +
+      fdroid-verification APKs).
+- [ ] CHANGELOG 1.0.9 + fastlane changelogs 161/162/163 (build 16*10+ABI).
+- [ ] F-Droid: bump recipe to 1.0.9 (versionName, codes 161/162/163, commit)
+      in docs/ and fdroiddata clone; `fdroid lint` + `fdroid scanner` clean;
+      push to MR !47102 branch; MR pipeline verifies.
+- [ ] winget PR #425232 -> 1.0.9 (new setup.exe URL + SHA256, add 1.0.9 folder,
+      drop old, `winget validate`) via Git Data API single commit.
+
+Follow-up (separate, planning only): Play Store viability + compliance plan -
+Google Play policy risk for yt-dlp downloaders (repackaging/IP), Data safety
+form, target API level, app signing, possible separate flavor/branding.
+
+## Milestone 13 - Google Play Viability And Compliance (planning only)
+
+Goal: assess whether a Play Store listing is feasible for a yt-dlp-based
+downloader and, if so, what a compliant submission needs. NOT started; do
+after 1.0.9 ships to GitHub/F-Droid/winget.
+
+Key policy risk (must decide first):
+- Google Play's Device and Network Abuse policy historically removed general
+  YouTube downloaders, and Play's IP policy bans facilitating infringement.
+  Downloaders for other sites and for user-owned/CC/public-domain media are
+  lower-risk but still scrutinized. A blanket "download from 1,750 sites"
+  pitch is the risky framing.
+- Options: (a) do NOT list on Play, keep F-Droid/GitHub/winget (lowest risk);
+  (b) list a repositioned build - "personal media / your-own-content clipper,
+  trim, ringtone maker" - de-emphasizing mass site downloading and possibly
+  excluding the highest-risk extractors; (c) list only as a
+  local file trimmer/ringtone tool with downloading disabled.
+
+If pursued, compliance checklist:
+- Data safety form: declare no data collected/shared (matches our no-telemetry
+  reality); list on-device-only storage.
+- Hosted privacy policy URL (Play requires one) - publish the README privacy
+  section as a page (e.g. GitHub Pages / dbase.in.rs).
+- Target API level: meet Play's current minimum (bump targetSdk as required).
+- App signing: enroll in Play App Signing; separate upload key from the
+  existing release key used for GitHub/F-Droid.
+- Foreground service: Play now requires declaring FGS type + a justification
+  form for FOREGROUND_SERVICE_DATA_SYNC; prepare the use-case description.
+- Permissions: justify WRITE_SETTINGS (ringtone), scoped storage; drop legacy
+  WRITE_EXTERNAL_STORAGE if not needed for minSdk on Play.
+- Content/IP: in-app + listing responsible-use disclaimer (already drafted for
+  README/F-Droid); consider gating or removing extractors that Play treats as
+  circumvention.
+- GPL-3.0 on Play: allowed, but Play's Developer Distribution Agreement adds
+  anti-modification terms that conflict with GPL for SOME apps; F-Droid is the
+  GPL-clean channel. Verify our GPL obligations are still met (source offer via
+  GitHub) - flag for the human maintainer / a lawyer before submitting.
+- Branding: possibly a distinct package id / flavor so a Play takedown does not
+  affect the F-Droid/GitHub identity.
+
+Decision gate: get a human/legal read on policy risk BEFORE building a Play
+submission. This section is advisory, not legal advice.
+
 ## Milestone 10 - Hardening, Policy, And Release
 
 Goal: prepare public releases with source and compliance.
@@ -1149,45 +1380,34 @@ Verification on 2026-08-26:
   signing config external to the repository (debug fallback keeps builds
   possible for contributors).
 
-### Sprint 10.3 - Beta Release
+### Sprint 10.3 - First Public Release (done)
 
 Tasks:
 
-- [ ] Decide first distribution channel.
-- [ ] Prepare signed release build.
-- [ ] Publish source code and tags.
-- [ ] Attach GPL-compliant release notes and third-party notices.
-- [ ] Provide known limitations.
-- [ ] Collect beta feedback through GitHub Issues.
+- [x] Decide first distribution channels: GitHub Releases for source/binaries,
+      winget for Windows, maintainer apt repository for Linux, and F-Droid
+      submission for Android.
+- [x] Prepare signed 1.0.0 release build through CI for Android, Windows, and
+      Linux.
+- [x] Publish source code and tags for GPL complete-source availability.
+- [x] Attach GPL-compliant release notes and third-party notices.
+- [x] Provide known limitations in README/release notes.
+- [x] Collect beta/post-release feedback through GitHub Issues.
 
 Acceptance criteria:
 
 - Users can build the same release from source.
 - Binary release includes or links to complete corresponding source.
 
-## Recommended First Implementation Order
+Verification on 2026-08-27:
 
-1. Approve platform strategy.
-2. Generate missing platform folders or explicitly postpone them.
-3. Align package id and app label.
-4. Add shared Dart service contracts.
-5. Build URL input screen.
-6. Add Android share intent.
-7. Add Android Platform Channel bridge.
-8. Add fake progress events.
-9. Integrate youtubedl-android for metadata only.
-10. Add first real Android single-item download.
-11. Add Android MediaStore save.
-12. Add FFmpeg MP3 conversion.
-13. Add queue/history.
-14. Add safe cookie import.
-15. Validate multi-site provider support on Android and Windows.
-16. Start with Dailymotion, Vimeo, and SoundCloud because they are technically
-    simpler validation targets.
-17. Continue with TikTok, then Instagram, Facebook, and Twitter/X.
-18. Expand to secondary providers only after smoke evidence exists.
-19. Port proven flows to macOS/Linux only when target machines are available.
-20. Decide iOS scope after feasibility.
+- Stable 1.0.0 release shipped for Android, Windows, and Linux from public
+  source/tag artifacts.
+- Distribution path is no longer a beta decision: GitHub Releases, winget
+  submission, maintainer apt repository, and F-Droid submission are tracked in
+  Milestone 11.
+- GPL release obligations for the 1.0.0 line are recorded in
+  THIRD_PARTY_NOTICES.md and release notes.
 
 ## Main Risks
 
@@ -1209,19 +1429,14 @@ Acceptance criteria:
 
 ## Open Decisions
 
-- Windows installer/package identity.
-- Minimum supported Android version.
-- State management package for Flutter.
-- Local database package for history.
-- FFmpeg Android artifact license/build-flag confirmation for public release.
-- yt-dlp/FFmpeg desktop binary distribution strategy.
+- Minimum supported Android version and explicit support policy beyond the
+  current Flutter/youtubedl-android floor.
 - Provider-scoped cookie storage and status for Instagram/Facebook/X/TikTok
   instead of one generic cookie status.
-- Whether TikTok/Instagram/Facebook/X support should be shown as stable or
-  experimental in the first multi-site beta.
+- Which unverified providers graduate from experimental/research to public
+  supported status after Android and Windows smoke tests.
+- Whether X Spaces/audio belongs in a public provider batch or stays out.
 - Whether wallpapers mean video wallpapers, static images, or no support.
 - Whether BuzzVideo, Tubidy, Threads, and Snapchat are viable through yt-dlp's
   generic extractor.
-- Whether assisted WebView cookie capture is allowed to ship for any provider.
-- Whether first public release targets GitHub Releases only or also an app
-  store.
+- macOS/iOS parity and release scope after target hardware is available.

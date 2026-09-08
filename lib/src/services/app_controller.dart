@@ -79,6 +79,16 @@ class AppController extends ChangeNotifier {
   static const _historyLimit = 200;
   static const _maxTransientRetries = 3;
   static const _maxTagEditBytes = 80 * 1024 * 1024;
+  static const _editableAudioExtensions = {
+    'mp3',
+    'm4a',
+    'aac',
+    'opus',
+    'ogg',
+    'wav',
+    'flac',
+  };
+  static const _editableVideoExtensions = {'mp4', 'm4v', 'mov', 'webm', 'mkv'};
 
   AppSection get section => _section;
 
@@ -1124,8 +1134,7 @@ class AppController extends ChangeNotifier {
       return false;
     }
 
-    final name = (item.outputDisplayName ?? item.outputLocation!)
-        .toLowerCase();
+    final name = (item.outputDisplayName ?? item.outputLocation!).toLowerCase();
     return name.endsWith('.mp3') || item.outputKind == OutputKind.mp3;
   }
 
@@ -1168,6 +1177,137 @@ class AppController extends ChangeNotifier {
       }
 
       await backend.writeOutputBytes(location, applyId3Tags(bytes, tags));
+      return null;
+    } catch (error) {
+      return _friendlyError(error);
+    }
+  }
+
+  bool canTrimOutput(DownloadQueueItem item) {
+    if (item.status != DownloadStatus.completed ||
+        item.outputLocation == null) {
+      return false;
+    }
+
+    if (item.outputKind == OutputKind.mp3 ||
+        item.outputKind == OutputKind.m4a ||
+        item.outputKind == OutputKind.mp4) {
+      return true;
+    }
+
+    final extension = outputFileExtension(item)?.toLowerCase();
+    return extension != null &&
+        (_editableAudioExtensions.contains(extension) ||
+            _editableVideoExtensions.contains(extension));
+  }
+
+  bool canSetAsRingtone(DownloadQueueItem item) {
+    if (defaultTargetPlatform != TargetPlatform.android ||
+        item.status != DownloadStatus.completed ||
+        item.outputLocation == null) {
+      return false;
+    }
+
+    final extension = outputFileExtension(item)?.toLowerCase();
+    return item.outputKind == OutputKind.mp3 || extension == 'mp3';
+  }
+
+  Future<EditableOutput> prepareOutputForEditing(DownloadQueueItem item) async {
+    final location = item.outputLocation;
+    if (location == null) {
+      throw StateError('This item has no saved file.');
+    }
+
+    return backend.prepareOutputForEditing(location);
+  }
+
+  Future<void> releaseEditableOutput(EditableOutput output) {
+    return backend.releaseEditableOutput(output);
+  }
+
+  Future<Uint8List?> loadOutputWaveform(EditableOutput output) async {
+    try {
+      return await backend.loadOutputWaveform(output.previewLocation);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Future<String?> saveTrimmedOutput({
+    required DownloadQueueItem source,
+    required EditableOutput editable,
+    required Duration start,
+    required Duration end,
+    required String outputBaseName,
+  }) async {
+    if (start < Duration.zero || end <= start) {
+      return 'Choose a valid start and end time.';
+    }
+    if (editable.duration > Duration.zero && end > editable.duration) {
+      return 'The selected end time is outside the file.';
+    }
+
+    final sanitized = sanitizeFileBaseName(outputBaseName);
+    if (sanitized.isEmpty) {
+      return 'Enter a file name.';
+    }
+
+    try {
+      final trimmed = await backend.trimOutput(
+        TrimOutputRequest(
+          location: editable.previewLocation,
+          start: start,
+          end: end,
+          outputBaseName: sanitized,
+          outputKind: _trimOutputKindFor(source, editable),
+        ),
+      );
+      final item = DownloadQueueItem(
+        id: '${DateTime.now().microsecondsSinceEpoch}-${_idSequence++}',
+        url: source.url,
+        title: sanitized,
+        format: MediaFormat(
+          id: 'trimmed',
+          extension: _extensionFromDisplayName(trimmed.displayName),
+          kind: trimmed.hasVideo
+              ? trimmed.hasAudio
+                    ? MediaKind.muxed
+                    : MediaKind.video
+              : MediaKind.audio,
+          qualityLabel: 'Trimmed clip',
+        ),
+        outputKind: trimmed.outputKind,
+        status: DownloadStatus.completed,
+        providerId: source.providerId,
+        providerName: source.providerName,
+        outputLocation: trimmed.location,
+        outputDisplayName: trimmed.displayName,
+        finishedAt: DateTime.now(),
+      );
+
+      _history.insert(0, item);
+      if (_history.length > _historyLimit) {
+        _history.removeRange(_historyLimit, _history.length);
+      }
+      notifyListeners();
+      await _persistQueue();
+      return null;
+    } catch (error) {
+      return _friendlyError(error);
+    }
+  }
+
+  Future<String?> setAsRingtone(DownloadQueueItem item) async {
+    final location = item.outputLocation;
+    if (location == null) {
+      return 'This item has no saved file.';
+    }
+    if (!canSetAsRingtone(item)) {
+      return 'Only MP3 files can be set as ringtones.';
+    }
+
+    try {
+      await backend.setAsRingtone(location);
       return null;
     } catch (error) {
       return _friendlyError(error);
@@ -1312,6 +1452,25 @@ class AppController extends ChangeNotifier {
       _formatFilter = MediaKindFilter.audio;
     }
   }
+
+  OutputKind _trimOutputKindFor(
+    DownloadQueueItem source,
+    EditableOutput editable,
+  ) {
+    if (editable.hasVideo) {
+      return OutputKind.mp4;
+    }
+
+    final extension = outputFileExtension(source)?.toLowerCase();
+    return switch (extension) {
+      'mp3' => OutputKind.mp3,
+      'm4a' => OutputKind.m4a,
+      _ =>
+        source.outputKind == OutputKind.mp4
+            ? OutputKind.mp3
+            : source.outputKind,
+    };
+  }
 }
 
 /// Builds the yt-dlp format selector for a queue item. Sites like Facebook,
@@ -1376,6 +1535,16 @@ String? outputFileExtension(DownloadQueueItem item) {
 
   final extension = name.substring(dot + 1);
   return RegExp(r'^[A-Za-z0-9]{1,5}$').hasMatch(extension) ? extension : null;
+}
+
+String _extensionFromDisplayName(String displayName) {
+  final dot = displayName.lastIndexOf('.');
+  if (dot <= 0 || dot == displayName.length - 1) {
+    return 'media';
+  }
+
+  final extension = displayName.substring(dot + 1).toLowerCase();
+  return RegExp(r'^[a-z0-9]{1,5}$').hasMatch(extension) ? extension : 'media';
 }
 
 /// User-facing name for a finished output; raw content:// URIs mean nothing

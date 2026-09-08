@@ -4,6 +4,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.ContentValues
 import android.graphics.Bitmap
+import android.media.RingtoneManager
 import android.net.Uri
 import android.os.Build
 import android.os.Environment
@@ -12,6 +13,7 @@ import android.os.Looper
 import android.provider.DocumentsContract
 import android.provider.MediaStore
 import android.provider.OpenableColumns
+import android.provider.Settings
 import android.util.Size
 import java.io.ByteArrayOutputStream
 import com.yausername.ffmpeg.FFmpeg
@@ -24,6 +26,7 @@ import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.EventChannel
 import io.flutter.plugin.common.MethodChannel
 import java.io.File
+import java.util.Locale
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 
@@ -218,6 +221,138 @@ class MainActivity : FlutterActivity() {
                                 mainHandler.post {
                                     result.error(
                                         "write_failed",
+                                        sanitizeNativeError(error),
+                                        null,
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+
+                "prepareOutputForEditing" -> {
+                    val location = call.argument<String>("location")
+                    if (location.isNullOrBlank()) {
+                        result.error("invalid_location", "Output location is required.", null)
+                    } else {
+                        controlExecutor.execute {
+                            try {
+                                ensureYoutubeDlInitialized()
+                                val editable = prepareOutputForEditing(location)
+                                mainHandler.post { result.success(editable) }
+                            } catch (error: Throwable) {
+                                mainHandler.post {
+                                    result.error(
+                                        "prepare_edit_failed",
+                                        sanitizeNativeError(error),
+                                        null,
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+
+                "releaseEditableOutput" -> {
+                    val previewLocation = call.argument<String>("previewLocation")
+                    val temporaryPreview = call.argument<Boolean>("temporaryPreview") ?: false
+                    controlExecutor.execute {
+                        if (temporaryPreview && !previewLocation.isNullOrBlank()) {
+                            runCatching { releaseEditableOutput(previewLocation) }
+                        }
+                        mainHandler.post { result.success(null) }
+                    }
+                }
+
+                "getOutputWaveform" -> {
+                    val location = call.argument<String>("location")
+                    val width = call.argument<Int>("width") ?: 1200
+                    val height = call.argument<Int>("height") ?: 220
+                    if (location.isNullOrBlank()) {
+                        result.success(null)
+                    } else {
+                        controlExecutor.execute {
+                            try {
+                                ensureYoutubeDlInitialized()
+                                val bytes = outputWaveform(location, width, height)
+                                mainHandler.post { result.success(bytes) }
+                            } catch (_: Throwable) {
+                                mainHandler.post { result.success(null) }
+                            }
+                        }
+                    }
+                }
+
+                "trimOutput" -> {
+                    val location = call.argument<String>("location")
+                    val startSeconds = call.argument<Number>("startSeconds")?.toDouble()
+                    val endSeconds = call.argument<Number>("endSeconds")?.toDouble()
+                    val outputBaseName = call.argument<String>("outputBaseName")
+                    val outputKind = call.argument<String>("outputKind") ?: "original"
+                    if (
+                        location.isNullOrBlank() ||
+                        startSeconds == null ||
+                        endSeconds == null ||
+                        outputBaseName.isNullOrBlank()
+                    ) {
+                        result.error(
+                            "invalid_trim_request",
+                            "Location, start, end, and output name are required.",
+                            null,
+                        )
+                    } else {
+                        mediaExecutor.execute {
+                            try {
+                                ensureYoutubeDlInitialized()
+                                val trimmed = trimOutput(
+                                    location,
+                                    startSeconds,
+                                    endSeconds,
+                                    outputBaseName,
+                                    outputKind,
+                                )
+                                mainHandler.post { result.success(trimmed) }
+                            } catch (error: Throwable) {
+                                mainHandler.post {
+                                    result.error(
+                                        "trim_failed",
+                                        sanitizeNativeError(error),
+                                        null,
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+
+                "setAsRingtone" -> {
+                    val location = call.argument<String>("location")
+                    if (location.isNullOrBlank()) {
+                        result.error("invalid_location", "Output location is required.", null)
+                    } else if (
+                        Build.VERSION.SDK_INT >= Build.VERSION_CODES.M &&
+                        !Settings.System.canWrite(this)
+                    ) {
+                        startActivity(
+                            Intent(
+                                Settings.ACTION_MANAGE_WRITE_SETTINGS,
+                                Uri.parse("package:$packageName"),
+                            ),
+                        )
+                        result.error(
+                            "write_settings_required",
+                            "Allow system settings access, then tap Set as ringtone again.",
+                            null,
+                        )
+                    } else {
+                        controlExecutor.execute {
+                            try {
+                                setAsRingtone(location)
+                                mainHandler.post { result.success(null) }
+                            } catch (error: Throwable) {
+                                mainHandler.post {
+                                    result.error(
+                                        "ringtone_failed",
                                         sanitizeNativeError(error),
                                         null,
                                     )
@@ -521,6 +656,7 @@ class MainActivity : FlutterActivity() {
     private fun cleanStaleTempFiles() {
         runCatching { File(cacheDir, "downloads").deleteRecursively() }
         runCatching { File(cacheDir, "cookies").deleteRecursively() }
+        runCatching { File(cacheDir, "editing").deleteRecursively() }
     }
 
     private fun outputIntent(action: String, location: String): Intent {
@@ -1289,6 +1425,403 @@ class MainActivity : FlutterActivity() {
         output.use { it.write(bytes) }
     }
 
+    private fun prepareOutputForEditing(location: String): Map<String, Any?> {
+        val previewFile = if (location.startsWith("content://")) {
+            val displayName = queryDisplayName(Uri.parse(location)) ?: "dbase-media"
+            copyLocationToEditingCache(location, displayName)
+        } else {
+            val file = File(location)
+            if (!file.isFile) {
+                throw IllegalStateException("The file no longer exists at this location.")
+            }
+            file
+        }
+        val probe = probeOutput(previewFile.absolutePath)
+
+        return mapOf(
+            "location" to location,
+            "previewLocation" to previewFile.absolutePath,
+            "displayName" to previewFile.name,
+            "durationSeconds" to probe.durationSeconds,
+            "hasAudio" to probe.hasAudio,
+            "hasVideo" to probe.hasVideo,
+            "temporaryPreview" to location.startsWith("content://"),
+        )
+    }
+
+    private fun releaseEditableOutput(previewLocation: String) {
+        val root = File(cacheDir, "editing").canonicalFile
+        val target = File(previewLocation).canonicalFile
+        if (target.path.startsWith(root.path + File.separator)) {
+            target.delete()
+        }
+    }
+
+    private fun outputWaveform(location: String, width: Int, height: Int): ByteArray? {
+        val probe = probeOutput(location)
+        if (!probe.hasAudio) {
+            return null
+        }
+
+        val workingDir = File(cacheDir, "editing/waveforms").apply { mkdirs() }
+        val output = uniqueFile(workingDir, "waveform.png")
+        return try {
+            val result = runNativeProcess(
+                listOf(
+                    ffmpegTool("ffmpeg"),
+                    "-hide_banner",
+                    "-loglevel",
+                    "error",
+                    "-y",
+                    "-i",
+                    location,
+                    "-filter_complex",
+                    "showwavespic=s=${width}x$height:split_channels=0:colors=0x15347A",
+                    "-frames:v",
+                    "1",
+                    output.absolutePath,
+                ),
+                EDIT_TIMEOUT_SECONDS,
+            )
+            if (result.exitCode == 0 && output.isFile) output.readBytes() else null
+        } finally {
+            output.delete()
+        }
+    }
+
+    private fun trimOutput(
+        location: String,
+        startSeconds: Double,
+        endSeconds: Double,
+        outputBaseName: String,
+        outputKind: String,
+    ): Map<String, Any?> {
+        require(startSeconds >= 0.0 && endSeconds > startSeconds) {
+            "Choose a valid start and end time."
+        }
+
+        val source = if (location.startsWith("content://")) {
+            copyLocationToEditingCache(location, queryDisplayName(Uri.parse(location)) ?: "dbase-media")
+        } else {
+            val file = File(location)
+            if (!file.isFile) {
+                throw IllegalStateException("The file no longer exists at this location.")
+            }
+            file
+        }
+        val cleanupSource = location.startsWith("content://")
+        val workingDir = File(cacheDir, "editing/trims").apply { mkdirs() }
+
+        try {
+            val probe = probeOutput(source.absolutePath)
+            if (probe.durationSeconds > 0.0 && endSeconds > probe.durationSeconds + 0.25) {
+                throw IllegalStateException("The selected end time is outside the file.")
+            }
+            val actualOutputKind = if (probe.hasVideo) "mp4" else outputKind
+            val extension = trimExtension(actualOutputKind, source, probe)
+            val output = uniqueFile(workingDir, "${safeBaseName(outputBaseName)}.$extension")
+            val result = runNativeProcess(
+                listOf(
+                    ffmpegTool("ffmpeg"),
+                    "-hide_banner",
+                    "-y",
+                    "-ss",
+                    ffmpegTime(startSeconds),
+                    "-i",
+                    source.absolutePath,
+                    "-t",
+                    ffmpegTime(endSeconds - startSeconds),
+                ) + trimCodecArgs(actualOutputKind, probe) + output.absolutePath,
+                EDIT_TIMEOUT_SECONDS,
+            )
+
+            if (result.exitCode != 0 || !output.isFile) {
+                throw IllegalStateException(sanitizeNativeErrorText(result.stderr))
+            }
+
+            val (savedLocation, displayName) = saveOutputFile(output, actualOutputKind)
+            return mapOf(
+                "location" to savedLocation,
+                "displayName" to displayName,
+                "outputKind" to actualOutputKind,
+                "hasAudio" to probe.hasAudio,
+                "hasVideo" to probe.hasVideo,
+            )
+        } finally {
+            if (cleanupSource) {
+                source.delete()
+            }
+            workingDir.deleteRecursively()
+        }
+    }
+
+    private fun setAsRingtone(location: String): Uri {
+        val displayName = displayNameForLocation(location)
+        require(displayName.lowercase().endsWith(".mp3")) {
+            "Only MP3 files can be set as ringtones."
+        }
+
+        val ringtoneUri = copyToRingtoneMediaStore(location, displayName)
+        RingtoneManager.setActualDefaultRingtoneUri(
+            applicationContext,
+            RingtoneManager.TYPE_RINGTONE,
+            ringtoneUri,
+        )
+        return ringtoneUri
+    }
+
+    private fun copyToRingtoneMediaStore(location: String, displayName: String): Uri {
+        val resolver = applicationContext.contentResolver
+        val collection = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            MediaStore.Audio.Media.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY)
+        } else {
+            MediaStore.Audio.Media.EXTERNAL_CONTENT_URI
+        }
+        val values = ContentValues().apply {
+            put(MediaStore.MediaColumns.DISPLAY_NAME, displayName)
+            put(MediaStore.MediaColumns.MIME_TYPE, "audio/mpeg")
+            put(MediaStore.Audio.Media.TITLE, displayName.removeSuffix(".mp3"))
+            put(MediaStore.Audio.Media.IS_RINGTONE, 1)
+            put(MediaStore.Audio.Media.IS_MUSIC, 0)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                put(MediaStore.MediaColumns.RELATIVE_PATH, "${Environment.DIRECTORY_RINGTONES}/DBase Downloader")
+                put(MediaStore.MediaColumns.IS_PENDING, 1)
+            }
+        }
+        val uri = resolver.insert(collection, values)
+            ?: throw IllegalStateException("Could not create ringtone entry.")
+
+        try {
+            openLocationInputStream(location).use { input ->
+                resolver.openOutputStream(uri)?.use { output ->
+                    input.copyTo(output)
+                } ?: throw IllegalStateException("Could not write ringtone file.")
+            }
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                resolver.update(
+                    uri,
+                    ContentValues().apply { put(MediaStore.MediaColumns.IS_PENDING, 0) },
+                    null,
+                    null,
+                )
+            }
+            return uri
+        } catch (error: Throwable) {
+            resolver.delete(uri, null, null)
+            throw error
+        }
+    }
+
+    private fun copyLocationToEditingCache(location: String, displayName: String): File {
+        val outputDir = File(cacheDir, "editing/previews").apply { mkdirs() }
+        val output = uniqueFile(outputDir, displayNameForCache(displayName))
+        openLocationInputStream(location).use { input ->
+            output.outputStream().use { fileOutput -> input.copyTo(fileOutput) }
+        }
+        return output
+    }
+
+    private fun openLocationInputStream(location: String) =
+        if (location.startsWith("content://")) {
+            contentResolver.openInputStream(Uri.parse(location))
+                ?: throw IllegalStateException("The file no longer exists at this location.")
+        } else {
+            val file = File(location)
+            if (!file.isFile) {
+                throw IllegalStateException("The file no longer exists at this location.")
+            }
+            file.inputStream()
+        }
+
+    private fun displayNameForLocation(location: String): String {
+        return if (location.startsWith("content://")) {
+            queryDisplayName(Uri.parse(location)) ?: "dbase-ringtone.mp3"
+        } else {
+            File(location).name
+        }
+    }
+
+    private fun displayNameForCache(displayName: String): String {
+        val clean = displayName
+            .replace(Regex("[\\\\/:*?\"<>|]+"), "_")
+            .trim()
+            .ifBlank { "dbase-media" }
+            .take(180)
+        return clean.ifBlank { "dbase-media" }
+    }
+
+    private fun probeOutput(location: String): OutputProbe {
+        val result = runNativeProcess(
+            listOf(
+                ffmpegTool("ffprobe"),
+                "-v",
+                "error",
+                "-print_format",
+                "json",
+                "-show_format",
+                "-show_streams",
+                location,
+            ),
+            PROBE_TIMEOUT_SECONDS,
+        )
+        if (result.exitCode != 0) {
+            throw IllegalStateException(sanitizeNativeErrorText(result.stderr))
+        }
+
+        val root = YoutubeDL.objectMapper.readTree(result.stdout)
+        var hasAudio = false
+        var hasVideo = false
+        var duration = root.path("format").path("duration").asDouble(Double.NaN)
+        root.path("streams").forEach { stream ->
+            when (stream.path("codec_type").asText("")) {
+                "audio" -> hasAudio = true
+                "video" -> hasVideo = true
+            }
+            val streamDuration = stream.path("duration").asDouble(Double.NaN)
+            if (!streamDuration.isNaN() && (duration.isNaN() || streamDuration > duration)) {
+                duration = streamDuration
+            }
+        }
+        if (!hasAudio && !hasVideo) {
+            throw IllegalStateException("This file does not contain audio or video streams.")
+        }
+
+        return OutputProbe(
+            durationSeconds = if (duration.isNaN()) 0.0 else duration,
+            hasAudio = hasAudio,
+            hasVideo = hasVideo,
+        )
+    }
+
+    private fun ffmpegTool(name: String): String {
+        // youtubedl-android ships ffmpeg and ffprobe as jniLibs, extracted to
+        // nativeLibraryDir as lib<name>.so with execute permission - the same
+        // binaries yt-dlp itself runs. Prefer those; they are always present
+        // and executable. Fall back to the extracted package path for older
+        // layouts that place a plain binary under usr/bin.
+        val nativeBinary = File(applicationInfo.nativeLibraryDir, "lib$name.so")
+        if (nativeBinary.isFile) {
+            nativeBinary.setExecutable(true)
+            return nativeBinary.absolutePath
+        }
+
+        val packaged = File(
+            applicationContext.noBackupFilesDir,
+            "youtubedl-android/packages/ffmpeg/usr/bin/$name",
+        )
+        if (packaged.isFile) {
+            packaged.setExecutable(true)
+            return packaged.absolutePath
+        }
+
+        throw IllegalStateException("$name was not found in the FFmpeg package.")
+    }
+
+    private fun runNativeProcess(command: List<String>, timeoutSeconds: Long): NativeProcessResult {
+        // ffmpeg/ffprobe are the youtubedl-android native binaries in
+        // nativeLibraryDir; their shared libraries (libavcodec, ...) live in
+        // the extracted package's usr/lib, so LD_LIBRARY_PATH must point there
+        // the same way youtubedl-android runs them.
+        val builder = ProcessBuilder(command)
+        // ffmpeg/ffprobe pull shared libs from the extracted ffmpeg package
+        // (libavcodec, librubberband, ...) and the C++ runtime lives in the
+        // python package (libc++_shared.so) - the same layout youtubedl-android
+        // links against when yt-dlp shells out to ffmpeg.
+        val packagesDir = File(
+            applicationContext.noBackupFilesDir,
+            "youtubedl-android/packages",
+        )
+        val libraryPath = listOf(
+            File(packagesDir, "ffmpeg/usr/lib").absolutePath,
+            File(packagesDir, "python/usr/lib").absolutePath,
+            applicationInfo.nativeLibraryDir,
+        ).filter { it.isNotBlank() }.joinToString(File.pathSeparator)
+        builder.environment()["LD_LIBRARY_PATH"] = libraryPath
+        val process = builder.start()
+        val finished = process.waitFor(timeoutSeconds, TimeUnit.SECONDS)
+        if (!finished) {
+            process.destroyForcibly()
+            throw IllegalStateException("${File(command.first()).name} timed out.")
+        }
+
+        return NativeProcessResult(
+            exitCode = process.exitValue(),
+            stdout = process.inputStream.bufferedReader().readText(),
+            stderr = process.errorStream.bufferedReader().readText(),
+        )
+    }
+
+    private fun trimCodecArgs(outputKind: String, probe: OutputProbe): List<String> {
+        if (probe.hasVideo) {
+            return listOf(
+                "-map",
+                "0:v:0",
+                "-map",
+                "0:a:0?",
+                "-c:v",
+                "libx264",
+                "-preset",
+                "veryfast",
+                "-crf",
+                "20",
+                "-c:a",
+                "aac",
+                "-b:a",
+                "192k",
+                "-movflags",
+                "+faststart",
+            )
+        }
+
+        return when (outputKind) {
+            "mp3" -> listOf("-vn", "-c:a", "libmp3lame", "-q:a", "2")
+            "m4a", "mp4" -> listOf("-vn", "-c:a", "aac", "-b:a", "192k")
+            else -> listOf("-vn", "-c:a", "copy")
+        }
+    }
+
+    private fun trimExtension(outputKind: String, source: File, probe: OutputProbe): String {
+        if (probe.hasVideo || outputKind == "mp4") {
+            return "mp4"
+        }
+        return when (outputKind) {
+            "mp3" -> "mp3"
+            "m4a" -> "m4a"
+            else -> source.extension
+                .lowercase()
+                .replace(Regex("[^a-z0-9]"), "")
+                .takeIf { it.matches(Regex("[a-z0-9]{1,5}")) }
+                ?: "media"
+        }
+    }
+
+    private fun safeBaseName(value: String): String {
+        val clean = value
+            .replace(Regex("[\\\\/:*?\"<>|]+"), "_")
+            .replace(Regex("\\s+"), " ")
+            .trim()
+            .replace(Regex("[. ]+$"), "")
+            .take(180)
+        return clean.ifBlank { "dbase-clip" }
+    }
+
+    private fun ffmpegTime(seconds: Double): String {
+        return String.format(Locale.US, "%.3f", seconds)
+    }
+
+    private fun sanitizeNativeErrorText(raw: String): String {
+        val errorLines = raw.lines().filter { it.trimStart().startsWith("ERROR:") }
+        val message = if (errorLines.isEmpty()) raw.trim() else errorLines.joinToString("\n")
+        return message
+            .ifBlank { "Media processing failed." }
+            .replace(
+                Regex("(?i)(cookie|token|auth|session)[^\\s&=]*=([^\\s&]+)"),
+                "$1=<redacted>",
+            )
+            .replace(Regex("https?://\\S+"), "<url>")
+            .take(800)
+    }
+
     private fun saveOutputFileToMediaStore(file: File, outputKind: String): Uri {
         val audio = isAudioOutput(file, outputKind)
         val resolver = applicationContext.contentResolver
@@ -1425,6 +1958,8 @@ class MainActivity : FlutterActivity() {
         private const val PLAYLIST_TIMEOUT_SECONDS = 120L
         private const val FOLDER_PICK_REQUEST_CODE = 4001
         private const val OUTPUT_TREE_KEY = "output_tree_uri"
+        private const val PROBE_TIMEOUT_SECONDS = 30L
+        private const val EDIT_TIMEOUT_SECONDS = 900L
         private val PAGE_ALIGNED_FFMPEG_LIBS = listOf(
             "libsharpyuv.so",
             "libwebp.so",
@@ -1442,6 +1977,18 @@ private data class ProgressMetrics(
     val downloadedBytes: Long? = null,
     val totalBytes: Long? = null,
     val speedBytesPerSecond: Long? = null,
+)
+
+private data class NativeProcessResult(
+    val exitCode: Int,
+    val stdout: String,
+    val stderr: String,
+)
+
+private data class OutputProbe(
+    val durationSeconds: Double,
+    val hasAudio: Boolean,
+    val hasVideo: Boolean,
 )
 
 /** User-tunable yt-dlp politeness and retry options from the Dart side. */

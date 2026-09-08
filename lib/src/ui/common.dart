@@ -96,6 +96,8 @@ class DownloadItemTile extends StatelessWidget {
     this.onShare,
     this.onRename,
     this.onEditTags,
+    this.onTrim,
+    this.onSetAsRingtone,
     this.thumbnail,
     super.key,
   });
@@ -112,6 +114,8 @@ class DownloadItemTile extends StatelessWidget {
   final VoidCallback? onShare;
   final VoidCallback? onRename;
   final VoidCallback? onEditTags;
+  final VoidCallback? onTrim;
+  final VoidCallback? onSetAsRingtone;
 
   /// Preview image bytes for the finished output; the status icon is shown
   /// while loading or when no preview exists.
@@ -201,7 +205,9 @@ class DownloadItemTile extends StatelessWidget {
                       onReveal != null ||
                       onShare != null ||
                       onRename != null ||
-                      onEditTags != null)
+                      onEditTags != null ||
+                      onTrim != null ||
+                      onSetAsRingtone != null)
                     PopupMenuButton<VoidCallback>(
                       tooltip: 'File actions',
                       onSelected: (action) => action(),
@@ -244,6 +250,22 @@ class DownloadItemTile extends StatelessWidget {
                             child: const ListTile(
                               leading: Icon(Icons.sell_outlined),
                               title: Text('Edit tags'),
+                            ),
+                          ),
+                        if (onTrim != null)
+                          PopupMenuItem(
+                            value: onTrim!,
+                            child: const ListTile(
+                              leading: Icon(Icons.content_cut),
+                              title: Text('Trim'),
+                            ),
+                          ),
+                        if (onSetAsRingtone != null)
+                          PopupMenuItem(
+                            value: onSetAsRingtone!,
+                            child: const ListTile(
+                              leading: Icon(Icons.ring_volume),
+                              title: Text('Set as ringtone'),
                             ),
                           ),
                       ],

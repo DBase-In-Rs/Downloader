@@ -347,6 +347,134 @@ class DesktopMediaBackend implements MediaBackend {
     await File(location).writeAsBytes(bytes, flush: true);
   }
 
+  @override
+  Future<EditableOutput> prepareOutputForEditing(String location) async {
+    final file = File(location);
+    if (!await file.exists()) {
+      throw Exception('The file no longer exists at this location.');
+    }
+
+    final probe = await _probeOutput(location);
+    return EditableOutput(
+      location: location,
+      previewLocation: location,
+      displayName: file.uri.pathSegments.last,
+      duration: probe.duration,
+      hasAudio: probe.hasAudio,
+      hasVideo: probe.hasVideo,
+    );
+  }
+
+  @override
+  Future<void> releaseEditableOutput(EditableOutput output) async {}
+
+  @override
+  Future<Uint8List?> loadOutputWaveform(
+    String location, {
+    int width = 1200,
+    int height = 220,
+  }) async {
+    final probe = await _probeOutput(location);
+    if (!probe.hasAudio) {
+      return null;
+    }
+
+    final config = await configProvider();
+    final ffmpeg = await _requireFfmpeg(config);
+    final workingDir = await Directory.systemTemp.createTemp('dbase-wave-');
+    try {
+      final output = File(
+        '${workingDir.path}${Platform.pathSeparator}wave.png',
+      );
+      final result = await Process.run(ffmpeg, [
+        '-hide_banner',
+        '-loglevel',
+        'error',
+        '-y',
+        '-i',
+        location,
+        '-filter_complex',
+        'showwavespic=s=${width}x$height:split_channels=0:colors=0x15347A',
+        '-frames:v',
+        '1',
+        output.path,
+      ]).timeout(const Duration(minutes: 2));
+
+      if (result.exitCode != 0 || !await output.exists()) {
+        return null;
+      }
+
+      return await output.readAsBytes();
+    } finally {
+      unawaited(
+        workingDir.delete(recursive: true).catchError((_) => workingDir),
+      );
+    }
+  }
+
+  @override
+  Future<TrimmedOutput> trimOutput(TrimOutputRequest request) async {
+    if (request.start < Duration.zero || request.end <= request.start) {
+      throw Exception('Choose a valid start and end time.');
+    }
+
+    final source = File(request.location);
+    if (!await source.exists()) {
+      throw Exception('The file no longer exists at this location.');
+    }
+
+    final probe = await _probeOutput(request.location);
+    if (probe.duration > Duration.zero && request.end > probe.duration) {
+      throw Exception('The selected end time is outside the file.');
+    }
+
+    final config = await configProvider();
+    final ffmpeg = await _requireFfmpeg(config);
+    final workingDir = await Directory.systemTemp.createTemp('dbase-trim-');
+    try {
+      final outputKind = probe.hasVideo ? OutputKind.mp4 : request.outputKind;
+      final extension = _trimExtension(request, source, probe);
+      final baseName = _safeBaseName(request.outputBaseName);
+      final tempOutput = File(
+        '${workingDir.path}${Platform.pathSeparator}$baseName.$extension',
+      );
+      final result = await Process.run(ffmpeg, [
+        '-hide_banner',
+        '-y',
+        '-ss',
+        _ffmpegTime(request.start),
+        '-i',
+        source.path,
+        '-t',
+        _ffmpegTime(request.duration),
+        ..._trimCodecArgs(outputKind, probe),
+        tempOutput.path,
+      ]).timeout(const Duration(minutes: 15));
+
+      if (result.exitCode != 0 || !await tempOutput.exists()) {
+        throw Exception(sanitizeProcessError(result.stderr.toString()));
+      }
+
+      final saved = await _moveToOutputDirectory(tempOutput, config);
+      return TrimmedOutput(
+        location: saved.path,
+        displayName: saved.uri.pathSegments.last,
+        outputKind: outputKind,
+        hasAudio: probe.hasAudio,
+        hasVideo: probe.hasVideo,
+      );
+    } finally {
+      unawaited(
+        workingDir.delete(recursive: true).catchError((_) => workingDir),
+      );
+    }
+  }
+
+  @override
+  Future<void> setAsRingtone(String location) {
+    throw UnsupportedError('Ringtone setup is only available on Android.');
+  }
+
   File _cookieFile() => File('$_configDir${Platform.pathSeparator}cookies.txt');
 
   File _cookieExpiredMarker() =>
@@ -384,6 +512,78 @@ class DesktopMediaBackend implements MediaBackend {
       'yt-dlp binary not found. Set its path in Settings or install it on '
       'the system PATH.',
     );
+  }
+
+  Future<String> _requireFfmpeg(DesktopBackendConfig config) {
+    return _requireFfmpegTool(config, 'ffmpeg');
+  }
+
+  Future<String> _requireFfprobe(DesktopBackendConfig config) {
+    return _requireFfmpegTool(config, 'ffprobe');
+  }
+
+  Future<String> _requireFfmpegTool(
+    DesktopBackendConfig config,
+    String tool,
+  ) async {
+    final configured = config.ffmpegPath;
+    final executableName = Platform.isWindows ? '$tool.exe' : tool;
+    if (configured != null && configured.isNotEmpty) {
+      final configuredFile = File(configured);
+      if (await configuredFile.exists()) {
+        if (configuredFile.uri.pathSegments.last.toLowerCase() ==
+            executableName.toLowerCase()) {
+          return configuredFile.path;
+        }
+        final sibling = File(
+          '${configuredFile.parent.path}${Platform.pathSeparator}$executableName',
+        );
+        if (await sibling.exists()) {
+          return sibling.path;
+        }
+      }
+
+      final configuredDir = Directory(configured);
+      if (await configuredDir.exists()) {
+        final candidate = File(
+          '${configuredDir.path}${Platform.pathSeparator}$executableName',
+        );
+        if (await candidate.exists()) {
+          return candidate.path;
+        }
+      }
+    }
+
+    final located = await _findOnPath(tool);
+    if (located != null) {
+      return located;
+    }
+
+    throw Exception(
+      '$tool binary not found. Set the FFmpeg path in Settings or install '
+      'FFmpeg on the system PATH.',
+    );
+  }
+
+  Future<OutputProbe> _probeOutput(String location) async {
+    final config = await configProvider();
+    final ffprobe = await _requireFfprobe(config);
+    final result = await Process.run(ffprobe, [
+      '-v',
+      'error',
+      '-print_format',
+      'json',
+      '-show_format',
+      '-show_streams',
+      location,
+    ]).timeout(const Duration(seconds: 30));
+
+    if (result.exitCode != 0) {
+      throw Exception(sanitizeProcessError(result.stderr.toString()));
+    }
+
+    final json = jsonDecode(result.stdout.toString()) as Map<String, dynamic>;
+    return outputProbeFromFfprobeJson(json);
   }
 
   Future<String?> _findOnPath(String binary) async {
@@ -449,6 +649,123 @@ class DesktopMediaBackend implements MediaBackend {
       await file.delete();
       return copied;
     }
+  }
+}
+
+class OutputProbe {
+  const OutputProbe({
+    required this.duration,
+    required this.hasAudio,
+    required this.hasVideo,
+  });
+
+  final Duration duration;
+  final bool hasAudio;
+  final bool hasVideo;
+}
+
+OutputProbe outputProbeFromFfprobeJson(Map<String, dynamic> json) {
+  final streams = (json['streams'] as List? ?? const []).whereType<Map>();
+  var hasAudio = false;
+  var hasVideo = false;
+  double? durationSeconds = doubleValue((json['format'] as Map?)?['duration']);
+
+  for (final raw in streams) {
+    final stream = Map<String, dynamic>.from(raw);
+    final type = stringValue(stream['codec_type']);
+    hasAudio = hasAudio || type == 'audio';
+    hasVideo = hasVideo || type == 'video';
+    final streamDuration = doubleValue(stream['duration']);
+    if (streamDuration != null &&
+        (durationSeconds == null || streamDuration > durationSeconds)) {
+      durationSeconds = streamDuration;
+    }
+  }
+
+  if (!hasAudio && !hasVideo) {
+    throw Exception('This file does not contain audio or video streams.');
+  }
+
+  return OutputProbe(
+    duration: durationFromSeconds(durationSeconds) ?? Duration.zero,
+    hasAudio: hasAudio,
+    hasVideo: hasVideo,
+  );
+}
+
+List<String> _trimCodecArgs(OutputKind outputKind, OutputProbe probe) {
+  if (probe.hasVideo) {
+    return const [
+      '-map',
+      '0:v:0',
+      '-map',
+      '0:a:0?',
+      '-c:v',
+      'libx264',
+      '-preset',
+      'veryfast',
+      '-crf',
+      '20',
+      '-c:a',
+      'aac',
+      '-b:a',
+      '192k',
+      '-movflags',
+      '+faststart',
+    ];
+  }
+
+  return switch (outputKind) {
+    OutputKind.mp3 => const ['-vn', '-c:a', 'libmp3lame', '-q:a', '2'],
+    OutputKind.m4a => const ['-vn', '-c:a', 'aac', '-b:a', '192k'],
+    OutputKind.mp4 => const ['-vn', '-c:a', 'aac', '-b:a', '192k'],
+    OutputKind.original => const ['-vn', '-c:a', 'copy'],
+  };
+}
+
+String _trimExtension(
+  TrimOutputRequest request,
+  File source,
+  OutputProbe probe,
+) {
+  if (probe.hasVideo || request.outputKind == OutputKind.mp4) {
+    return 'mp4';
+  }
+
+  return switch (request.outputKind) {
+    OutputKind.mp3 => 'mp3',
+    OutputKind.m4a => 'm4a',
+    OutputKind.mp4 => 'mp4',
+    OutputKind.original =>
+      source.uri.pathSegments.last
+          .split('.')
+          .last
+          .toLowerCase()
+          .replaceAll(RegExp(r'[^a-z0-9]'), '')
+          .takeIfValidExtension(),
+  };
+}
+
+String _safeBaseName(String value) {
+  final sanitized = value
+      .replaceAll(RegExp(r'[\\/:*?"<>|]+'), '_')
+      .replaceAll(RegExp(r'\s+'), ' ')
+      .trim()
+      .replaceAll(RegExp(r'[. ]+$'), '')
+      .split('')
+      .take(180)
+      .join();
+  return sanitized.isEmpty ? 'dbase-clip' : sanitized;
+}
+
+String _ffmpegTime(Duration duration) {
+  return (duration.inMicroseconds / Duration.microsecondsPerSecond)
+      .toStringAsFixed(3);
+}
+
+extension on String {
+  String takeIfValidExtension() {
+    return RegExp(r'^[a-z0-9]{1,5}$').hasMatch(this) ? this : 'media';
   }
 }
 

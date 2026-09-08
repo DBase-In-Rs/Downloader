@@ -45,7 +45,7 @@ Version: $DEB_VERSION
 Architecture: amd64
 Maintainer: DBase <velimir.majstorov@dbase.in.rs>
 Installed-Size: $INSTALLED_SIZE
-Depends: libgtk-3-0, libc6 (>= 2.35)
+Depends: libgtk-3-0, libc6 (>= 2.35), libmpv2 | libmpv1
 Recommends: ffmpeg, yt-dlp
 Section: net
 Priority: optional

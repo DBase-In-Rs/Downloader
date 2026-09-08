@@ -13,6 +13,7 @@ GPL-3.0-only.
 - FFmpeg legal notes: https://www.ffmpeg.org/legal.html
 - FFmpeg license notes: https://ffmpeg.org/doxygen/8.0/md_LICENSE.html
 - Jackson Databind: https://github.com/FasterXML/jackson-databind
+- media_kit: https://github.com/media-kit/media-kit
 - GPL-3.0 text: https://www.gnu.org/licenses/gpl-3.0.txt
 
 ## Planned Components
@@ -30,6 +31,10 @@ GPL-3.0-only.
 | file_selector | Flutter plugin for the system file picker used for cookies.txt import | BSD-3-Clause | Include in generated Flutter/Dart package notices. |
 | package_info_plus | Flutter plugin exposing the app version shown in Settings | BSD-3-Clause | Include in generated Flutter/Dart package notices. |
 | url_launcher | Flutter plugin that opens the browser-extension links from the cookie guide | BSD-3-Clause | Include in generated Flutter/Dart package notices. |
+| video_player (+ video_player_android) | Trim-editor preview player on Android/iOS/macOS/web | BSD-3-Clause (plugin); Android uses AndroidX Media3/ExoPlayer, Apache-2.0, resolved from Google Maven and built from source by the packager - no prebuilt blobs bundled | Sole preview player on Android; keeps the APK free of prebuilt libmpv so F-Droid builds reproducibly. Include in generated Flutter/Dart notices. |
+| media_kit / media_kit_video | Trim-editor preview player on Windows and Linux only | MIT (Dart/pub packages) | Compiled on Android too but never initialized there (guarded to desktop in main.dart); no native media_kit code runs on Android. |
+| media_kit_libs_windows_video | Bundles prebuilt libmpv + FFmpeg DLLs into the Windows desktop build | mpv is LGPLv2.1+, FFmpeg is LGPL/GPL - GPL-3.0-compatible; native artifacts redistributed only in the Windows binary | Windows release ships these DLLs; include upstream license text and a source offer in the Windows bundle notices. NOT present in the Android APK. |
+| media_kit_libs_linux | Uses the system libmpv on Linux (dynamically loaded) | libmpv LGPLv2.1+ | Not redistributed by us; the .deb declares `libmpv2 \| libmpv1` as a dependency and the tarball documents it. |
 | libwebp 1.5.0 | 16 KB page-aligned replacement builds of the libwebp libraries bundled inside the youtubedl-android FFmpeg artifact | BSD-3-Clause | Built from https://github.com/webmproject/libwebp v1.5.0 with NDK r28.2 (`-Wl,-z,max-page-size=16384`), shipped in `android/app/src/main/jniLibs`. Include license text in release notices. |
 | Desktop yt-dlp binary | Windows/macOS extraction backend | Not bundled | Resolved from PATH or a user-selected path in Settings; nothing is redistributed. |
 | Desktop FFmpeg binary | Windows/macOS conversion backend | Not bundled | User-selected path in Settings passed to yt-dlp via `--ffmpeg-location`; nothing is redistributed. |
@@ -46,6 +51,11 @@ GPL-3.0-only.
 | yt-dlp | bundled by 0.18.1, self-updated at runtime to latest stable (2026.08.19 at audit time) | Unlicense |
 | FFmpeg (Android artifact) | 7.1.1, `--enable-gpl --enable-version3` (runtime-verified) | GPL |
 | Jackson Databind | 2.11.1 | Apache-2.0 |
+| media_kit | 1.2.6 | MIT (desktop-only use) |
+| media_kit_video | 2.0.1 | MIT (desktop-only use) |
+| media_kit_libs_windows_video | 1.0.11 | MIT wrapper; bundles LGPL libmpv/FFmpeg DLLs in the Windows binary only |
+| media_kit_libs_linux | 1.2.1 | MIT wrapper; uses system libmpv (LGPLv2.1+), not redistributed |
+| video_player (+ video_player_android) | 2.9.2 | BSD-3-Clause; Android backend AndroidX Media3/ExoPlayer, Apache-2.0 |
 | libwebp (16 KB-aligned rebuild) | 1.5.0, NDK r28.2 | BSD-3-Clause |
 | Kotlin / AndroidX / AGP toolchain | per `android/` gradle files | Apache-2.0 |
 

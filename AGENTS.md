@@ -24,9 +24,10 @@ platform's normal storage mechanisms.
 Core user flows: paste/type/share a URL; provider detection and tracking-
 parameter cleanup; metadata and format inspection; MP3/M4A/MP4/original
 output; single items and playlists; sequential queue with pause/retry;
-progress with speed/ETA/stage; persistent history with open/share actions;
-optional encrypted cookies for login-required media; self-updating yt-dlp
-engine; in-app update notifications.
+progress with speed/ETA/stage; persistent history with open/share/edit
+actions; audio/video trim editing with selection preview; Android MP3
+ringtone setup; optional encrypted cookies for login-required media;
+self-updating yt-dlp engine; in-app update notifications.
 
 ## Platform Strategy
 
@@ -77,6 +78,28 @@ this section whenever a method, event, or payload field changes.
 - `openOutput {location}` / `shareOutput {location}` -> null. ACTION_VIEW /
   ACTION_SEND for `content://` URIs only. Errors: `invalid_location`,
   `open_failed`, `share_failed`.
+- `prepareOutputForEditing {location}` -> `{location, previewLocation,
+  displayName, durationSeconds, hasAudio, hasVideo, temporaryPreview}`.
+  Probes streams with FFprobe; `content://` inputs are copied to an app-cache
+  preview file because the shared Flutter editor plays local file paths.
+  Errors: `invalid_location`, `prepare_edit_failed`.
+- `releaseEditableOutput {previewLocation, temporaryPreview}` -> null.
+  Deletes backend-owned preview temp files only.
+- `getOutputWaveform {location, width, height}` -> PNG bytes or null.
+  Uses FFmpeg `showwavespic`; returns null when the file has no audio stream
+  or waveform generation fails.
+- `trimOutput {location, startSeconds, endSeconds, outputBaseName,
+  outputKind}` -> `{location, displayName, outputKind, hasAudio, hasVideo}`.
+  Uses FFmpeg; video outputs are saved as MP4, audio outputs follow MP3/M4A
+  or original audio extension. Saves through the selected SAF tree, else
+  MediaStore (Android 10+), else app external files. Errors:
+  `invalid_trim_request`, `trim_failed`.
+- `setAsRingtone {location}` -> null. Android-only MP3 action. If
+  `Settings.System.canWrite()` is false, opens
+  `Settings.ACTION_MANAGE_WRITE_SETTINGS` and returns
+  `write_settings_required`; otherwise copies the MP3 to MediaStore as a
+  ringtone and calls `RingtoneManager.setActualDefaultRingtoneUri`. Errors:
+  `invalid_location`, `write_settings_required`, `ringtone_failed`.
 - `pickOutputFolder` -> folder label or null (ACTION_OPEN_DOCUMENT_TREE with
   persisted write permission); `getOutputFolder` -> label or null (revoked
   permissions are cleared); `clearOutputFolder` -> null.

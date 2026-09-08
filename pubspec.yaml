@@ -18,7 +18,7 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 # of the product and file versions while build-number is used as the build suffix.
 # Pre-release versions keep their suffix here (e.g. 1.0.0-rc.2) so the
 # in-app update checker orders builds correctly.
-version: 1.0.8+15
+version: 1.0.9+16
 
 environment:
   sdk: ^3.13.1
@@ -48,6 +48,18 @@ dependencies:
 
   # Opens browser-extension links from the cookie guide.
   url_launcher: ^6.3.1
+
+  # Trim-editor preview player. Android/iOS/web/macOS use video_player
+  # (AndroidX Media3/ExoPlayer on Android - free software from Google Maven,
+  # no prebuilt blobs, reproducible for F-Droid). Windows/Linux use media_kit
+  # with only the desktop libmpv libs; the Android libmpv package
+  # (media_kit_libs_android_video, which downloads a prebuilt blob at build
+  # time) is intentionally NOT depended on so the APK stays F-Droid-clean.
+  video_player: ^2.9.2
+  media_kit: ^1.2.6
+  media_kit_video: ^2.0.1
+  media_kit_libs_windows_video: ^1.0.11
+  media_kit_libs_linux: ^1.2.1
 
 dev_dependencies:
   flutter_test:

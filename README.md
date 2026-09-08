@@ -101,7 +101,9 @@ sudo apt install dbase-downloader
 
 **Tarball**: download `...-linux-x64.tar.gz` from the
 [latest release](https://github.com/DBase-In-Rs/Downloader/releases/latest),
-extract, and run `./dbase_downloader`.
+extract, and run `./dbase_downloader`. The tarball needs `libmpv`
+(`sudo apt install libmpv2` or `libmpv1`) for the trim-editor preview; the
+apt package pulls it in automatically.
 
 Requires `ffmpeg` (`sudo apt install ffmpeg`) and a recent
 [yt-dlp](https://github.com/yt-dlp/yt-dlp/releases/latest) (the distro
@@ -122,7 +124,10 @@ command for your distribution (apt/dnf/pacman/zypper).
 - Live progress with speed, ETA, and stage; Android downloads continue in
   the background through a foreground service.
 - Download history with search, provider filter, open/share/show-in-folder
-  actions, and per-item delete.
+  actions, trim editing, MP3 tag editing, Android MP3 ringtone setup, and
+  per-item delete.
+- Audio/video trim editor for finished files: preview the whole item, play or
+  loop only the selected range, adjust start/end, and save a separate clip.
 - Saves through Android MediaStore or a user-selected folder (SAF); desktop
   saves to Downloads or a configured folder.
 - Encrypted `cookies.txt` import for login-required media, with an in-app
@@ -131,7 +136,7 @@ command for your distribution (apt/dnf/pacman/zypper).
 - In-app update notifications with a direct download for your platform.
 - Engine Check on desktop: detects yt-dlp/FFmpeg and shows per-platform
   install help (winget on Windows; apt/dnf/pacman/zypper or the software
-  center on Linux). Android bundles both tools, so no setup is needed.
+center on Linux). Android bundles both tools, so no setup is needed.
 - Theme matched to the logo: royal blue app bar and controls with red
   accents.
 
@@ -223,6 +228,18 @@ flags.
 
 See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) for the current compliance
 checklist.
+
+## ⚖️ Responsible use
+
+DBase Downloader is a general-purpose tool that fetches media from URLs **you**
+provide. You are responsible for how you use it. Only download content you have
+the right to save — because you own it, it is offered for download, its licence
+permits it, or it is in the public domain. Respect each site's Terms of Service
+and applicable copyright law in your jurisdiction (including the DMCA in the US
+and the EU Copyright Directive). Do not use it to infringe copyright or bypass
+paid/DRM-protected content; the app does not circumvent DRM. The developers
+distribute the software only and are not responsible for user-supplied URLs or
+downloaded content.
 
 ## 🤝 Contributing
 

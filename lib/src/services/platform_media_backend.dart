@@ -137,6 +137,62 @@ class PlatformMediaBackend implements MediaBackend {
   }
 
   @override
+  Future<EditableOutput> prepareOutputForEditing(String location) async {
+    final result = await _methodChannel.invokeMapMethod<Object?, Object?>(
+      'prepareOutputForEditing',
+      {'location': location},
+    );
+
+    if (result == null) {
+      throw StateError('Native backend returned no editable output.');
+    }
+
+    return EditableOutput.fromMap(result);
+  }
+
+  @override
+  Future<void> releaseEditableOutput(EditableOutput output) {
+    return _methodChannel.invokeMethod<void>('releaseEditableOutput', {
+      'previewLocation': output.previewLocation,
+      'temporaryPreview': output.temporaryPreview,
+    });
+  }
+
+  @override
+  Future<Uint8List?> loadOutputWaveform(
+    String location, {
+    int width = 1200,
+    int height = 220,
+  }) {
+    return _methodChannel.invokeMethod<Uint8List>('getOutputWaveform', {
+      'location': location,
+      'width': width,
+      'height': height,
+    });
+  }
+
+  @override
+  Future<TrimmedOutput> trimOutput(TrimOutputRequest request) async {
+    final result = await _methodChannel.invokeMapMethod<Object?, Object?>(
+      'trimOutput',
+      request.toMap(),
+    );
+
+    if (result == null) {
+      throw StateError('Native backend returned no trim result.');
+    }
+
+    return TrimmedOutput.fromMap(result);
+  }
+
+  @override
+  Future<void> setAsRingtone(String location) {
+    return _methodChannel.invokeMethod<void>('setAsRingtone', {
+      'location': location,
+    });
+  }
+
+  @override
   void dispose() {}
 
   BackendEvent _eventFromPlatform(Object? payload) {

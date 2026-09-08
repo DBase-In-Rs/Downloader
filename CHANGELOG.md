@@ -8,6 +8,32 @@ versioning once releases begin.
 
 ## [Unreleased]
 
+## [1.0.9] - 2026-09-08
+
+### Added
+
+- Audio/video trim editor for completed History items, with whole-file
+  playback, selected-range playback, looped selected-range playback,
+  draggable start/end selection, and save-as-new-clip behavior.
+- Android MP3 ringtone action for completed MP3 files. The app opens the
+  system write-settings access screen only when the user invokes the action.
+
+### Changed
+
+- Trim-editor preview player is now platform-split so the Android build stays
+  free of prebuilt native blobs: Android/iOS/macOS/web use `video_player`
+  (AndroidX Media3/ExoPlayer on Android, built from source, no bundled
+  binaries), while Windows and Linux use `media_kit`. This keeps the F-Droid
+  build reproducible and scanner-clean; the Windows binary bundles libmpv and
+  the Linux package depends on the system `libmpv`.
+
+### Fixed
+
+- Trimming on Android failed with "ffprobe was not found in the FFmpeg
+  package": the app now runs the youtubedl-android ffmpeg/ffprobe binaries
+  from the native library directory with the correct `LD_LIBRARY_PATH`, so
+  probing and trimming work on-device.
+
 ## [1.0.8] - 2026-08-31
 
 ### Added

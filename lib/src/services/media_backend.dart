@@ -39,6 +39,27 @@ abstract class MediaBackend {
   /// Replaces the content of a finished output.
   Future<void> writeOutputBytes(String location, Uint8List bytes);
 
+  /// Prepares a saved output for local editing and playback.
+  Future<EditableOutput> prepareOutputForEditing(String location);
+
+  /// Deletes any backend-owned preview resources from [output].
+  Future<void> releaseEditableOutput(EditableOutput output);
+
+  /// Static waveform image bytes for an output, or null when no audio stream
+  /// is available.
+  Future<Uint8List?> loadOutputWaveform(
+    String location, {
+    int width = 1200,
+    int height = 220,
+  });
+
+  /// Saves the selected time range as a new output file.
+  Future<TrimmedOutput> trimOutput(TrimOutputRequest request);
+
+  /// Sets an existing audio output as Android's default ringtone. Non-Android
+  /// backends throw an unsupported error.
+  Future<void> setAsRingtone(String location);
+
   void dispose() {}
 }
 

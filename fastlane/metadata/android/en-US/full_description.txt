@@ -9,6 +9,8 @@ DBase Video & Music Downloader saves video and audio from any of the 1,750+ webs
 * Sequential download queue with pause/resume, retry, cancel, and persistence across restarts
 * Live progress with speed, ETA, and stage; downloads continue in the background through a foreground service
 * Download history with search, provider filter, open/share actions, and per-item delete
+* Rename saved files, edit MP3 tags, and trim audio/video into a new clip
+* Set any saved MP3 as your ringtone (asks for the permission only then)
 * Saves through Android MediaStore or a user-selected folder (SAF)
 * Encrypted cookies.txt import for login-required media, with an in-app export guide, expired-cookie detection, and one-tap delete
 * Manual yt-dlp engine update from Settings
@@ -16,3 +18,7 @@ DBase Video & Music Downloader saves video and audio from any of the 1,750+ webs
 <b>Privacy</b>
 
 The app is fully local — no accounts, no analytics, no tracking or ad SDKs, and no project-operated backend. Cookies are encrypted at rest (Android Keystore), passed only to yt-dlp requests, never uploaded anywhere, and deletable from Settings at any time. Network requests go only to the media providers you download from (plus GitHub when you manually update the yt-dlp engine).
+
+<b>Responsible use</b>
+
+You provide the URLs and are responsible for how you use the app. Only download content you have the right to save, and respect each site's terms and the copyright law in your country. The app does not bypass DRM.
