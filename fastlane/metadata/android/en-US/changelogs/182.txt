@@ -1,0 +1,2 @@
+* Android build tooling update (Android Gradle plugin 9.4.0)
+* No user-facing changes

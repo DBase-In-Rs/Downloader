@@ -8,6 +8,13 @@ versioning once releases begin.
 
 ## [Unreleased]
 
+## [1.0.11] - 2026-09-11
+
+### Changed
+
+- Android build tooling: bumped the Android Gradle plugin to 9.4.0. No
+  user-facing changes.
+
 ## [1.0.10] - 2026-09-08
 
 ### Added
