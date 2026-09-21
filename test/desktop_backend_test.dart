@@ -77,6 +77,28 @@ void main() {
     expect(info.formats[1].filesizeBytes, 148000000);
   });
 
+  test('keeps codec-less audio and removes helper formats', () {
+    final info = mediaInfoFromYtDlpJson({
+      'formats': [
+        {'format_id': '128', 'ext': 'm4a', 'abr': 128},
+        {
+          'format_id': 'sb0',
+          'ext': 'mhtml',
+          'vcodec': 'images',
+          'acodec': 'none',
+          'format_note': 'storyboard',
+        },
+        {'format_id': 'meta', 'ext': 'xml'},
+        {'format_id': 'mystery', 'ext': 'unknown'},
+      ],
+    }, 'https://www.jiosaavn.com/song/example/id');
+
+    expect(info.formats, hasLength(1));
+    expect(info.formats.single.id, '128');
+    expect(info.formats.single.kind, MediaKind.audio);
+    expect(info.formats.single.extension, 'm4a');
+  });
+
   test('maps flat playlist JSON and resolves provider ids', () {
     final playlist = playlistInfoFromYtDlpJson({
       'title': 'My playlist',

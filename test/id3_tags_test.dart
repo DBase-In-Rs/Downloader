@@ -44,10 +44,7 @@ void main() {
     expect(read.comment, isNull);
 
     // The audio payload survives at the end of the file.
-    final tail = Uint8List.sublistView(
-      tagged,
-      tagged.length - audio.length,
-    );
+    final tail = Uint8List.sublistView(tagged, tagged.length - audio.length);
     expect(tail, audio);
   });
 
@@ -77,14 +74,23 @@ void main() {
     final content = <int>[0, ...'Rock'.codeUnits];
     final frame = <int>[
       ...'TCON'.codeUnits,
-      0, 0, 0, content.length,
-      0, 0,
+      0,
+      0,
+      0,
+      content.length,
+      0,
+      0,
       ...content,
     ];
     final tag = <int>[
       ...'ID3'.codeUnits,
-      3, 0, 0,
-      0, 0, (frame.length >> 7) & 0x7F, frame.length & 0x7F,
+      3,
+      0,
+      0,
+      0,
+      0,
+      (frame.length >> 7) & 0x7F,
+      frame.length & 0x7F,
       ...frame,
     ];
     final file = Uint8List.fromList([...tag, ...fakeAudio()]);

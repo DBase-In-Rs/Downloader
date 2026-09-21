@@ -61,6 +61,7 @@ class AppController extends ChangeNotifier {
   EngineUpdateState _engineUpdateState = EngineUpdateState.idle;
   String? _engineVersion;
   String? _engineUpdateMessage;
+  bool _sharedDownloadPromptPending = false;
   bool _queuePaused = false;
   int _idSequence = 0;
 
@@ -127,6 +128,10 @@ class AppController extends ChangeNotifier {
   String? get engineVersion => _engineVersion;
 
   String? get engineUpdateMessage => _engineUpdateMessage;
+
+  bool get sharedDownloadPromptReady =>
+      _sharedDownloadPromptPending &&
+      _extractionState == ExtractionState.loaded;
 
   bool get queuePaused => _queuePaused;
 
@@ -376,6 +381,60 @@ class AppController extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Builds a privacy-safe report suitable for pasting into a public issue.
+  /// It intentionally excludes source URLs, direct media URLs, cookies,
+  /// headers, tokens, file paths, and raw extractor output.
+  Future<String> diagnosticReport() async {
+    final package = await PackageInfo.fromPlatform();
+    try {
+      _engineVersion = await backend.getEngineVersion() ?? _engineVersion;
+    } catch (_) {
+      // Keep the last known value when an offline/backend check fails.
+    }
+    final failed = [
+      ..._queue.where((item) => item.status == DownloadStatus.failed),
+      ..._history.where((item) => item.status == DownloadStatus.failed),
+    ].lastOrNull;
+    final providerId = failed?.providerId ?? currentProvider.id;
+    final rawProvider = failed?.providerName ?? currentProvider.displayName;
+    final provider = providerId.startsWith('site:')
+        ? 'Uncataloged provider'
+        : rawProvider;
+    final output = failed?.outputKind ?? _outputKind;
+    final formatId = failed?.format.id;
+    final failure = failed?.errorMessage ?? _errorMessage;
+    return <String>[
+      'DBase Downloader diagnostic report',
+      'App: ${package.version} (build ${package.buildNumber})',
+      'Platform: ${defaultTargetPlatform.name}',
+      'yt-dlp: ${_engineVersion ?? 'unknown - check for engine updates first'}',
+      'Provider: $provider',
+      'Output: ${outputKindLabel(output)}',
+      if (formatId != null && formatId.isNotEmpty) 'Format ID: $formatId',
+      'Cookies configured: ${_cookieStatus.configured}',
+      if (failure != null && failure.isNotEmpty)
+        'Error: ${_diagnosticSanitize(failure, privateProvider: providerId.startsWith('site:') ? rawProvider : null)}',
+      'Private URLs, cookies, tokens, headers, and file paths: not included',
+    ].join('\n');
+  }
+
+  String _diagnosticSanitize(String value, {String? privateProvider}) {
+    var safe = value
+        .replaceAll(RegExp(r'https?://\S+', caseSensitive: false), '<url>')
+        .replaceAll(RegExp(r'[A-Za-z]:\\\S+'), '<path>')
+        .replaceAll(
+          RegExp(
+            r'(cookie|token|auth|session)[^\s&=]*=([^\s&]+)',
+            caseSensitive: false,
+          ),
+          r'$1=<redacted>',
+        );
+    if (privateProvider != null && privateProvider.isNotEmpty) {
+      safe = safe.replaceAll(privateProvider, 'Uncataloged provider');
+    }
+    return safe;
+  }
+
   /// True when the Home screen holds anything a user may want to clear.
   bool get hasAnalysisContent =>
       _urlText.trim().isNotEmpty ||
@@ -450,12 +509,36 @@ class AppController extends ChangeNotifier {
     // A shared or clipboard link behaves like a typed one: it lands on
     // Home and analysis starts right away so the format options appear.
     _urlText = normalizeMediaUrl(url);
+    _sharedDownloadPromptPending = true;
     _section = AppSection.home;
     _errorMessage = null;
     notifyListeners();
     if (isValidUrl(_urlText)) {
       unawaited(analyzeUrl());
     }
+  }
+
+  bool takeSharedDownloadPrompt() {
+    if (!sharedDownloadPromptReady) {
+      return false;
+    }
+    _sharedDownloadPromptPending = false;
+    return true;
+  }
+
+  Future<void> startPresetDownload(OutputKind outputKind) async {
+    final info = _mediaInfo;
+    if (info == null) {
+      return;
+    }
+    _outputKind = outputKind;
+    await _enqueue(
+      url: info.url,
+      title: info.title,
+      format: presetFormatFor(outputKind),
+      outputKind: outputKind,
+      provider: resolveMediaProvider(url: info.url, extractor: info.extractor),
+    );
   }
 
   Future<void> analyzeUrl() async {

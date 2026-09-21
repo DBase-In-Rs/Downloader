@@ -1047,9 +1047,7 @@ class _EditorMessage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = dark
-        ? Colors.white70
-        : Theme.of(context).colorScheme.outline;
+    final color = dark ? Colors.white70 : Theme.of(context).colorScheme.outline;
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(24),

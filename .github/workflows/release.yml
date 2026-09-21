@@ -172,7 +172,10 @@ jobs:
             build/dbase-downloader-*-linux-amd64.deb
 
       - name: Publish deb to apt repo
-        if: startsWith(github.ref, 'refs/tags/')
+        # Tag builds are GitHub-only until the maintainer has tested the
+        # published artifacts. Publish to the external apt repository only
+        # from an explicit manual release run.
+        if: github.event_name == 'workflow_dispatch'
         env:
           PEACE_SSH_KEY: ${{ secrets.PEACE_SSH_KEY }}
           PEACE_SSH_HOST: ${{ secrets.PEACE_SSH_HOST }}

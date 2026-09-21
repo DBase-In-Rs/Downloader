@@ -185,6 +185,15 @@ class DesktopMediaBackend implements MediaBackend {
             );
             return;
           }
+          if (await output.length() == 0) {
+            _emit(
+              DownloadFailedEvent(
+                id: request.id,
+                message: 'Download produced an empty output file.',
+              ),
+            );
+            return;
+          }
 
           final saved = await _moveToOutputDirectory(output, config);
           _emit(
@@ -235,6 +244,17 @@ class DesktopMediaBackend implements MediaBackend {
       updated: update.stdout.toString().contains('Updated yt-dlp'),
       version: version.stdout.toString().trim(),
     );
+  }
+
+  @override
+  Future<String?> getEngineVersion() async {
+    final config = await configProvider();
+    final ytDlp = await _requireYtDlp(config);
+    final result = await Process.run(ytDlp, ['--version']);
+    if (result.exitCode != 0) {
+      return null;
+    }
+    return result.stdout.toString().trim();
   }
 
   @override
@@ -857,14 +877,25 @@ MediaFormat? _formatFromYtDlpJson(Map<String, dynamic> json) {
     return null;
   }
 
+  final extension = (stringValue(json['ext']) ?? 'unknown').toLowerCase();
   final vcodec = stringValue(json['vcodec']);
   final acodec = stringValue(json['acodec']);
-  final hasVideo = vcodec != null && vcodec.isNotEmpty && vcodec != 'none';
-  final hasAudio = acodec != null && acodec.isNotEmpty && acodec != 'none';
+  final note = stringValue(json['format_note']);
+  final imageOnly =
+      vcodec?.toLowerCase() == 'images' ||
+      (note?.toLowerCase().contains('storyboard') ?? false);
+  var hasVideo =
+      !imageOnly && vcodec != null && vcodec.isNotEmpty && vcodec != 'none';
+  var hasAudio = acodec != null && acodec.isNotEmpty && acodec != 'none';
+  if (!hasVideo && !hasAudio && _audioExtensions.contains(extension)) {
+    hasAudio = true;
+  }
+  if ((!hasVideo && !hasAudio) || _nonMediaExtensions.contains(extension)) {
+    return null;
+  }
   final height = intValue(json['height']);
   final abr = intValue(json['abr']);
   final tbr = intValue(json['tbr']);
-  final note = stringValue(json['format_note']);
 
   final qualityLabel = note?.isNotEmpty == true
       ? note!
@@ -878,7 +909,7 @@ MediaFormat? _formatFromYtDlpJson(Map<String, dynamic> json) {
 
   return MediaFormat(
     id: id,
-    extension: stringValue(json['ext']) ?? 'unknown',
+    extension: extension,
     kind: hasVideo && hasAudio
         ? MediaKind.muxed
         : hasVideo
@@ -904,6 +935,9 @@ MediaFormat? _formatFromYtDlpJson(Map<String, dynamic> json) {
     note: note,
   );
 }
+
+const _audioExtensions = {'mp3', 'm4a', 'aac', 'opus', 'ogg', 'wav', 'flac'};
+const _nonMediaExtensions = {'xml', 'json', 'url', 'mhtml', 'html'};
 
 PlaylistInfo playlistInfoFromYtDlpJson(Map<String, dynamic> json, String url) {
   final entries = (json['entries'] as List? ?? const [])

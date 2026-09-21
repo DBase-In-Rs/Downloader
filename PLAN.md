@@ -1,5 +1,22 @@
 # DBase Video & Music Downloader Plan
 
+## Issue follow-up - 1.0.12 (implementation complete, device QA pending)
+
+- [x] Filter helper/storyboard/non-media formats from Android and desktop
+      metadata results.
+- [x] Treat codec-less JioSaavn M4A formats as audio and reject blank Android
+      outputs before saving.
+- [x] Add thumbnail-backed Best audio/Best video actions and keep detailed
+      choices under Advanced formats.
+- [x] Add a post-analysis share popup for audio/video/details; playlists remain
+      explicit item-selection flows.
+- [x] Add privacy-safe diagnostics with app/platform/engine/provider/output/
+      format/error context and no URLs, cookies, tokens, headers, or paths.
+- [x] Integrate the Kotlin 2.4.20 update from GitHub PR #4 locally.
+- [ ] Real-device Android QA: YouTube MP4/MP3, JioSaavn 128/320 kbps and
+      shared-link popup.
+- [ ] Maintainer local app review before any commit or push.
+
 Status: 1.0.0 stable released on 2026-08-27 for Android, Windows, and Linux
 (CI-built, installer + apt repo live, winget manifest submitted, F-Droid recipe
 submitted); remaining work is tracked below.

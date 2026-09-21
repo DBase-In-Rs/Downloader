@@ -37,11 +37,18 @@ class AppUpdateService {
     final client = HttpClient();
     try {
       final request = await client.getUrl(
-        Uri.parse('https://api.github.com/repos/$repository/releases?per_page=10'),
+        Uri.parse(
+          'https://api.github.com/repos/$repository/releases?per_page=10',
+        ),
       );
       request.headers.set(HttpHeaders.userAgentHeader, 'dbase-downloader');
-      request.headers.set(HttpHeaders.acceptHeader, 'application/vnd.github+json');
-      final response = await request.close().timeout(const Duration(seconds: 15));
+      request.headers.set(
+        HttpHeaders.acceptHeader,
+        'application/vnd.github+json',
+      );
+      final response = await request.close().timeout(
+        const Duration(seconds: 15),
+      );
       if (response.statusCode != 200) {
         return null;
       }

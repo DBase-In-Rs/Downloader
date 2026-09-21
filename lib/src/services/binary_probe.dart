@@ -34,16 +34,12 @@ class DesktopBinaryProbe {
   Future<EngineProbe> probe() async {
     final config = await _configProvider();
     final results = await Future.wait([
-      _run(
-        config.ytDlpPath ?? 'yt-dlp',
-        const ['--version'],
-        ytDlpVersionFromOutput,
-      ),
-      _run(
-        _ffmpegExecutable(config.ffmpegPath),
-        const ['-version'],
-        ffmpegVersionFromOutput,
-      ),
+      _run(config.ytDlpPath ?? 'yt-dlp', const [
+        '--version',
+      ], ytDlpVersionFromOutput),
+      _run(_ffmpegExecutable(config.ffmpegPath), const [
+        '-version',
+      ], ffmpegVersionFromOutput),
     ]);
     return EngineProbe(ytDlp: results[0], ffmpeg: results[1]);
   }

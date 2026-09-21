@@ -407,6 +407,24 @@ class MainActivity : FlutterActivity() {
                     }
                 }
 
+                "getEngineVersion" -> {
+                    controlExecutor.execute {
+                        try {
+                            ensureYoutubeDlInitialized()
+                            val version = YoutubeDL.getInstance().version(applicationContext)
+                            mainHandler.post { result.success(version) }
+                        } catch (error: Throwable) {
+                            mainHandler.post {
+                                result.error(
+                                    "engine_version_failed",
+                                    sanitizeNativeError(error),
+                                    null,
+                                )
+                            }
+                        }
+                    }
+                }
+
                 "getCookieStatus" -> result.success(
                     mapOf(
                         "configured" to CookieVault.isConfigured(applicationContext),
@@ -905,8 +923,17 @@ class MainActivity : FlutterActivity() {
 
     private fun videoFormatToMap(format: VideoFormat): Map<String, Any?>? {
         val id = format.formatId ?: return null
-        val hasVideo = !format.vcodec.isNullOrBlank() && format.vcodec != "none"
-        val hasAudio = !format.acodec.isNullOrBlank() && format.acodec != "none"
+        val extension = format.ext?.lowercase() ?: "unknown"
+        val imageOnly = format.vcodec.equals("images", ignoreCase = true) ||
+            format.formatNote?.contains("storyboard", ignoreCase = true) == true
+        val hasVideo = !imageOnly &&
+            !format.vcodec.isNullOrBlank() &&
+            format.vcodec != "none"
+        val hasAudioCodec = !format.acodec.isNullOrBlank() && format.acodec != "none"
+        val hasAudio = hasAudioCodec || (!hasVideo && extension in AUDIO_EXTENSIONS)
+        if ((!hasVideo && !hasAudio) || extension in NON_MEDIA_EXTENSIONS) {
+            return null
+        }
         val kind = when {
             hasVideo && hasAudio -> "muxed"
             hasVideo -> "video"
@@ -925,7 +952,7 @@ class MainActivity : FlutterActivity() {
 
         return mapOf(
             "id" to id,
-            "extension" to (format.ext ?: "unknown"),
+            "extension" to extension,
             "kind" to kind,
             "qualityLabel" to qualityLabelFor(format),
             "width" to format.width.takeIf { it > 0 },
@@ -1009,6 +1036,14 @@ class MainActivity : FlutterActivity() {
                     .filter { it.isFile && !it.name.endsWith(".part") }
                     .maxByOrNull { it.lastModified() }
                     ?: throw IllegalStateException("Download finished without an output file.")
+
+                require(outputFile.length() > 0L) {
+                    "Download produced an empty output file."
+                }
+                val outputProbe = probeOutput(outputFile.absolutePath)
+                require(outputProbe.hasAudio || outputProbe.hasVideo) {
+                    "Download produced a file without a playable audio or video stream."
+                }
 
                 if (!wasCanceled(id)) {
                     val (outputLocation, displayName) = saveOutputFile(outputFile, outputKind)
@@ -2040,6 +2075,8 @@ class MainActivity : FlutterActivity() {
             "libwebpdemux.so",
             "libwebpmux.so",
         )
+        private val AUDIO_EXTENSIONS = setOf("mp3", "m4a", "aac", "opus", "ogg", "wav", "flac")
+        private val NON_MEDIA_EXTENSIONS = setOf("xml", "json", "url", "mhtml", "html")
         private val FFMPEG_OUT_TIME_REGEX = Regex("""out_time_us=(\d+)""")
         private val progressMetricsRegex = Regex(
             """of\s+~?\s*(?<totalValue>[0-9.]+)\s*(?<totalUnit>[KMGT]?i?B|[KMGT]?B)\s+at\s+(?<speedValue>[0-9.]+)\s*(?<speedUnit>[KMGT]?i?B|[KMGT]?B)/s""",

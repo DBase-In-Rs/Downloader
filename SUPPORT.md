@@ -17,5 +17,10 @@ Before opening an issue, include:
 - selected output format;
 - relevant logs with cookies, tokens, and private URL parameters removed.
 
+On version 1.0.12 or newer, open Settings and use **Copy diagnostic report**
+on the Downloader Engine card. Paste that report into the issue together with
+the reproduction steps. The report excludes URLs, cookies, tokens, headers,
+and local file paths.
+
 Do not post account cookies, passwords, private links, or copyrighted media
 files in public issues.

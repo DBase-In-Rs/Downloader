@@ -101,6 +101,9 @@ class ManualMediaBackend implements MediaBackend {
   }
 
   @override
+  Future<String?> getEngineVersion() async => '2026.08.20';
+
+  @override
   Future<CookieStatus> getCookieStatus() async => const CookieStatus.empty();
 
   @override
@@ -1221,10 +1224,30 @@ void main() {
     expect(controller.extractionState, ExtractionState.loaded);
     expect(controller.mediaInfo, isNotNull);
     expect(controller.visibleFormats, isNotEmpty);
+    expect(controller.sharedDownloadPromptReady, isTrue);
+    expect(controller.takeSharedDownloadPrompt(), isTrue);
+    expect(controller.sharedDownloadPromptReady, isFalse);
     expect(backend.infoCalls, 1);
     // Nothing downloads until the user picks a format.
     expect(controller.queue, isEmpty);
     expect(backend.started, isEmpty);
+  });
+
+  test('shared quick download uses safe best-format presets', () async {
+    final backend = ManualMediaBackend();
+    final controller = AppController(
+      backend: backend,
+      sharedUrlService: const FakeSharedUrlService(),
+    );
+    addTearDown(controller.dispose);
+    await controller.initialize();
+    controller.receiveSharedText('https://youtu.be/clip123');
+    await pumpEventQueue();
+
+    await controller.startPresetDownload(OutputKind.mp4);
+
+    expect(controller.queue.single.format.id, 'bestvideo*+bestaudio/best');
+    expect(controller.queue.single.outputKind, OutputKind.mp4);
   });
 
   test('tuning settings reach the download request', () async {

@@ -136,10 +136,7 @@ _Id3Tag? _parseTag(Uint8List bytes) {
   final flags = bytes[5];
   final size = _readSyncSafe(bytes, 6);
   final hasFooter = major == 4 && (flags & 0x10) != 0;
-  final totalLength = (10 + size + (hasFooter ? 10 : 0)).clamp(
-    0,
-    bytes.length,
-  );
+  final totalLength = (10 + size + (hasFooter ? 10 : 0)).clamp(0, bytes.length);
 
   // Unsynchronised/extended/compressed layouts are rare and not worth the
   // parser complexity; the whole tag is replaced instead of merged.
@@ -299,13 +296,10 @@ String _decodeTagString(int encoding, Uint8List bytes, int start, int end) {
       while (to > from && bytes[to - 1] == 0) {
         to--;
       }
-      decoded = String.fromCharCodes(
-        Uint8List.sublistView(bytes, from, to),
-      );
+      decoded = String.fromCharCodes(Uint8List.sublistView(bytes, from, to));
       try {
-        decoded = const Utf8Decoder(
-          allowMalformed: true,
-        ).convert(bytes, from, to);
+        decoded = const Utf8Decoder(allowMalformed: true)
+            .convert(bytes, from, to);
       } catch (_) {
         // Keep the latin-1 interpretation.
       }

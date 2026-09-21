@@ -8,6 +8,28 @@ versioning once releases begin.
 
 ## [Unreleased]
 
+### Added
+
+- Shared links now offer a quick Audio, Video, or detailed-format choice after
+  analysis; playlists continue to open for item selection.
+- Settings can copy a privacy-safe diagnostic report containing app/platform,
+  yt-dlp version, provider, output choice, format id, and sanitized error. It
+  never includes source/direct URLs, cookies, tokens, headers, or file paths.
+
+### Changed
+
+- Media results now lead with thumbnail-backed Best audio and Best video
+  actions, with individual playable formats available under Advanced formats.
+- Android build tooling now uses Kotlin 2.4.20.
+
+### Fixed
+
+- XML, URL, JSON, MHTML, storyboard, and codec-less non-media entries are no
+  longer offered as downloadable formats.
+- Codec-less JioSaavn M4A results are recognized as audio instead of Unknown.
+- Android rejects empty downloads and outputs without a playable audio/video
+  stream instead of saving a blank file.
+
 ## [1.0.11] - 2026-09-11
 
 ### Changed

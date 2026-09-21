@@ -32,10 +32,7 @@ void main() {
       linuxInstallCommand('ID=debian\n'),
       'sudo apt install yt-dlp ffmpeg',
     );
-    expect(
-      linuxInstallCommand('ID=arch\n'),
-      'sudo pacman -S yt-dlp ffmpeg',
-    );
+    expect(linuxInstallCommand('ID=arch\n'), 'sudo pacman -S yt-dlp ffmpeg');
     expect(
       linuxInstallCommand('ID=manjaro\nID_LIKE=arch\n'),
       'sudo pacman -S yt-dlp ffmpeg',

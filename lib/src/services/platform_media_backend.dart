@@ -64,6 +64,11 @@ class PlatformMediaBackend implements MediaBackend {
   }
 
   @override
+  Future<String?> getEngineVersion() {
+    return _methodChannel.invokeMethod<String>('getEngineVersion');
+  }
+
+  @override
   Future<CookieStatus> getCookieStatus() async {
     final result = await _methodChannel.invokeMapMethod<Object?, Object?>(
       'getCookieStatus',

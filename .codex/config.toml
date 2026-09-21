@@ -1,0 +1,8 @@
+[mcp_servers.mempalace]
+command = "D:\\MemPalaceData\\uv\\bin\\mempalace-mcp.exe"
+args = []
+startup_timeout_sec = 120
+
+  [mcp_servers.mempalace.env]
+  HF_HOME = "D:\\MemPalaceData\\hf-cache"
+  MEMPALACE_PALACE_PATH = "D:\\MemPalaceData\\palace"

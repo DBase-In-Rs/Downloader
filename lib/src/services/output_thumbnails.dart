@@ -16,9 +16,8 @@ class OutputThumbnails {
 
     return _cache.putIfAbsent(
       location,
-      () => backend
-          .loadOutputThumbnail(location)
-          .catchError((Object _) => null),
+      () =>
+          backend.loadOutputThumbnail(location).catchError((Object _) => null),
     );
   }
 

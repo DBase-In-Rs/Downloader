@@ -15,7 +15,8 @@ Map<String, dynamic> release(
       for (final name in assets)
         {
           'name': name,
-          'browser_download_url': 'https://github.com/x/y/releases/download/$tag/$name',
+          'browser_download_url':
+              'https://github.com/x/y/releases/download/$tag/$name',
         },
     ],
   };
@@ -58,10 +59,7 @@ void main() {
 
   test('stable installs are not offered pre-releases', () {
     final update = updateFromReleases(
-      [
-        release('v1.1.0-rc.1', prerelease: true),
-        release('v1.0.0'),
-      ],
+      [release('v1.1.0-rc.1', prerelease: true), release('v1.0.0')],
       '1.0.0',
       platformAssetMarker: 'windows-x64',
     );
@@ -71,7 +69,9 @@ void main() {
 
   test('pre-release installs are offered the newer stable', () {
     final update = updateFromReleases(
-      [release('v1.0.0', assets: ['app-arm64-v8a-release.apk'])],
+      [
+        release('v1.0.0', assets: ['app-arm64-v8a-release.apk']),
+      ],
       '1.0.0-rc.2',
       platformAssetMarker: 'arm64-v8a',
     );

@@ -1159,10 +1159,32 @@ class _EngineCard extends StatelessWidget {
                 child: CircularProgressIndicator(strokeWidth: 2),
               )
             else
-              IconButton(
-                tooltip: 'Check for engine updates',
-                onPressed: controller.updateEngine,
-                icon: const Icon(Icons.system_update_alt),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  IconButton(
+                    tooltip: 'Copy diagnostic report',
+                    onPressed: () async {
+                      final report = await controller.diagnosticReport();
+                      await Clipboard.setData(ClipboardData(text: report));
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text(
+                              'Diagnostic report copied without URLs, cookies, or tokens.',
+                            ),
+                          ),
+                        );
+                      }
+                    },
+                    icon: const Icon(Icons.content_copy),
+                  ),
+                  IconButton(
+                    tooltip: 'Check for engine updates',
+                    onPressed: controller.updateEngine,
+                    icon: const Icon(Icons.system_update_alt),
+                  ),
+                ],
               ),
           ],
         ),

@@ -40,13 +40,19 @@ void main() {
     // A max below the min is dropped instead of producing an invalid pair.
     expect(
       tuningArgs(
-        const DownloadTuning(sleepIntervalSeconds: 5, maxSleepIntervalSeconds: 2),
+        const DownloadTuning(
+          sleepIntervalSeconds: 5,
+          maxSleepIntervalSeconds: 2,
+        ),
       ),
       containsAll(['--sleep-interval']),
     );
     expect(
       tuningArgs(
-        const DownloadTuning(sleepIntervalSeconds: 5, maxSleepIntervalSeconds: 2),
+        const DownloadTuning(
+          sleepIntervalSeconds: 5,
+          maxSleepIntervalSeconds: 2,
+        ),
       ),
       isNot(contains('--max-sleep-interval')),
     );

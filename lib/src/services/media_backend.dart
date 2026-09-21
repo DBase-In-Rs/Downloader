@@ -17,6 +17,9 @@ abstract class MediaBackend {
   /// Updates the bundled media engine (yt-dlp) to the latest stable release.
   Future<EngineUpdateResult> updateEngine();
 
+  /// Returns the installed yt-dlp version without updating it.
+  Future<String?> getEngineVersion();
+
   Future<CookieStatus> getCookieStatus();
 
   /// Stores the raw `cookies.txt` content in platform-encrypted storage.

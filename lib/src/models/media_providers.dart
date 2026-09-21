@@ -963,7 +963,9 @@ MediaProviderInfo storedMediaProvider({
 
     return MediaProviderInfo(
       id: providerId,
-      displayName: providerName?.isNotEmpty == true ? providerName! : providerId,
+      displayName: providerName?.isNotEmpty == true
+          ? providerName!
+          : providerId,
       tier: MediaProviderTier.generic,
       domains: const [],
       extractorNames: const [],

@@ -66,7 +66,9 @@ void main() {
     await tester.pump(const Duration(milliseconds: 400));
 
     expect(find.text('Sample media preview'), findsOneWidget);
-    expect(find.text('Available Formats'), findsOneWidget);
+    expect(find.text('Advanced formats'), findsOneWidget);
+    await tester.tap(find.text('Advanced formats'));
+    await tester.pumpAndSettle();
     expect(find.text('1080p - mp4'), findsOneWidget);
 
     final addButton = find.byTooltip('Add to queue').first;

@@ -69,6 +69,8 @@ this section whenever a method, event, or payload field changes.
 - `updateEngine` -> `{updated, version}`. Updates yt-dlp to latest stable on
   the same single-thread executor as downloads (never overlaps). Errors:
   `engine_update_failed`.
+- `getEngineVersion` -> installed yt-dlp version string. Used by the
+  privacy-safe diagnostic report. Errors: `engine_version_failed`.
 - `getCookieStatus` -> `{configured, expired, message}`.
 - `importCookies {content}` -> null. Content is validated in Dart (Netscape
   format) and stored AES/GCM-encrypted (Keystore) in the no-backup dir;
@@ -172,6 +174,26 @@ workflow), and releases are produced exclusively by CI from version tags.
 Do not claim a platform or provider works without verification on that
 platform; native-path changes need at least one real end-to-end check
 before a stable release.
+
+## Project Memory - MemPalace
+
+This repo is indexed in MemPalace under wing `dbase_downloader`. Before broad
+grep or repo-wide exploration, use semantic recall first:
+
+`mempalace_search(query: "<keywords>", wing: "dbase_downloader")`
+
+Current rooms include `lib`, `android`, `testing`, `windows`, `fastlane`,
+`linux`, `documentation`, `tool`, `ios`, `macos`, `general`, `design`, and
+`backend`. The local Codex MCP config lives in `.codex/config.toml`; restart
+the Codex project/session if the MemPalace MCP tools are not visible yet.
+
+When files change, refresh the index with:
+
+`mempalace_mine(source: "D:/Projects/Flutter/dbase_downloader", wing: "dbase_downloader")`
+
+Keep `secrets/` out of MemPalace and out of public changes. If the palace and
+the repository disagree, the repository is the source of truth; update the
+palace after confirming the code/docs.
 
 ## Documentation Rules
 

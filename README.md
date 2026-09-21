@@ -133,6 +133,8 @@ command for your distribution (apt/dnf/pacman/zypper).
 - Encrypted `cookies.txt` import for login-required media, with an in-app
   export guide, expired-cookie detection, and one-tap delete.
 - yt-dlp engine self-update on startup plus a manual update in Settings.
+- Privacy-safe issue diagnostics can be copied from the Downloader Engine card
+  in Settings; URLs, cookies, tokens, headers, and file paths are excluded.
 - In-app update notifications with a direct download for your platform.
 - Engine Check on desktop: detects yt-dlp/FFmpeg and shows per-platform
   install help (winget on Windows; apt/dnf/pacman/zypper or the software

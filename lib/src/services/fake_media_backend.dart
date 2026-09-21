@@ -165,6 +165,9 @@ class FakeMediaBackend implements MediaBackend {
   }
 
   @override
+  Future<String?> getEngineVersion() async => 'fake-engine';
+
+  @override
   Future<CookieStatus> getCookieStatus() async {
     return _cookieStatus;
   }

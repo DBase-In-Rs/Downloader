@@ -17,6 +17,7 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> {
   late final TextEditingController _urlController;
+  bool _showingSharedPrompt = false;
 
   @override
   void initState() {
@@ -24,6 +25,7 @@ class _HomePageState extends State<HomePage> {
     _urlController = TextEditingController(text: widget.controller.urlText);
     _urlController.addListener(_handleTextChanged);
     widget.controller.addListener(_syncFromController);
+    WidgetsBinding.instance.addPostFrameCallback((_) => _syncFromController());
   }
 
   @override
@@ -86,6 +88,7 @@ class _HomePageState extends State<HomePage> {
               onOutputKindChanged: widget.controller.setOutputKind,
               onFilterChanged: widget.controller.setFormatFilter,
               onStartDownload: widget.controller.startDownload,
+              onQuickDownload: widget.controller.startPresetDownload,
             ),
           ],
           if (widget.controller.playlistInfo != null) ...[
@@ -112,6 +115,9 @@ class _HomePageState extends State<HomePage> {
   }
 
   void _syncFromController() {
+    if (widget.controller.sharedDownloadPromptReady && !_showingSharedPrompt) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _showSharedPrompt());
+    }
     final value = widget.controller.urlText;
     if (_urlController.text == value) {
       return;
@@ -119,6 +125,68 @@ class _HomePageState extends State<HomePage> {
 
     _urlController.text = value;
     _urlController.selection = TextSelection.collapsed(offset: value.length);
+  }
+
+  Future<void> _showSharedPrompt() async {
+    if (!mounted ||
+        _showingSharedPrompt ||
+        !widget.controller.takeSharedDownloadPrompt()) {
+      return;
+    }
+    _showingSharedPrompt = true;
+    final playlist = widget.controller.playlistInfo != null;
+    await showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      builder: (context) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(
+                playlist ? 'Shared playlist ready' : 'Download shared media',
+                style: Theme.of(context).textTheme.titleLarge,
+              ),
+              const SizedBox(height: 8),
+              Text(
+                playlist
+                    ? 'Review the playlist and choose the items to download.'
+                    : 'Choose a quick preset or review every available format.',
+              ),
+              const SizedBox(height: 16),
+              if (!playlist) ...[
+                FilledButton.icon(
+                  onPressed: () {
+                    Navigator.pop(context);
+                    widget.controller.startPresetDownload(OutputKind.mp3);
+                  },
+                  icon: const Icon(Icons.audiotrack),
+                  label: const Text('Download audio (MP3)'),
+                ),
+                const SizedBox(height: 8),
+                FilledButton.tonalIcon(
+                  onPressed: () {
+                    Navigator.pop(context);
+                    widget.controller.startPresetDownload(OutputKind.mp4);
+                  },
+                  icon: const Icon(Icons.movie),
+                  label: const Text('Download video (MP4)'),
+                ),
+                const SizedBox(height: 8),
+              ],
+              OutlinedButton.icon(
+                onPressed: () => Navigator.pop(context),
+                icon: Icon(playlist ? Icons.playlist_play : Icons.tune),
+                label: Text(playlist ? 'Review playlist' : 'Choose format'),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+    _showingSharedPrompt = false;
   }
 }
 
@@ -151,17 +219,15 @@ class _ClipboardSuggestionCard extends StatelessWidget {
                 children: [
                   Text(
                     'Link found in clipboard',
-                    style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                      color: colors.onPrimaryContainer,
-                    ),
+                    style: Theme.of(context).textTheme.titleSmall
+                        ?.copyWith(color: colors.onPrimaryContainer),
                   ),
                   Text(
                     url,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: colors.onPrimaryContainer,
-                    ),
+                    style: Theme.of(context).textTheme.bodySmall
+                        ?.copyWith(color: colors.onPrimaryContainer),
                   ),
                 ],
               ),
@@ -292,6 +358,7 @@ class _MediaInfoPanel extends StatelessWidget {
     required this.onOutputKindChanged,
     required this.onFilterChanged,
     required this.onStartDownload,
+    required this.onQuickDownload,
   });
 
   final MediaInfo info;
@@ -301,6 +368,7 @@ class _MediaInfoPanel extends StatelessWidget {
   final ValueChanged<OutputKind> onOutputKindChanged;
   final ValueChanged<MediaKindFilter> onFilterChanged;
   final ValueChanged<MediaFormat> onStartDownload;
+  final ValueChanged<OutputKind> onQuickDownload;
 
   @override
   Widget build(BuildContext context) {
@@ -313,6 +381,23 @@ class _MediaInfoPanel extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                if (info.thumbnailUrl != null) ...[
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(10),
+                    child: AspectRatio(
+                      aspectRatio: 16 / 9,
+                      child: Image.network(
+                        info.thumbnailUrl!,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, _, _) => const ColoredBox(
+                          color: Colors.black12,
+                          child: Center(child: Icon(Icons.perm_media)),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                ],
                 Text(info.title, style: Theme.of(context).textTheme.titleLarge),
                 const SizedBox(height: 8),
                 Wrap(
@@ -341,6 +426,26 @@ class _MediaInfoPanel extends StatelessWidget {
               ],
             ),
           ),
+        ),
+        const SizedBox(height: 16),
+        Row(
+          children: [
+            Expanded(
+              child: FilledButton.icon(
+                onPressed: () => onQuickDownload(OutputKind.mp3),
+                icon: const Icon(Icons.audiotrack),
+                label: const Text('Best audio'),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: FilledButton.tonalIcon(
+                onPressed: () => onQuickDownload(OutputKind.mp4),
+                icon: const Icon(Icons.movie),
+                label: const Text('Best video'),
+              ),
+            ),
+          ],
         ),
         const SizedBox(height: 16),
         Wrap(
@@ -401,23 +506,32 @@ class _MediaInfoPanel extends StatelessWidget {
           ],
         ),
         const SizedBox(height: 16),
-        Text(
-          'Available Formats',
-          style: Theme.of(context).textTheme.titleMedium,
-        ),
-        const SizedBox(height: 10),
-        if (visibleFormats.isEmpty)
-          const EmptyState(icon: Icons.filter_alt_off, title: 'No formats')
-        else
-          ...visibleFormats.map(
-            (format) => Padding(
-              padding: const EdgeInsets.only(bottom: 10),
-              child: _FormatTile(
-                format: format,
-                onStartDownload: () => onStartDownload(format),
-              ),
-            ),
+        Card(
+          child: ExpansionTile(
+            title: const Text('Advanced formats'),
+            subtitle: Text('${visibleFormats.length} playable options'),
+            children: [
+              if (visibleFormats.isEmpty)
+                const Padding(
+                  padding: EdgeInsets.all(16),
+                  child: EmptyState(
+                    icon: Icons.filter_alt_off,
+                    title: 'No formats',
+                  ),
+                )
+              else
+                ...visibleFormats.map(
+                  (format) => Padding(
+                    padding: const EdgeInsets.fromLTRB(8, 0, 8, 8),
+                    child: _FormatTile(
+                      format: format,
+                      onStartDownload: () => onStartDownload(format),
+                    ),
+                  ),
+                ),
+            ],
           ),
+        ),
       ],
     );
   }
