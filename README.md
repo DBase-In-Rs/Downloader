@@ -52,6 +52,11 @@ Settings.
 
 ### 🤖 Android
 
+[<img src="https://fdroid.gitlab.io/artwork/badge/get-it-on.png" alt="Get it on F-Droid" height="80">](https://f-droid.org/en/packages/rs.in.dbase.downloader/)
+
+Install through [F-Droid](https://f-droid.org/en/packages/rs.in.dbase.downloader/)
+for repository-managed updates, or download a GitHub APK directly below.
+
 Download and open the APK (allow "install from unknown sources"; updates
 install over the existing app):
 
@@ -63,9 +68,6 @@ install over the existing app):
 
 Not sure which one? Take the first; if it refuses to install, take the
 second.
-
-An F-Droid submission is in preparation; the packaging recipe and steps
-live in [docs/fdroid](docs/fdroid/README.md).
 
 ### 🪟 Windows
 
