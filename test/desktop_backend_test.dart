@@ -99,6 +99,24 @@ void main() {
     expect(info.formats.single.extension, 'm4a');
   });
 
+  test('does not treat embedded cover artwork as video', () {
+    final probe = outputProbeFromFfprobeJson({
+      'format': {'duration': '162.58'},
+      'streams': [
+        {'codec_type': 'audio'},
+        {
+          'codec_type': 'video',
+          'codec_name': 'mjpeg',
+          'disposition': {'attached_pic': 1},
+        },
+      ],
+    });
+
+    expect(probe.hasAudio, isTrue);
+    expect(probe.hasVideo, isFalse);
+    expect(probe.duration, const Duration(milliseconds: 162580));
+  });
+
   test('maps flat playlist JSON and resolves provider ids', () {
     final playlist = playlistInfoFromYtDlpJson({
       'title': 'My playlist',

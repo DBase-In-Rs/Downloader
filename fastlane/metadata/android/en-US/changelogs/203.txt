@@ -1,0 +1,2 @@
+* Audio and video downloads now include available metadata and cover artwork
+* History shows embedded artwork for downloaded audio where available

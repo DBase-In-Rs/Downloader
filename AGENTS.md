@@ -61,7 +61,9 @@ this section whenever a method, event, or payload field changes.
   become watch URLs.
 - `startDownload {id, url, formatId, outputKind, title}` -> null. yt-dlp in
   a per-download cache dir; `-x --audio-format mp3|m4a` for audio,
-  `--merge-output-format mp4` for MP4; cookies attached whenever configured
+  `--merge-output-format mp4` for MP4; available provider metadata and cover
+  artwork are embedded in the saved output; cookies attached whenever
+  configured
   (the plain cookie copy lives OUTSIDE the working dir so it can never be
   picked up as output); saves into the selected SAF tree, else MediaStore
   (Android 10+), else app external files; temp files always cleaned.

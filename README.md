@@ -118,7 +118,8 @@ command for your distribution (apt/dnf/pacman/zypper).
 - Paste, type, or share a media URL from other apps (Android share sheet).
 - Metadata preview: title, uploader, duration, and all available formats.
 - Output as MP3, M4A, MP4, or the original source format; video-only picks
-  automatically merge the best audio track.
+  automatically merge the best audio track. Available title, artist, album,
+  and cover artwork are embedded in saved files.
 - Playlists, albums, channels, and profiles: select items and add them to
   the queue in bulk.
 - Sequential download queue with pause/resume, retry, cancel, and
@@ -127,7 +128,8 @@ command for your distribution (apt/dnf/pacman/zypper).
   the background through a foreground service.
 - Download history with search, provider filter, open/share/show-in-folder
   actions, trim editing, MP3 tag editing, Android MP3 ringtone setup, and
-  per-item delete.
+  per-item delete. History cards show embedded artwork or a video thumbnail
+  when available.
 - Audio/video trim editor for finished files: preview the whole item, play or
   loop only the selected range, adjust start/end, and save a separate clip.
 - Saves through Android MediaStore or a user-selected folder (SAF); desktop
@@ -161,8 +163,17 @@ local-only: import a `cookies.txt` file exported from your own browser (the
 app contains a step-by-step guide with extension links). Cookies are stored
 encrypted on Android (Keystore), passed only to yt-dlp requests, flagged when
 they expire, and deletable from Settings. The app never reads cookies from
-Chrome, Safari, or other apps, and never uploads them anywhere. Details in the Privacy
-section below.
+Chrome, Safari, or other apps, and never uploads them anywhere. See the
+[cookies.txt guide](https://github.com/DBase-In-Rs/Downloader/wiki/YouTube-Cookies)
+and the Privacy section below for details.
+
+## 🆘 Help and troubleshooting
+
+The [project Wiki](https://github.com/DBase-In-Rs/Downloader/wiki) contains
+support guides, including how to export and safely import `cookies.txt`. If a
+problem remains, update the downloader engine in Settings, copy the
+privacy-safe diagnostic report, and open a
+[GitHub issue](https://github.com/DBase-In-Rs/Downloader/issues).
 
 ## 🔒 Privacy
 

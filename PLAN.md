@@ -1,6 +1,16 @@
 # DBase Video & Music Downloader Plan
 
-## Issue follow-up - 1.0.12 (implementation complete, device QA pending)
+## Issue follow-up - 1.0.13 (released 2026-09-22)
+
+- [x] Embed available provider metadata and cover artwork in downloads.
+- [x] Show embedded artwork or a video frame on desktop History cards.
+- [x] Ignore attached cover-art streams when deciding whether media is video.
+- [ ] Real-device Android QA: JioSaavn MP3/M4A metadata, artwork, History
+      thumbnail, playback, and trim-editor audio layout.
+- [ ] Windows QA: JioSaavn MP3/M4A metadata, artwork, and History thumbnail.
+- [x] Maintainer approved commit, tag, and release.
+
+## Issue follow-up - 1.0.12 (released 2026-09-21)
 
 - [x] Filter helper/storyboard/non-media formats from Android and desktop
       metadata results.

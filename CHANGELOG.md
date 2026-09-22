@@ -8,6 +8,22 @@ versioning once releases begin.
 
 ## [Unreleased]
 
+## [1.0.13] - 2026-09-22
+
+### Added
+
+- Downloads now embed available title, artist, album, and other media metadata,
+  together with cover artwork supplied by the provider.
+- History cards now extract embedded artwork or a video frame on Windows and
+  Linux, matching Android's thumbnail-backed history.
+
+### Fixed
+
+- Embedded audio cover artwork is no longer mistaken for a playable video
+  stream when opening or trimming a download.
+
+## [1.0.12] - 2026-09-21
+
 ### Added
 
 - Shared links now offer a quick Audio, Video, or detailed-format choice after

@@ -4,6 +4,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.ContentValues
 import android.graphics.Bitmap
+import android.media.MediaMetadataRetriever
 import android.media.RingtoneManager
 import android.net.Uri
 import android.os.Build
@@ -1088,6 +1089,8 @@ class MainActivity : FlutterActivity() {
             .addOption("--newline")
             .addOption("--restrict-filenames")
             .addOption("--trim-filenames", 180)
+            .addOption("--embed-metadata")
+            .addOption("--embed-thumbnail")
             .addOption("--retries", tuning.retries)
             .addOption("--fragment-retries", tuning.fragmentRetries)
             .addOption("-f", formatId)
@@ -1384,6 +1387,7 @@ class MainActivity : FlutterActivity() {
 
     private fun outputThumbnail(location: String, size: Int): ByteArray? {
         return runCatching {
+            embeddedArtwork(location)?.let { return it }
             val bitmap = (if (location.startsWith("content://")) {
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                     contentResolver.loadThumbnail(
@@ -1409,6 +1413,20 @@ class MainActivity : FlutterActivity() {
             bitmap.recycle()
             stream.toByteArray()
         }.getOrNull()
+    }
+
+    private fun embeddedArtwork(location: String): ByteArray? {
+        val retriever = MediaMetadataRetriever()
+        return try {
+            if (location.startsWith("content://")) {
+                retriever.setDataSource(this, Uri.parse(location))
+            } else {
+                retriever.setDataSource(location)
+            }
+            retriever.embeddedPicture
+        } finally {
+            retriever.release()
+        }
     }
 
     private fun readOutputBytes(location: String, maxBytes: Long): ByteArray {
@@ -1718,7 +1736,9 @@ class MainActivity : FlutterActivity() {
         root.path("streams").forEach { stream ->
             when (stream.path("codec_type").asText("")) {
                 "audio" -> hasAudio = true
-                "video" -> hasVideo = true
+                "video" -> if (stream.path("disposition").path("attached_pic").asInt(0) != 1) {
+                    hasVideo = true
+                }
             }
             val streamDuration = stream.path("duration").asDouble(Double.NaN)
             if (!streamDuration.isNaN() && (duration.isNaN() || streamDuration > duration)) {

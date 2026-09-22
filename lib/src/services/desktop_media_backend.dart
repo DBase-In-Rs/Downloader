@@ -109,6 +109,8 @@ class DesktopMediaBackend implements MediaBackend {
       request.formatId,
       '-o',
       '${workingDir.path}${Platform.pathSeparator}%(title)s.%(ext)s',
+      '--embed-metadata',
+      '--embed-thumbnail',
       ...switch (request.outputKind) {
         OutputKind.mp3 => [
           '-x',
@@ -341,9 +343,39 @@ class DesktopMediaBackend implements MediaBackend {
   }
 
   @override
-  Future<Uint8List?> loadOutputThumbnail(String location, {int size = 256}) {
-    // Desktop has no cheap thumbnail source; the UI falls back to an icon.
-    return Future.value(null);
+  Future<Uint8List?> loadOutputThumbnail(
+    String location, {
+    int size = 256,
+  }) async {
+    try {
+      final config = await configProvider();
+      final ffmpeg = await _requireFfmpeg(config);
+      final result = await Process.run(ffmpeg, [
+        '-hide_banner',
+        '-loglevel',
+        'error',
+        '-i',
+        location,
+        '-map',
+        '0:v:0?',
+        '-vf',
+        'scale=$size:$size:force_original_aspect_ratio=decrease',
+        '-frames:v',
+        '1',
+        '-f',
+        'image2pipe',
+        '-vcodec',
+        'mjpeg',
+        'pipe:1',
+      ], stdoutEncoding: null).timeout(const Duration(seconds: 30));
+      final bytes = result.stdout as List<int>;
+      if (result.exitCode != 0 || bytes.isEmpty) {
+        return null;
+      }
+      return Uint8List.fromList(bytes);
+    } catch (_) {
+      return null;
+    }
   }
 
   @override
@@ -726,8 +758,10 @@ OutputProbe outputProbeFromFfprobeJson(Map<String, dynamic> json) {
   for (final raw in streams) {
     final stream = Map<String, dynamic>.from(raw);
     final type = stringValue(stream['codec_type']);
+    final disposition = stream['disposition'] as Map?;
+    final attachedPicture = disposition?['attached_pic'] == 1;
     hasAudio = hasAudio || type == 'audio';
-    hasVideo = hasVideo || type == 'video';
+    hasVideo = hasVideo || (type == 'video' && !attachedPicture);
     final streamDuration = doubleValue(stream['duration']);
     if (streamDuration != null &&
         (durationSeconds == null || streamDuration > durationSeconds)) {

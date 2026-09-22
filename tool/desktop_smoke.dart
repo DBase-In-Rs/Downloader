@@ -32,6 +32,7 @@ Future<void> main(List<String> args) async {
 
   stdout.writeln('== startDownload (mp3) ==');
   final done = Completer<void>();
+  String? completedLocation;
   final subscription = backend.events.listen((event) {
     switch (event) {
       case DownloadProgressEvent(:final progress):
@@ -43,6 +44,7 @@ Future<void> main(List<String> args) async {
         );
       case DownloadCompletedEvent(:final outputLocation):
         stdout.writeln('COMPLETED: $outputLocation');
+        completedLocation = outputLocation;
         done.complete();
       case DownloadFailedEvent(:final message):
         stdout.writeln('FAILED: $message');
@@ -67,6 +69,15 @@ Future<void> main(List<String> args) async {
 
   try {
     await done.future.timeout(const Duration(minutes: 5));
+    final location = completedLocation;
+    if (location != null) {
+      final editable = await backend.prepareOutputForEditing(location);
+      final thumbnail = await backend.loadOutputThumbnail(location);
+      stdout.writeln(
+        'probe: audio=${editable.hasAudio} video=${editable.hasVideo} '
+        'thumbnailBytes=${thumbnail?.length ?? 0}',
+      );
+    }
     stdout.writeln('SMOKE TEST PASSED');
   } catch (error) {
     stdout.writeln('SMOKE TEST FAILED: $error');
