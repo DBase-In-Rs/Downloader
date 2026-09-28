@@ -181,9 +181,13 @@ The app is fully local - no accounts, no analytics, no tracking or ad SDKs,
 and no project-operated backend. It stores only your download history,
 settings, temporary download files, and (optionally) imported cookies.
 Cookies are encrypted at rest on Android, passed only to yt-dlp requests,
-never logged, never uploaded anywhere, and deletable from Settings at any
-time. Network requests go only to the media providers you download from
-(plus GitHub for update checks and yt-dlp engine updates).
+never logged or sent to the DBase project, and deletable from Settings at any
+time. yt-dlp sends applicable cookies only to the relevant provider domains.
+Network requests go to media providers and related delivery services, plus
+GitHub for app and yt-dlp engine updates.
+
+See the full [App Privacy Policy](PRIVACY.md) for platform-specific storage,
+network transmission, retention, deletion, and third-party service details.
 
 ## ❤️ Support the Project
 
