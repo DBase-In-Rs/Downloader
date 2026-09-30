@@ -1,6 +1,10 @@
 import 'package:dbase_downloader/src/app.dart';
+import 'package:dbase_downloader/src/models/download_models.dart';
 import 'package:dbase_downloader/src/services/fake_media_backend.dart';
+import 'package:dbase_downloader/src/services/queue_store.dart';
+import 'package:dbase_downloader/src/services/app_controller.dart';
 import 'package:dbase_downloader/src/services/shared_url_service.dart';
+import 'package:dbase_downloader/src/ui/queue_page.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -100,6 +104,74 @@ void main() {
 
     // Shared links auto-analyze; let the fake backend finish its work.
     await tester.pump(const Duration(milliseconds: 400));
+  });
+
+  testWidgets('clear queue confirms and removes every queued item', (
+    tester,
+  ) async {
+    final backend = FakeMediaBackend();
+    final store = MemoryQueueStore();
+    const format = MediaFormat(
+      id: 'best',
+      extension: 'm4a',
+      kind: MediaKind.audio,
+      qualityLabel: 'Best audio',
+    );
+    await store.save(
+      const QueueSnapshot(
+        paused: true,
+        items: [
+          DownloadQueueItem(
+            id: 'one',
+            url: 'https://example.com/one',
+            title: 'One',
+            format: format,
+            outputKind: OutputKind.m4a,
+            status: DownloadStatus.paused,
+          ),
+          DownloadQueueItem(
+            id: 'two',
+            url: 'https://example.com/two',
+            title: 'Two',
+            format: format,
+            outputKind: OutputKind.m4a,
+            status: DownloadStatus.paused,
+          ),
+        ],
+      ),
+    );
+    final controller = AppController(
+      backend: backend,
+      sharedUrlService: const FakeSharedUrlService(),
+      queueStore: store,
+    );
+    addTearDown(controller.dispose);
+    await controller.initialize();
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: AnimatedBuilder(
+            animation: controller,
+            builder: (context, _) => QueuePage(controller: controller),
+          ),
+        ),
+      ),
+    );
+
+    expect(find.byTooltip('Clear queue'), findsOneWidget);
+    await tester.tap(find.byTooltip('Clear queue'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(find.text('Clear queue?'), findsOneWidget);
+    expect(find.textContaining('all 2 items'), findsOneWidget);
+
+    await tester.tap(find.widgetWithText(FilledButton, 'Clear queue'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(controller.queue, isEmpty);
+    expect(find.text('Queue is empty'), findsOneWidget);
   });
 
   testWidgets('shows support and about cards in Settings', (tester) async {

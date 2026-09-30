@@ -50,10 +50,12 @@ class ManualMediaBackend implements MediaBackend {
   PlaylistInfo? playlistResponse;
   Object? infoError;
   int infoCalls = 0;
+  int playlistCalls = 0;
   int transientInfoFailures = 0;
 
   @override
   Future<PlaylistInfo> getPlaylistInfo(MediaInfoRequest request) async {
+    playlistCalls++;
     return playlistResponse ??
         PlaylistInfo(url: request.url, title: 'Manual playlist', entries: []);
   }
@@ -368,6 +370,20 @@ void main() {
       isTrue,
     );
     expect(isLikelyPlaylistUrl('https://soundcloud.com/a/sets/b'), isTrue);
+    expect(
+      isLikelyPlaylistUrl('https://www.jiosaavn.com/album/96/album-id'),
+      isTrue,
+    );
+    expect(
+      isLikelyPlaylistUrl(
+        'https://www.jiosaavn.com/artist/example-songs/artist-id',
+      ),
+      isTrue,
+    );
+    expect(
+      isLikelyPlaylistUrl('https://www.jiosaavn.com/song/example/song-id'),
+      isFalse,
+    );
     expect(isLikelyPlaylistUrl('https://youtu.be/abc123'), isFalse);
   });
 
@@ -384,6 +400,11 @@ void main() {
     expect(mediaProviderForUrl('https://vm.tiktok.com/abc').id, 'tiktok');
     expect(mediaProviderForExtractor('dailymotion:playlist').id, 'dailymotion');
     expect(mediaProviderForExtractor('Soundcloud').id, 'soundcloud');
+    expect(
+      mediaProviderForUrl('https://www.jiosaavn.com/album/96/example').id,
+      'jiosaavn',
+    );
+    expect(mediaProviderForExtractor('jiosaavn:album').id, 'jiosaavn');
     expect(mediaProviderForUrl('https://example.com/media').id, 'generic');
   });
 
@@ -500,6 +521,42 @@ void main() {
     expect(backend.started, hasLength(1));
     expect(backend.started.single.formatId, 'bestaudio/best');
   });
+
+  test(
+    'JioSaavn albums use playlist analysis before single-item info',
+    () async {
+      final backend = ManualMediaBackend()
+        ..playlistResponse = const PlaylistInfo(
+          url: 'https://www.jiosaavn.com/album/96/album-id',
+          title: 'Album',
+          entries: [
+            PlaylistEntry(
+              url: 'https://www.jiosaavn.com/song/one/song-one',
+              title: 'One',
+            ),
+            PlaylistEntry(
+              url: 'https://www.jiosaavn.com/song/two/song-two',
+              title: 'Two',
+            ),
+          ],
+        );
+      final controller = AppController(
+        backend: backend,
+        sharedUrlService: const FakeSharedUrlService(),
+      );
+      addTearDown(controller.dispose);
+      await controller.initialize();
+
+      controller.setUrlText('https://www.jiosaavn.com/album/96/album-id');
+      await controller.analyzeUrl();
+
+      expect(backend.playlistCalls, 1);
+      expect(backend.infoCalls, 0);
+      expect(controller.currentProvider.id, 'jiosaavn');
+      expect(controller.playlistInfo?.entries, hasLength(2));
+      expect(controller.outputKind, OutputKind.mp3);
+    },
+  );
 
   test(
     'non-heuristic playlist URLs fall back to playlist extraction',
@@ -793,6 +850,60 @@ void main() {
     expect(backend.started, hasLength(1));
     expect(controller.queue.single.status, DownloadStatus.running);
   });
+
+  test(
+    'clear queue removes paused items and persists the empty queue',
+    () async {
+      final store = MemoryQueueStore();
+      final backend = ManualMediaBackend();
+      final controller = await analyzedController(backend, queueStore: store);
+
+      await controller.pauseQueue();
+      await controller.startDownload(controller.visibleFormats.single);
+      controller.setOutputKind(OutputKind.mp4);
+      await controller.startDownload(controller.visibleFormats.single);
+      expect(controller.queue, hasLength(2));
+      expect(controller.queuePaused, isTrue);
+
+      await controller.clearQueue();
+
+      expect(controller.queue, isEmpty);
+      expect(controller.queuePaused, isFalse);
+      expect(controller.history, isEmpty);
+      controller.dispose();
+
+      final restarted = AppController(
+        backend: ManualMediaBackend(),
+        sharedUrlService: const FakeSharedUrlService(),
+        queueStore: store,
+      );
+      addTearDown(restarted.dispose);
+      await restarted.initialize();
+      expect(restarted.queue, isEmpty);
+    },
+  );
+
+  test(
+    'clear queue requires consent before canceling an active download',
+    () async {
+      final backend = ManualMediaBackend();
+      final controller = await analyzedController(backend);
+      addTearDown(controller.dispose);
+
+      await controller.startDownload(controller.visibleFormats.single);
+      expect(controller.queue.single.status, DownloadStatus.running);
+
+      await controller.clearQueue();
+      expect(controller.queue, hasLength(1));
+      expect(backend.canceled, isEmpty);
+
+      await controller.clearQueue(cancelRunning: true);
+      await pumpEventQueue();
+      expect(controller.queue, isEmpty);
+      expect(backend.canceled, hasLength(1));
+      expect(controller.history, isEmpty);
+    },
+  );
 
   test(
     'transient extractor errors re-queue the download automatically',

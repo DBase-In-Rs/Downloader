@@ -1,5 +1,72 @@
 # DBase Video & Music Downloader Plan
 
+## Next release - 1.0.14 (in progress, 2026-09-30)
+
+Version target: `1.0.14+21`. No release is complete until the maintainer's
+local QA and the normal tag-driven CI release are approved.
+
+### Task 1 - JioSaavn collection support
+
+- [x] Add an explicit JioSaavn provider identity for songs, albums, playlists,
+      featured lists, artists, shows, and show playlists.
+- [x] Route JioSaavn `/album/`, `/artist/`, `/featured/`, `/playlist/`, and
+      season-style show URLs through playlist analysis before single-item
+      analysis.
+- [x] Add regression coverage for provider resolution and collection URL
+      detection while keeping `/song/` URLs on the single-item path.
+- [x] Confirm the current desktop yt-dlp engine expands its official public
+      JioSaavn album sample to 10 entries; this is extractor evidence only,
+      not Android or full-download verification.
+- [ ] Verify a reporter-supplied public album URL when it is available.
+- [ ] Android real-device QA: album expansion, item selection, MP3/M4A queue,
+      metadata, artwork, History, playback, and trim editor.
+- [ ] Windows QA for the same public album and output paths.
+
+### Task 2 - Clear queue
+
+- [x] Add a `Clear queue` action beside pause/resume.
+- [x] Require confirmation, show the affected item count, and explicitly warn
+      when the active download will be canceled.
+- [x] Remove pending, paused, and failed items in bulk without creating
+      hundreds of canceled History records; never delete downloaded files or
+      existing History.
+- [x] Reset the pause state and persist the empty queue across restart.
+- [x] Add controller tests for paused, persisted, and actively downloading
+      queues.
+- [ ] Manual UI QA with a large playlist and an active-download cancellation.
+
+### Task 3 - Provider review and release readiness
+
+The extractor inventory was refreshed with yt-dlp `2026.08.19` on 2026-09-30.
+This confirms extractor presence, not end-to-end app support. The focused QA
+batch is YouTube/YouTube Music, JioSaavn, SoundCloud, Bandcamp, Audiomack,
+Vimeo, Dailymotion, TikTok, Instagram, Facebook, Twitter/X, Reddit, and Twitch.
+
+- [x] Confirm current yt-dlp extractor families exist for the focused batch.
+      The snapshot also flags currently broken TikTok effect/sound/tag and
+      Instagram user extractors, so those surfaces must not be advertised.
+- [x] Keep the existing curated provider entries and add the missing JioSaavn
+      entry instead of mirroring yt-dlp's full supported-sites list.
+- [x] Carry the already-green Android dependency updates from Dependabot PR #9
+      into this release branch without merging that PR: Jackson Databind
+      `2.22.3` and Gradle wrapper `9.8.0`.
+- [ ] Run repeatable public-URL metadata tests for each focused provider on
+      Windows and Android.
+- [ ] Where supported, test track/video plus album/playlist/set/profile/channel
+      expansion and queue selection.
+- [ ] Test applicable MP3, M4A, MP4, and original outputs, then verify metadata,
+      artwork, History, open/share, playback, and trim actions.
+- [ ] Record cookies/login, geo, rate-limit, and provider breakage separately;
+      never include private URLs, cookies, headers, tokens, or raw extractor
+      output in committed QA evidence.
+- [ ] Promote a provider to verified only after its Android and Windows smoke
+      checks pass; extractor presence alone is insufficient.
+- [x] Bump the development version from `1.0.13+20` to `1.0.14+21`.
+- [x] Run `flutter analyze` and `flutter test` after implementation.
+- [x] Maintainer approved the release-branch commit and push.
+- [ ] Merge review, tag, CI build, and distribution updates remain separate
+      release gates.
+
 ## Issue follow-up - 1.0.13 (released 2026-09-22)
 
 - [x] Embed available provider metadata and cover artwork in downloads.

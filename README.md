@@ -75,8 +75,8 @@ second.
   `dbase-downloader-vX.Y.Z-windows-x64-setup.exe` from the
   [latest release](https://github.com/DBase-In-Rs/Downloader/releases/latest)
   and run it - installs per-user without administrator rights, with a Start
-  Menu entry and uninstaller. A winget manifest is submitted and in review;
-  once approved: `winget install DBaseInRs.Downloader`.
+  Menu entry and uninstaller. It is also available through Winget:
+  `winget install DBaseInRs.Downloader`.
 - **Portable**: download the `...-windows-x64.zip`, extract anywhere, run
   `dbase_downloader.exe`.
 
@@ -122,8 +122,8 @@ command for your distribution (apt/dnf/pacman/zypper).
   and cover artwork are embedded in saved files.
 - Playlists, albums, channels, and profiles: select items and add them to
   the queue in bulk.
-- Sequential download queue with pause/resume, retry, cancel, and
-  persistence across restarts.
+- Sequential download queue with pause/resume, retry, cancel, one-tap clear,
+  and persistence across restarts.
 - Live progress with speed, ETA, and stage; Android downloads continue in
   the background through a foreground service.
 - Download history with search, provider filter, open/share/show-in-folder
@@ -155,6 +155,10 @@ while FFmpeg handles MP3/M4A conversion and MP4 merging. Popular providers
 get curated names, audio defaults, and cookie hints; everything else works
 too and is named after its extractor or domain. Per-provider verification
 status is tracked in the Provider QA section of [PLAN.md](PLAN.md).
+
+JioSaavn songs, albums, playlists, featured lists, artists, and podcast seasons
+are recognized explicitly. Collection links open the item-selection flow
+instead of being reduced to the first entry.
 
 ## 🍪 Cookies
 

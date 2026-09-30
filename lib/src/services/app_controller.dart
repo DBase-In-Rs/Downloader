@@ -77,6 +77,7 @@ class AppController extends ChangeNotifier {
   String? _lastClipboardOffer;
   final List<DownloadQueueItem> _queue = [];
   final List<DownloadQueueItem> _history = [];
+  final Set<String> _bulkClearingIds = {};
 
   /// Delay before re-running a request that hit a transient extractor
   /// error; gives the provider a beat to serve a full page again.
@@ -782,6 +783,33 @@ class AppController extends ChangeNotifier {
     await _pumpQueue();
   }
 
+  /// Removes every queued item without adding hundreds of canceled entries to
+  /// History. When a download is active, [cancelRunning] must be explicitly
+  /// enabled so the backend can stop and clean up its current process first.
+  Future<void> clearQueue({bool cancelRunning = false}) async {
+    final running = _queue
+        .where((item) => item.status == DownloadStatus.running)
+        .toList();
+    if (running.isNotEmpty && !cancelRunning) {
+      return;
+    }
+
+    _bulkClearingIds.addAll(running.map((item) => item.id));
+    for (final item in running) {
+      try {
+        await backend.cancelDownload(item.id);
+      } catch (_) {
+        _bulkClearingIds.remove(item.id);
+        rethrow;
+      }
+    }
+
+    _queue.clear();
+    _queuePaused = false;
+    notifyListeners();
+    await _persistQueue();
+  }
+
   Future<void> cancelDownload(String id) async {
     final index = _queue.indexWhere((item) => item.id == id);
     if (index == -1) {
@@ -1066,6 +1094,9 @@ class AppController extends ChangeNotifier {
         _failQueueItem(id, _friendlyError(message, provider: provider));
         unawaited(_refreshCookieStatus());
       case DownloadCanceledEvent(:final id):
+        if (_bulkClearingIds.remove(id)) {
+          return;
+        }
         _finishQueueItem(
           id,
           (current) => current.copyWith(status: DownloadStatus.canceled),
@@ -1681,9 +1712,23 @@ bool isLikelyPlaylistUrl(String url) {
     return false;
   }
 
+  final host = uri.host.toLowerCase();
+  final path = uri.path.toLowerCase();
+  final isJioSaavnCollection =
+      (host == 'jiosaavn.com' ||
+          host.endsWith('.jiosaavn.com') ||
+          host == 'saavn.com' ||
+          host.endsWith('.saavn.com')) &&
+      (path.contains('/album/') ||
+          path.contains('/artist/') ||
+          path.contains('/featured/') ||
+          path.contains('/playlist/') ||
+          RegExp(r'^/shows/[^/]+/\d+/').hasMatch(path));
+
   return uri.queryParameters.containsKey('list') ||
       uri.path.contains('/playlist') ||
-      uri.path.contains('/sets/');
+      uri.path.contains('/sets/') ||
+      isJioSaavnCollection;
 }
 
 /// Accepts Netscape-format cookie files: comment/blank lines plus at least

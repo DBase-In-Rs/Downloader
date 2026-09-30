@@ -1,0 +1,3 @@
+Added JioSaavn album and playlist handling so collections show all available items.
+Added a Clear queue action for removing large paused or waiting queues at once.
+Updated Android runtime and build dependencies.
