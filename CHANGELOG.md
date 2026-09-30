@@ -20,6 +20,7 @@ versioning once releases begin.
 
 ### Changed
 
+- Android now uses Jackson Databind `2.22.3` and Gradle wrapper `9.8.0`.
 - The recognized-provider QA inventory was refreshed against yt-dlp
   `2026.08.19`; extractor presence remains separate from Android and Windows
   end-to-end verification.

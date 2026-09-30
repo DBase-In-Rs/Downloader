@@ -47,6 +47,9 @@ Vimeo, Dailymotion, TikTok, Instagram, Facebook, Twitter/X, Reddit, and Twitch.
       Instagram user extractors, so those surfaces must not be advertised.
 - [x] Keep the existing curated provider entries and add the missing JioSaavn
       entry instead of mirroring yt-dlp's full supported-sites list.
+- [x] Carry the already-green Android dependency updates from Dependabot PR #9
+      into this release branch without merging that PR: Jackson Databind
+      `2.22.3` and Gradle wrapper `9.8.0`.
 - [ ] Run repeatable public-URL metadata tests for each focused provider on
       Windows and Android.
 - [ ] Where supported, test track/video plus album/playlist/set/profile/channel
