@@ -85,6 +85,23 @@ const mediaProviderCatalog = [
     playlists: true,
   ),
   MediaProviderInfo(
+    id: 'jiosaavn',
+    displayName: 'JioSaavn',
+    tier: MediaProviderTier.priority,
+    domains: ['jiosaavn.com', 'saavn.com'],
+    extractorNames: [
+      'jiosaavn',
+      'jiosaavn:song',
+      'jiosaavn:album',
+      'jiosaavn:playlist',
+      'jiosaavn:artist',
+      'jiosaavn:show',
+      'jiosaavn:show:playlist',
+    ],
+    audioFirst: true,
+    playlists: true,
+  ),
+  MediaProviderInfo(
     id: 'tiktok',
     displayName: 'TikTok',
     tier: MediaProviderTier.priority,

@@ -22,12 +22,26 @@ class QueuePage extends StatelessWidget {
           SectionHeader(
             title: 'Queue',
             icon: Icons.downloading,
-            trailing: IconButton(
-              tooltip: paused ? 'Resume queue' : 'Pause queue',
-              onPressed: paused
-                  ? controller.resumeQueue
-                  : controller.pauseQueue,
-              icon: Icon(paused ? Icons.play_arrow : Icons.pause),
+            trailing: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                IconButton(
+                  tooltip: paused ? 'Resume queue' : 'Pause queue',
+                  onPressed: queue.isEmpty
+                      ? null
+                      : paused
+                      ? controller.resumeQueue
+                      : controller.pauseQueue,
+                  icon: Icon(paused ? Icons.play_arrow : Icons.pause),
+                ),
+                IconButton(
+                  tooltip: 'Clear queue',
+                  onPressed: queue.isEmpty
+                      ? null
+                      : () => _confirmClearQueue(context),
+                  icon: const Icon(Icons.delete_sweep),
+                ),
+              ],
             ),
           ),
           if (paused) ...[
@@ -63,5 +77,40 @@ class QueuePage extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  Future<void> _confirmClearQueue(BuildContext context) async {
+    final queue = controller.queue;
+    final hasRunning = queue.any(
+      (item) => item.status == DownloadStatus.running,
+    );
+    final count = queue.length;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Clear queue?'),
+        content: Text(
+          hasRunning
+              ? 'This will cancel the active download and remove all $count '
+                    'items from the queue. Downloaded files and History will '
+                    'not be deleted.'
+              : 'This will remove all $count items from the queue. Downloaded '
+                    'files and History will not be deleted.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Keep queue'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: Text(hasRunning ? 'Cancel and clear' : 'Clear queue'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed == true) {
+      await controller.clearQueue(cancelRunning: hasRunning);
+    }
   }
 }

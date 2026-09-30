@@ -8,6 +8,29 @@ versioning once releases begin.
 
 ## [Unreleased]
 
+## [1.0.14] - 2026-09-30
+
+### Added
+
+- Queue now has a bulk clear action with confirmation. It can cancel an active
+  download when explicitly confirmed, removes waiting items without filling
+  History with canceled entries, and persists the empty queue.
+- JioSaavn now has an explicit provider identity covering songs, albums,
+  playlists, featured lists, artists, shows, and show playlists.
+
+### Changed
+
+- The recognized-provider QA inventory was refreshed against yt-dlp
+  `2026.08.19`; extractor presence remains separate from Android and Windows
+  end-to-end verification.
+- Windows installation documentation now reflects the published
+  `DBaseInRs.Downloader` package in the Winget community repository.
+
+### Fixed
+
+- JioSaavn album and other collection URLs now use playlist analysis on
+  Android instead of exposing only the first extracted item.
+
 ## [1.0.13] - 2026-09-22
 
 ### Added
