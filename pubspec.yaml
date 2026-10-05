@@ -35,7 +35,7 @@ dependencies:
 
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.
-  cupertino_icons: ^1.0.8
+  cupertino_icons: ^2.0.0
 
   # Local key-value storage used for download queue persistence.
   shared_preferences: ^2.5.3
@@ -44,7 +44,7 @@ dependencies:
   file_selector: ^1.0.3
 
   # App name/version shown on the Settings screen.
-  package_info_plus: ^10.0.0
+  package_info_plus: ^10.2.2
 
   # Opens browser-extension links from the cookie guide.
   url_launcher: ^6.3.1
