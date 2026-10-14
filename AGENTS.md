@@ -60,7 +60,8 @@ this section whenever a method, event, or payload field changes.
   timeout; entries without a resolvable URL are dropped; flat YouTube ids
   become watch URLs.
 - `startDownload {id, url, formatId, outputKind, title}` -> null. yt-dlp in
-  a per-download cache dir; `-x --audio-format mp3|m4a` for audio,
+  a per-download cache dir (`-P`), file named from the title capped at 150
+  bytes in the template (never `--trim-filenames`); `-x --audio-format mp3|m4a` for audio,
   `--merge-output-format mp4` for MP4; available provider metadata and cover
   artwork are embedded in the saved output; cookies attached whenever
   configured

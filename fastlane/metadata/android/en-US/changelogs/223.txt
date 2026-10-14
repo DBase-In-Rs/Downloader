@@ -1,0 +1,2 @@
+Fixed downloads failing with "File name too long" for media with very long titles.
+Updated Android build tooling and Flutter package dependencies.
