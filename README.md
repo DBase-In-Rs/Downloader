@@ -71,20 +71,29 @@ second.
 
 ### 🪟 Windows
 
-- **Installer** (recommended): download
+**Winget** (recommended - updates arrive with `winget upgrade`):
+
+```powershell
+winget install DBaseInRs.Downloader
+```
+
+- **Installer**: download
   `dbase-downloader-vX.Y.Z-windows-x64-setup.exe` from the
   [latest release](https://github.com/DBase-In-Rs/Downloader/releases/latest)
   and run it - installs per-user without administrator rights, with a Start
-  Menu entry and uninstaller. It is also available through Winget:
-  `winget install DBaseInRs.Downloader`.
+  Menu entry and uninstaller.
 - **Portable**: download the `...-windows-x64.zip`, extract anywhere, run
   `dbase_downloader.exe`.
 
 Requires [yt-dlp](https://github.com/yt-dlp/yt-dlp) and
 [FFmpeg](https://ffmpeg.org) (for conversions):
-`winget install yt-dlp.yt-dlp Gyan.FFmpeg`. The Engine Check card in
-Settings detects both and shows this command with a copy button when
-something is missing; custom paths can also be set there.
+
+```powershell
+winget install yt-dlp.yt-dlp Gyan.FFmpeg
+```
+
+The Engine Check card in Settings detects both and shows this command with
+a copy button when something is missing; custom paths can also be set there.
 
 ### 🐧 Linux
 
