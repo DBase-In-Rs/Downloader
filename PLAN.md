@@ -1,6 +1,6 @@
 # DBase Video & Music Downloader Plan
 
-## Next release - 1.0.15 (in progress, 2026-10-14)
+## Release - 1.0.15 (released 2026-10-14)
 
 Version target: `1.0.15+22`. Work happens on `release/1.0.15`; it reaches
 `main` only through a reviewed pull request.
@@ -33,8 +33,13 @@ Version target: `1.0.15+22`. Work happens on `release/1.0.15`; it reaches
 - [x] Bump the development version from `1.0.14+21` to `1.0.15+22` and add
       Fastlane changelogs 221/222/223.
 - [x] Run `flutter analyze` and `flutter test`.
-- [ ] Maintainer review, PR to `main`, tag, CI build, and distribution
-      updates.
+- [x] PR #16 merged after green CI, tag `v1.0.15`, release CI green with all
+      10 assets, release notes published.
+- [x] Issue #10 answered and closed; issue #15 answered (fix in 1.0.15).
+- [x] Winget update submitted: microsoft/winget-pkgs#452563 (manifest
+      validated locally; awaiting moderator review).
+- [ ] F-Droid picks up `v1.0.15` automatically (changelogs 221/222/223).
+- [ ] Close issue #15 once the reporter confirms 1.0.15 works.
 
 ## Release - 1.0.14 (released 2026-09-30)
 
