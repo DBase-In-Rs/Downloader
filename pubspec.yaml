@@ -35,19 +35,19 @@ dependencies:
 
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.
-  cupertino_icons: ^1.0.8
+  cupertino_icons: ^2.0.0
 
   # Local key-value storage used for download queue persistence.
-  shared_preferences: ^2.5.3
+  shared_preferences: ^2.5.6
 
   # System file picker used for cookies.txt import.
   file_selector: ^1.0.3
 
   # App name/version shown on the Settings screen.
-  package_info_plus: ^10.0.0
+  package_info_plus: ^10.2.2
 
   # Opens browser-extension links from the cookie guide.
-  url_launcher: ^6.3.1
+  url_launcher: ^6.3.3
 
   # Trim-editor preview player. Android/iOS/web/macOS use video_player
   # (AndroidX Media3/ExoPlayer on Android - free software from Google Maven,
@@ -55,7 +55,7 @@ dependencies:
   # with only the desktop libmpv libs; the Android libmpv package
   # (media_kit_libs_android_video, which downloads a prebuilt blob at build
   # time) is intentionally NOT depended on so the APK stays F-Droid-clean.
-  video_player: ^2.9.2
+  video_player: ^2.14.1
   media_kit: ^1.2.6
   media_kit_video: ^2.0.1
   media_kit_libs_windows_video: ^1.0.11
