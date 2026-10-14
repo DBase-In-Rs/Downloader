@@ -1,9 +1,44 @@
 # DBase Video & Music Downloader Plan
 
-## Next release - 1.0.14 (in progress, 2026-09-30)
+## Next release - 1.0.15 (in progress, 2026-10-14)
 
-Version target: `1.0.14+21`. No release is complete until the maintainer's
-local QA and the normal tag-driven CI release are approved.
+Version target: `1.0.15+22`. Work happens on `release/1.0.15`; it reaches
+`main` only through a reviewed pull request.
+
+### Task 1 - Long filenames (issue #15)
+
+- [x] Root cause: `--trim-filenames 180` is applied by yt-dlp to the whole
+      absolute output path and splits it on the last two dots, so a title
+      containing `.` keeps its long tail as a fake "extension"; the cover
+      artwork write then failed with `[Errno 36] File name too long`.
+- [x] Cap the title inside the template (`%(title,id|media).150B.%(ext)s`)
+      and pass the working directory with `-P` on Android and desktop; drop
+      `--trim-filenames`.
+- [x] Reproduce with the reporter's public Facebook URL on desktop yt-dlp
+      `2026.08.19` (old args: path error; new args: 140-byte thumbnail name).
+- [x] Regression test for the desktop output arguments.
+- [ ] Android real-device QA with the same URL (MP4 best video and MP3).
+
+### Task 2 - Issue #10 follow-up (JioSaavn batch)
+
+- [x] The reporter's `/album/faraar/UXm` link is a truncated album id;
+      JioSaavn answers it with a placeholder "sample trailer" entry. Full
+      album URLs expand correctly (yt-dlp sample album: 10 entries), so the
+      1.0.14 collection routing works as intended.
+
+### Task 3 - Dependencies
+
+- [x] Merge Dependabot PR #13 (Gradle `9.8.1`, Kotlin `2.4.21`) and PR #14
+      (five Dart package updates) after green CI.
+- [x] Bump the development version from `1.0.14+21` to `1.0.15+22` and add
+      Fastlane changelogs 221/222/223.
+- [x] Run `flutter analyze` and `flutter test`.
+- [ ] Maintainer review, PR to `main`, tag, CI build, and distribution
+      updates.
+
+## Release - 1.0.14 (released 2026-09-30)
+
+Version target: `1.0.14+21`.
 
 ### Task 1 - JioSaavn collection support
 

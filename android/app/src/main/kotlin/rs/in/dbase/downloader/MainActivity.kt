@@ -1088,13 +1088,18 @@ class MainActivity : FlutterActivity() {
             .addOption("--no-playlist")
             .addOption("--newline")
             .addOption("--restrict-filenames")
-            .addOption("--trim-filenames", 180)
             .addOption("--embed-metadata")
             .addOption("--embed-thumbnail")
             .addOption("--retries", tuning.retries)
             .addOption("--fragment-retries", tuning.fragmentRetries)
             .addOption("-f", formatId)
-            .addOption("-o", File(outputDir, "%(title)s.%(ext)s").absolutePath)
+            // The title is byte-limited inside the template itself:
+            // --trim-filenames splits the whole path on its last two dots,
+            // so a title containing "." (e.g. "Walk..._was_._WAIT") escaped
+            // trimming and thumbnails failed with Errno 36. -P keeps the
+            // directory out of the template so the limit covers the name only.
+            .addOption("-P", outputDir.absolutePath)
+            .addOption("-o", OUTPUT_TEMPLATE)
 
         if (tuning.sleepRequestsSeconds > 0) {
             request.addOption("--sleep-requests", tuning.sleepRequestsSeconds)
@@ -2086,6 +2091,9 @@ class MainActivity : FlutterActivity() {
         private const val PLAYLIST_TIMEOUT_SECONDS = 120L
         private const val FOLDER_PICK_REQUEST_CODE = 4001
         private const val OUTPUT_TREE_KEY = "output_tree_uri"
+        // 150 bytes leaves room for yt-dlp suffixes (.f137, .temp, .webp)
+        // under the 255-byte filename limit of Android/Linux filesystems.
+        private const val OUTPUT_TEMPLATE = "%(title,id|media).150B.%(ext)s"
         private const val PROBE_TIMEOUT_SECONDS = 30L
         private const val EDIT_TIMEOUT_SECONDS = 900L
         private val PAGE_ALIGNED_FFMPEG_LIBS = listOf(

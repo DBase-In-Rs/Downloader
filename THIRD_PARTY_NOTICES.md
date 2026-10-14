@@ -44,8 +44,8 @@ GPL-3.0-only.
 | Component | Version | License |
 | --- | --- | --- |
 | Flutter SDK | 3.47.1 stable (rev 6655482ec0) | BSD-3-Clause |
-| cupertino_icons | 1.0.9 | MIT |
-| shared_preferences (+android 2.4.27) | 2.5.5 | BSD-3-Clause |
+| cupertino_icons | 2.0.0 | MIT |
+| shared_preferences (+android 2.4.27) | 2.5.6 | BSD-3-Clause |
 | file_selector (+android 0.5.2+9) | 1.1.0 | BSD-3-Clause |
 | youtubedl-android (library, ffmpeg) | 0.18.1 | GPL-3.0 |
 | yt-dlp | bundled by 0.18.1, self-updated at runtime to latest stable (2026.08.19 at audit time) | Unlicense |
@@ -55,7 +55,7 @@ GPL-3.0-only.
 | media_kit_video | 2.0.1 | MIT (desktop-only use) |
 | media_kit_libs_windows_video | 1.0.11 | MIT wrapper; bundles LGPL libmpv/FFmpeg DLLs in the Windows binary only |
 | media_kit_libs_linux | 1.2.1 | MIT wrapper; uses system libmpv (LGPLv2.1+), not redistributed |
-| video_player (+ video_player_android) | 2.9.2 | BSD-3-Clause; Android backend AndroidX Media3/ExoPlayer, Apache-2.0 |
+| video_player (+ video_player_android) | 2.14.1 | BSD-3-Clause; Android backend AndroidX Media3/ExoPlayer, Apache-2.0 |
 | libwebp (16 KB-aligned rebuild) | 1.5.0, NDK r28.2 | BSD-3-Clause |
 | Kotlin / AndroidX / AGP toolchain | per `android/` gradle files | Apache-2.0 |
 

@@ -102,13 +102,10 @@ class DesktopMediaBackend implements MediaBackend {
       '--no-playlist',
       '--newline',
       '--restrict-filenames',
-      '--trim-filenames',
-      '180',
       ...tuningArgs(request.tuning),
       '-f',
       request.formatId,
-      '-o',
-      '${workingDir.path}${Platform.pathSeparator}%(title)s.%(ext)s',
+      ...outputPathArgs(workingDir.path),
       '--embed-metadata',
       '--embed-thumbnail',
       ...switch (request.outputKind) {
@@ -1119,6 +1116,21 @@ Duration? _etaFromText(String? text) {
     _ => null,
   };
 }
+
+/// yt-dlp output template with the title capped at 150 bytes, leaving room
+/// for yt-dlp suffixes (.f137, .temp, .webp) under the 255-byte filename
+/// limit. The cap lives in the template because `--trim-filenames` splits the
+/// whole path on its last two dots, so titles containing "." escaped it and
+/// thumbnail writes failed with "File name too long". The directory goes
+/// through `-P` so it never counts toward the limit.
+const downloadOutputTemplate = '%(title,id|media).150B.%(ext)s';
+
+List<String> outputPathArgs(String directory) => [
+  '-P',
+  directory,
+  '-o',
+  downloadOutputTemplate,
+];
 
 /// yt-dlp retry/politeness arguments for the user's tuning settings; sleep
 /// options are added only when enabled so defaults match older releases.

@@ -169,4 +169,15 @@ void main() {
     expect(sanitized, isNot(contains('example.com')));
     expect(sanitized, isNot(contains('abc123')));
   });
+
+  test('download output caps the title in the template, not the path', () {
+    final args = outputPathArgs('/tmp/dbase-dl-1');
+
+    expect(args, ['-P', '/tmp/dbase-dl-1', '-o', downloadOutputTemplate]);
+    // A byte cap on the title field survives titles with dots, which
+    // --trim-filenames mistook for extensions (issue #15).
+    expect(downloadOutputTemplate, contains('%(title,id|media).150B'));
+    expect(downloadOutputTemplate, endsWith('.%(ext)s'));
+    expect(args.join(' '), isNot(contains('--trim-filenames')));
+  });
 }

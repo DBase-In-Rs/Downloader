@@ -8,6 +8,26 @@ versioning once releases begin.
 
 ## [Unreleased]
 
+## [1.0.15] - 2026-10-14
+
+### Changed
+
+- Android now builds with Gradle wrapper `9.8.1` and Kotlin Android plugin
+  `2.4.21`.
+- Flutter dependencies updated: `cupertino_icons` `2.0.0`,
+  `shared_preferences` `2.5.6`, `package_info_plus` `10.2.2`, `url_launcher`
+  `6.3.3`, and `video_player` `2.14.1`.
+
+### Fixed
+
+- Downloads of media with very long titles no longer fail with
+  `[Errno 36] File name too long` (issue #15). yt-dlp's `--trim-filenames`
+  split the whole output path on its last two dots, so titles containing
+  `.` kept their long tail and the cover-artwork file overflowed the
+  255-byte name limit. The title is now capped at 150 bytes inside the
+  output template on Android and desktop, and the working directory is
+  passed separately with `-P`.
+
 ## [1.0.14] - 2026-09-30
 
 ### Added
