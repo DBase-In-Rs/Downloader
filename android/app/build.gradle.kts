@@ -115,7 +115,7 @@ flutter {
 
 dependencies {
     val youtubedlAndroid = "0.18.1"
-    val jackson = "2.22.4"
+    val jackson = "2.23.0"
 
     implementation("io.github.junkfood02.youtubedl-android:library:$youtubedlAndroid")
     implementation("io.github.junkfood02.youtubedl-android:ffmpeg:$youtubedlAndroid")
